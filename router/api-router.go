@@ -204,6 +204,16 @@ func SetApiRouter(router *gin.Engine) {
 			subscriptionAdminRoute.DELETE("/user_subscriptions/:id", controller.AdminDeleteUserSubscription)
 		}
 
+		// Administrator management of another user's API tokens
+		adminTokenRoute := apiRouter.Group("/admin/users/:id/tokens")
+		adminTokenRoute.Use(middleware.AdminAuth())
+		{
+			adminTokenRoute.GET("", controller.AdminListUserTokens)
+			adminTokenRoute.POST("", controller.AdminCreateUserToken)
+			adminTokenRoute.PATCH("/:token_id", controller.AdminUpdateUserTokenStatus)
+			adminTokenRoute.DELETE("/:token_id", controller.AdminDeleteUserToken)
+		}
+
 		// Subscription payment callbacks (no auth)
 		apiRouter.POST("/subscription/epay/notify", anonymousRequestBodyLimit, controller.SubscriptionEpayNotify)
 		apiRouter.GET("/subscription/epay/notify", controller.SubscriptionEpayNotify)

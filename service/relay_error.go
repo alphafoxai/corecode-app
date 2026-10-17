@@ -60,12 +60,18 @@ func ShouldRetryRelayError(c *gin.Context, openaiErr *types.NewAPIError, retryTi
 	return DecideRelayRetry(c, openaiErr, retryTimes).Action == "retry"
 }
 
+// autoDisableRequested reports whether a failed relay request should disable its channel. A request
+// that used its token's upstream key says nothing about the shared channel, so it never does.
+func autoDisableRequested(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) bool {
+	return ShouldDisableChannel(err) && channelError.AutoBan && !common.GetContextKeyBool(c, constant.ContextKeyChannelUpstreamKeyUsed)
+}
+
 func ProcessChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError, relayInfo *relaycommon.RelayInfo) {
 	if err == nil {
 		return
 	}
 	logger.LogError(c, common.LogText("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())))
-	if ShouldDisableChannel(err) && channelError.AutoBan {
+	if autoDisableRequested(c, channelError, err) {
 		reason := err.MaskSensitiveErrorWithStatusCode()
 		gopool.Go(func() {
 			DisableChannel(channelError, reason)

@@ -77,14 +77,17 @@ func buildMaskedTokenResponses(tokens []*model.Token) []*tokenResponse {
 	return maskedTokens
 }
 
-func getTokenRequestUserGroup(c *gin.Context) (string, error) {
-	if userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup); userGroup != "" {
-		return userGroup, nil
+// getTokenRequestUserGroup returns the group that bounds the auto groups of a token owned by ownerId.
+func getTokenRequestUserGroup(c *gin.Context, ownerId int) (string, error) {
+	if ownerId == c.GetInt("id") {
+		if userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup); userGroup != "" {
+			return userGroup, nil
+		}
+		if userGroup := c.GetString("group"); userGroup != "" {
+			return userGroup, nil
+		}
 	}
-	if userGroup := c.GetString("group"); userGroup != "" {
-		return userGroup, nil
-	}
-	return model.GetUserGroup(c.GetInt("id"), false)
+	return model.GetUserGroup(ownerId, false)
 }
 
 func setTokenAutoGroups(c *gin.Context, token *model.Token, groups []string) bool {
@@ -102,7 +105,7 @@ func setTokenAutoGroups(c *gin.Context, token *model.Token, groups []string) boo
 		return false
 	}
 
-	userGroup, err := getTokenRequestUserGroup(c)
+	userGroup, err := getTokenRequestUserGroup(c, token.UserId)
 	if err != nil {
 		common.ApiError(c, err)
 		return false
@@ -174,7 +177,7 @@ func GetToken(c *gin.Context) {
 }
 
 func GetTokenAutoGroups(c *gin.Context) {
-	userGroup, err := getTokenRequestUserGroup(c)
+	userGroup, err := getTokenRequestUserGroup(c, c.GetInt("id"))
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -282,39 +285,54 @@ func AddToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	token := request.Token
-	if len(token.Name) > 50 {
-		common.ApiErrorT(c, "Token name is too long")
+	params := tokenAuditParams(c)
+	params["name"] = request.Name
+	token := createUserToken(c, c.GetInt("id"), request.Token, request.AutoGroups.Groups)
+	if token == nil {
 		return
 	}
-	params := tokenAuditParams(c)
-	params["name"] = token.Name
+	params["id"] = token.Id
+	common.SetContextKey(c, constant.ContextKeyTokenAuditSucceeded, true)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+}
+
+// createUserToken validates a token request and inserts a token owned by userId. It writes the
+// error response and returns nil when the request is rejected.
+func createUserToken(c *gin.Context, userId int, token model.Token, autoGroups []string) *model.Token {
+	if len(token.Name) > 50 {
+		common.ApiErrorT(c, "Token name is too long")
+		return nil
+	}
 	// 非无限额度时，检查额度值是否超出有效范围
 	if !token.UnlimitedQuota {
 		if token.RemainQuota < 0 {
 			common.ApiErrorT(c, "Quota value cannot be negative")
-			return
+			return nil
 		}
 		maxQuotaValue := maxTokenQuota()
 		if token.RemainQuota > maxQuotaValue {
 			common.ApiErrorT(c, "Quota value exceeds valid range, maximum is {{max}}", map[string]any{"max": logger.FormatQuota(maxQuotaValue)})
-			return
+			return nil
 		}
 	}
 	// 检查用户令牌数量是否已达上限
 	maxTokens := operation_setting.GetMaxUserTokens()
-	count, err := model.CountUserTokens(c.GetInt("id"))
+	count, err := model.CountUserTokens(userId)
 	if err != nil {
 		common.ApiError(c, err)
-		return
+		return nil
 	}
 	if int(count) >= maxTokens {
 		common.ApiErrorT(c, "Maximum number of tokens reached ({{max}})", map[string]any{"max": maxTokens})
-		return
+		return nil
 	}
+	token.UserId = userId
 	if token.Group == "auto" {
-		if !setTokenAutoGroups(c, &token, request.AutoGroups.Groups) {
-			return
+		if !setTokenAutoGroups(c, &token, autoGroups) {
+			return nil
 		}
 	} else {
 		token.CrossGroupRetry = false
@@ -324,10 +342,10 @@ func AddToken(c *gin.Context) {
 	if err != nil {
 		common.ApiErrorT(c, "Failed to generate token")
 		common.SysLog(common.LogText("failed to generate token key: %s", err.Error()))
-		return
+		return nil
 	}
 	cleanToken := model.Token{
-		UserId:             c.GetInt("id"),
+		UserId:             userId,
 		Name:               token.Name,
 		Key:                key,
 		CreatedTime:        common.GetTimestamp(),
@@ -341,18 +359,13 @@ func AddToken(c *gin.Context) {
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
 		AutoGroups:         token.AutoGroups,
+		UpstreamKey:        token.UpstreamKey,
 	}
-	err = cleanToken.Insert()
-	if err != nil {
+	if err := cleanToken.Insert(); err != nil {
 		common.ApiError(c, err)
-		return
+		return nil
 	}
-	params["id"] = cleanToken.Id
-	common.SetContextKey(c, constant.ContextKeyTokenAuditSucceeded, true)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
+	return &cleanToken
 }
 
 func DeleteToken(c *gin.Context) {
@@ -413,15 +426,8 @@ func UpdateToken(c *gin.Context) {
 	}
 	params["name"] = cleanToken.Name
 	previous := *cleanToken
-	if token.Status == common.TokenStatusEnabled {
-		if cleanToken.Status == common.TokenStatusExpired && cleanToken.ExpiredTime <= common.GetTimestamp() && cleanToken.ExpiredTime != -1 {
-			common.ApiErrorT(c, "Token has expired and cannot be enabled. Please modify the expiration time or set it to never expire")
-			return
-		}
-		if cleanToken.Status == common.TokenStatusExhausted && cleanToken.RemainQuota <= 0 && !cleanToken.UnlimitedQuota {
-			common.ApiErrorT(c, "Token quota is exhausted and cannot be enabled. Please modify the remaining quota or set it to unlimited")
-			return
-		}
+	if token.Status == common.TokenStatusEnabled && !tokenEnableAllowed(c, cleanToken) {
+		return
 	}
 	if statusOnly != "" {
 		cleanToken.Status = token.Status
@@ -546,4 +552,169 @@ func GetTokenKeysBatch(c *gin.Context) {
 	params["returned_ids"] = returnedIDs
 	common.SetContextKey(c, constant.ContextKeyTokenAuditSucceeded, true)
 	common.ApiSuccess(c, gin.H{"keys": keysMap})
+}
+
+// tokenEnableAllowed reports whether a stored expired or exhausted token may be enabled again.
+// It writes the error response and returns false when it may not.
+func tokenEnableAllowed(c *gin.Context, token *model.Token) bool {
+	if token.Status == common.TokenStatusExpired && token.ExpiredTime <= common.GetTimestamp() && token.ExpiredTime != -1 {
+		common.ApiErrorT(c, "Token has expired and cannot be enabled. Please modify the expiration time or set it to never expire")
+		return false
+	}
+	if token.Status == common.TokenStatusExhausted && token.RemainQuota <= 0 && !token.UnlimitedQuota {
+		common.ApiErrorT(c, "Token quota is exhausted and cannot be enabled. Please modify the remaining quota or set it to unlimited")
+		return false
+	}
+	return true
+}
+
+const maxTokenUpstreamKeyLength = 256
+
+// adminTokenOwner resolves the :id user of an administrator token route. The user must exist and
+// rank below the caller, unless the caller is root.
+func adminTokenOwner(c *gin.Context) (*model.User, bool) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return nil, false
+	}
+	owner, err := model.GetUserById(id, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return nil, false
+	}
+	if !canManageTargetRole(c.GetInt("role"), owner.Role) {
+		common.ApiErrorT(c, "No permission to access users of same or higher level")
+		return nil, false
+	}
+	return owner, true
+}
+
+// adminUserTokenRequest is the body of POST /api/admin/users/:id/tokens.
+type adminUserTokenRequest struct {
+	Name           string `json:"name"`
+	Group          string `json:"group"`
+	UnlimitedQuota bool   `json:"unlimited_quota"`
+	RemainQuota    int    `json:"remain_quota"`
+	ExpiredTime    int64  `json:"expired_time"`
+	UpstreamKey    string `json:"upstream_key"`
+}
+
+// AdminCreateUserToken creates an API token for another user. The full key is returned once.
+func AdminCreateUserToken(c *gin.Context) {
+	owner, ok := adminTokenOwner(c)
+	if !ok {
+		return
+	}
+	var request adminUserTokenRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	upstreamKey := strings.TrimSpace(request.UpstreamKey)
+	if len(upstreamKey) > maxTokenUpstreamKeyLength {
+		common.ApiErrorT(c, "Upstream key is too long")
+		return
+	}
+	token := createUserToken(c, owner.Id, model.Token{
+		Name:           request.Name,
+		Group:          request.Group,
+		UnlimitedQuota: request.UnlimitedQuota,
+		RemainQuota:    request.RemainQuota,
+		ExpiredTime:    request.ExpiredTime,
+		UpstreamKey:    upstreamKey,
+	}, nil)
+	if token == nil {
+		return
+	}
+	recordManageAuditFor(c, owner.Id, "user_token.create", map[string]any{"id": token.Id, "name": token.Name})
+	// The stored key has no sk- prefix; users paste and see the prefixed form (see web api-keys).
+	common.ApiSuccess(c, gin.H{"id": token.Id, "key": "sk-" + token.GetFullKey()})
+}
+
+// AdminListUserTokens lists one page of another user's API tokens. Keys are masked and the
+// upstream key is never serialized.
+func AdminListUserTokens(c *gin.Context) {
+	owner, ok := adminTokenOwner(c)
+	if !ok {
+		return
+	}
+	pageInfo := common.GetPageQuery(c)
+	tokens, err := model.GetAllUserTokens(owner.Id, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	total, err := model.CountUserTokens(owner.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(buildMaskedTokenResponses(tokens))
+	common.ApiSuccess(c, pageInfo)
+}
+
+// AdminUpdateUserTokenStatus enables (1) or disables (2) one API token of another user.
+func AdminUpdateUserTokenStatus(c *gin.Context) {
+	owner, ok := adminTokenOwner(c)
+	if !ok {
+		return
+	}
+	tokenID, err := strconv.Atoi(c.Param("token_id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	var request struct {
+		Status int `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if request.Status != common.TokenStatusEnabled && request.Status != common.TokenStatusDisabled {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	token, err := model.GetTokenByIds(tokenID, owner.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	previousStatus := token.Status
+	if request.Status == common.TokenStatusEnabled && !tokenEnableAllowed(c, token) {
+		return
+	}
+	token.Status = request.Status
+	if err := token.SelectUpdate(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAuditFor(c, owner.Id, "user_token.update_status", map[string]any{"id": token.Id, "from": previousStatus, "to": token.Status})
+	common.ApiSuccess(c, buildMaskedTokenResponse(token))
+}
+
+// AdminDeleteUserToken deletes one API token of another user.
+func AdminDeleteUserToken(c *gin.Context) {
+	owner, ok := adminTokenOwner(c)
+	if !ok {
+		return
+	}
+	tokenID, err := strconv.Atoi(c.Param("token_id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	token, err := model.GetTokenByIds(tokenID, owner.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := token.Delete(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAuditFor(c, owner.Id, "user_token.delete", map[string]any{"id": token.Id, "name": token.Name})
+	common.ApiSuccess(c, nil)
 }

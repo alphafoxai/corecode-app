@@ -6347,6 +6347,7 @@
     "This will delete all <strong>used</strong>, <strong>disabled</strong>, and <strong>expired</strong> redemption codes.": "<strong>使用済み</strong>、<strong>無効化済み</strong>、<strong>期限切れ</strong>の引き換えコードをすべて削除します。",
     "This will delete all channel affinity cache entries still in memory.": "メモリ内のすべてのチャネルアフィニティキャッシュエントリが削除されます。",
     "Token name is too long": "トークン名が長すぎます",
+    "Upstream key is too long": "上流キーが長すぎます",
     "This will delete temporary cache files that have not been used for more than 10 minutes": "10分以上使用されていない一時キャッシュファイルが削除されます",
     "This will extend the deployment by the specified hours.": "これにより、デプロイメントを指定された時間分延長します。",
     "This will permanently delete all manually and automatically disabled channels. This action cannot be undone.": "手動および自動で無効化されたすべてのチャネルを完全に削除します。この操作は元に戻せません。",

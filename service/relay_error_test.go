@@ -211,3 +211,17 @@ func TestRequestPolicyEventsReachLogAdminInfo(t *testing.T) {
 	AppendRelayLogAdminInfo(untouched, nil, other)
 	assert.NotContains(t, other.Snapshot()["admin_info"], "request_policy", "requests without decisions do not carry an empty record")
 }
+
+func TestAutoDisableSkipsRequestsThatUsedTokenUpstreamKey(t *testing.T) {
+	previousAutoDisable := common.AutomaticDisableChannelEnabled
+	common.AutomaticDisableChannelEnabled = true
+	t.Cleanup(func() { common.AutomaticDisableChannelEnabled = previousAutoDisable })
+
+	apiErr := types.NewErrorWithStatusCode(errors.New("upstream rejected the key"), types.ErrorCodeChannelNoAvailableKey, http.StatusUnauthorized)
+	channelError := types.ChannelError{ChannelId: 1, ChannelName: "shared-channel", AutoBan: true}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	assert.True(t, autoDisableRequested(c, channelError, apiErr), "a channel-key failure disables the channel")
+	common.SetContextKey(c, constant.ContextKeyChannelUpstreamKeyUsed, true)
+	assert.False(t, autoDisableRequested(c, channelError, apiErr), "a token-upstream-key failure must not disable the shared channel")
+}

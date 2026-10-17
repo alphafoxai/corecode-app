@@ -341,3 +341,49 @@ func TestSharedEndpointRebindsToBoundNewAPIExtension(t *testing.T) {
 	assert.Equal(t, "alpha", c.GetString("task_plugin_key"), "the first bound candidate executes regardless of the earlier pin")
 	assert.Equal(t, "alpha", c.MustGet(jsplugin.ContextKeyPinnedEndpoint).(jsplugin.PinnedEndpoint).Plugin.Meta.Key)
 }
+
+func TestSelectedChannelKeyPrefersTokenUpstreamKey(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		channel     *model.Channel
+		upstreamKey string
+		wantKey     string
+		wantUsed    bool
+	}{
+		{
+			name:    "channel key when the token has no upstream key",
+			channel: &model.Channel{Type: constant.ChannelTypeAnthropic, Key: "channel-key"},
+			wantKey: "channel-key",
+		},
+		{
+			name:        "token upstream key replaces the channel key",
+			channel:     &model.Channel{Type: constant.ChannelTypeAnthropic, Key: "channel-key"},
+			upstreamKey: "token-upstream-key",
+			wantKey:     "token-upstream-key",
+			wantUsed:    true,
+		},
+		{
+			name: "token upstream key bypasses multi-key rotation",
+			channel: &model.Channel{
+				Type:        constant.ChannelTypeAnthropic,
+				Key:         "channel-key-a\nchannel-key-b",
+				ChannelInfo: model.ChannelInfo{IsMultiKey: true},
+			},
+			upstreamKey: "token-upstream-key",
+			wantKey:     "token-upstream-key",
+			wantUsed:    true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			require.NoError(t, SetupContextForToken(c, &model.Token{
+				Id: 3, UserId: 2, Key: "user-token", Group: "default", UnlimitedQuota: true, UpstreamKey: test.upstreamKey,
+			}))
+			require.Nil(t, SetupContextForSelectedChannel(c, test.channel, "claude-sonnet-5-5"))
+
+			assert.Equal(t, test.wantKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey))
+			assert.False(t, common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey))
+			assert.Equal(t, test.wantUsed, common.GetContextKeyBool(c, constant.ContextKeyChannelUpstreamKeyUsed))
+		})
+	}
+}

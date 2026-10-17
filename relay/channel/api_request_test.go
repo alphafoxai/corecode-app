@@ -1,12 +1,15 @@
 package channel
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	common2 "github.com/QuantumNous/new-api/common"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -216,4 +219,28 @@ func TestToWebSocketURL(t *testing.T) {
 	} {
 		assert.Equal(t, want, toWebSocketURL(input), input)
 	}
+}
+
+func TestDoRequestCapturesUpstreamRequestIDs(t *testing.T) {
+	service.InitHttpClient()
+	gin.SetMode(gin.TestMode)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(common2.GPTLoadRequestIdKey, "gptload-req-1")
+		w.Header().Set(common2.RequestIdKey, "oneapi-req-1")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(upstream.Close)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req, err := http.NewRequest(http.MethodPost, upstream.URL, bytes.NewReader([]byte("request body")))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	resp, err := doRequest(ctx, req, info)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, "gptload-req-1", ctx.GetString(common2.UpstreamGPTLoadRequestIdKey))
+	assert.Equal(t, "oneapi-req-1", ctx.GetString(common2.UpstreamRequestIdKey))
 }

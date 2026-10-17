@@ -192,6 +192,11 @@ var CohereSafetySetting string
 const (
 	RequestIdKey         = "X-Oneapi-Request-Id"
 	UpstreamRequestIdKey = "X-Upstream-Request-Id"
+
+	// GPTLoadRequestIdKey is the response header in which gpt-load reports its request ID.
+	GPTLoadRequestIdKey = "X-GPTLoad-Request-ID"
+	// UpstreamGPTLoadRequestIdKey is the gin context key holding that ID for the usage log.
+	UpstreamGPTLoadRequestIdKey = "X-GPTLoad-Upstream-Request-Id"
 )
 
 const (

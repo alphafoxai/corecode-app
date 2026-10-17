@@ -25,6 +25,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type tokenAPIResponse struct {
@@ -891,4 +892,60 @@ func verifyAPITokenAudit(t *testing.T) {
 		require.NoError(t, model.DB.Model(&model.Token{}).Where("name = ?", "audit-down").Count(&count).Error)
 		assert.EqualValues(t, 1, count)
 	})
+}
+
+func TestAdminUserTokenCreateReturnsUsableKeyAndListOmitsSecrets(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.AuditLog{}))
+	owner := &model.User{Username: "token-owner", AffCode: "token-owner-aff", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, db.Create(owner).Error)
+	peerAdmin := &model.User{Username: "peer-admin", AffCode: "peer-admin-aff", Role: common.RoleAdminUser, Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, db.Create(peerAdmin).Error)
+	const upstreamKey = "gptload-access-key-owner-1"
+
+	createCtx, createRecorder := newAuthenticatedContext(t, http.MethodPost, "/api/admin/users/"+strconv.Itoa(owner.Id)+"/tokens", map[string]any{
+		"name": "ci-token", "group": "default", "unlimited_quota": true, "upstream_key": upstreamKey,
+	}, 1)
+	createCtx.Set("role", common.RoleRootUser)
+	createCtx.Params = gin.Params{{Key: "id", Value: strconv.Itoa(owner.Id)}}
+	AdminCreateUserToken(createCtx)
+	createResponse := decodeAPIResponse(t, createRecorder)
+	require.True(t, createResponse.Success, createResponse.Message)
+	var created struct {
+		ID  int    `json:"id"`
+		Key string `json:"key"`
+	}
+	require.NoError(t, common.Unmarshal(createResponse.Data, &created))
+	require.True(t, strings.HasPrefix(created.Key, "sk-"), "the full key carries the sk- prefix shown to users")
+
+	// Authentication strips the sk- prefix and looks the token up by its stored key.
+	var stored model.Token
+	require.NoError(t, db.Where(clause.Eq{Column: "key", Value: strings.TrimPrefix(created.Key, "sk-")}).First(&stored).Error)
+	assert.Equal(t, created.ID, stored.Id)
+	assert.Equal(t, owner.Id, stored.UserId)
+	assert.Equal(t, common.TokenStatusEnabled, stored.Status)
+	assert.Equal(t, upstreamKey, stored.UpstreamKey)
+
+	listCtx, listRecorder := newAuthenticatedContext(t, http.MethodGet, "/api/admin/users/"+strconv.Itoa(owner.Id)+"/tokens?p=1&page_size=10", nil, 1)
+	listCtx.Set("role", common.RoleRootUser)
+	listCtx.Params = gin.Params{{Key: "id", Value: strconv.Itoa(owner.Id)}}
+	AdminListUserTokens(listCtx)
+	listResponse := decodeAPIResponse(t, listRecorder)
+	require.True(t, listResponse.Success, listResponse.Message)
+	var page tokenPageResponse
+	require.NoError(t, common.Unmarshal(listResponse.Data, &page))
+	require.Len(t, page.Items, 1)
+	assert.Equal(t, stored.GetMaskedKey(), page.Items[0].Key)
+	assert.NotContains(t, listRecorder.Body.String(), stored.GetFullKey(), "the list must not carry the plaintext key")
+	assert.NotContains(t, listRecorder.Body.String(), upstreamKey, "the list must not carry the upstream key")
+
+	// An administrator may not manage another administrator's tokens.
+	peerCtx, peerRecorder := newAuthenticatedContext(t, http.MethodPost, "/api/admin/users/"+strconv.Itoa(peerAdmin.Id)+"/tokens", map[string]any{"name": "blocked"}, 1)
+	peerCtx.Set("role", common.RoleAdminUser)
+	peerCtx.Params = gin.Params{{Key: "id", Value: strconv.Itoa(peerAdmin.Id)}}
+	AdminCreateUserToken(peerCtx)
+	assert.False(t, decodeAPIResponse(t, peerRecorder).Success)
+	var peerTokens int64
+	require.NoError(t, db.Model(&model.Token{}).Where("user_id = ?", peerAdmin.Id).Count(&peerTokens).Error)
+	assert.Zero(t, peerTokens)
 }

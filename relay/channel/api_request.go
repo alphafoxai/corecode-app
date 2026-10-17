@@ -581,6 +581,9 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	if upID := resp.Header.Get(common2.RequestIdKey); upID != "" {
 		c.Set(common2.UpstreamRequestIdKey, upID)
 	}
+	if gptloadID := resp.Header.Get(common2.GPTLoadRequestIdKey); gptloadID != "" {
+		c.Set(common2.UpstreamGPTLoadRequestIdKey, gptloadID)
+	}
 
 	_ = req.Body.Close()
 	_ = c.Request.Body.Close()

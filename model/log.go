@@ -280,7 +280,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	logger.LogInfo(c, common.LogText("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, common.LocalLogPreview(content)))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
-	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	upstreamRequestId := upstreamRequestID(c)
 	otherStr := other.JSONString()
 	// 判断是否需要记录 IP
 	needRecordIp := false
@@ -336,6 +336,16 @@ type RecordConsumeLogParams struct {
 	Other            *LogOther         `json:"other"`
 }
 
+// upstreamRequestID is the upstream request ID recorded on a usage log. gpt-load's
+// X-GPTLoad-Request-ID takes precedence: it joins the request to gpt-load's usage
+// record. X-Oneapi-Request-Id is the fallback.
+func upstreamRequestID(c *gin.Context) string {
+	if id := c.GetString(common.UpstreamGPTLoadRequestIdKey); id != "" {
+		return id
+	}
+	return c.GetString(common.UpstreamRequestIdKey)
+}
+
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
 	if !common.LogConsumeEnabled {
 		return
@@ -343,7 +353,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	logger.LogInfo(c, common.LogText("record consume log: userId=%d, params=%s", userId, common.GetJsonString(params)))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
-	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	upstreamRequestId := upstreamRequestID(c)
 	createdAt := common.GetTimestamp()
 	other := params.Other
 	content := other.setContent(params.Content)

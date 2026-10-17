@@ -59,6 +59,8 @@ func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing
 	ctx.Set("channel_name", "mutable-context-channel")
 	ctx.Set("channel_type", 9)
 	ctx.Set("use_channel", []string{"101"})
+	ctx.Set(common.UpstreamRequestIdKey, "oneapi-upstream-1")
+	ctx.Set(common.UpstreamGPTLoadRequestIdKey, "gptload-upstream-1")
 	common.SetContextKey(ctx, constant.ContextKeyRequestStartTime, time.Now().Add(-time.Second))
 
 	channelSnapshot := types.ChannelError{
@@ -73,6 +75,7 @@ func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing
 
 	var stored model.Log
 	require.NoError(t, database.First(&stored).Error)
+	assert.Equal(t, "gptload-upstream-1", stored.UpstreamRequestId, "gpt-load's request ID takes precedence over X-Oneapi-Request-Id")
 	assert.Equal(t, channelSnapshot.ChannelId, stored.ChannelId)
 	storedOther, err := common.StrToMap(stored.Other)
 	require.NoError(t, err)
