@@ -6348,6 +6348,8 @@
     "This will delete all channel affinity cache entries still in memory.": "这将删除内存中所有的渠道亲和性缓存条目。",
     "Token name is too long": "令牌名称过长",
     "Upstream key is too long": "上游密钥过长",
+    "Invalid idempotency key": "幂等键无效",
+    "Idempotency key was already used with different parameters": "该幂等键已用于其他参数",
     "This will delete temporary cache files that have not been used for more than 10 minutes": "这将删除超过 10 分钟未使用的临时缓存文件",
     "This will extend the deployment by the specified hours.": "这将通过指定的小时数延长部署。",
     "This will permanently delete all manually and automatically disabled channels. This action cannot be undone.": "这将永久删除所有手动禁用和自动禁用的渠道。此操作无法撤销。",

@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/alicebob/miniredis/v2"
+	"github.com/glebarez/sqlite"
 	"github.com/go-redis/redis/v8"
 
 	"github.com/gin-gonic/gin"
@@ -68,7 +69,7 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 			}
 		}
 	})
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.CasbinRule{}, &model.AuthzRole{}, &model.AuthFlow{}, &model.TwoFA{}, &model.PasskeyCredential{}, &model.UserAccessToken{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.CasbinRule{}, &model.AuthzRole{}, &model.AuthFlow{}, &model.TwoFA{}, &model.PasskeyCredential{}, &model.UserAccessToken{}, &model.QuotaAdjustmentRequest{}))
 	require.NoError(t, logDB.AutoMigrate(&model.Log{}, &model.AuditLog{}))
 	versionQuery := "SELECT version()"
 	if dialect == "sqlite" {
@@ -80,14 +81,15 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func performManageUserRequest(t *testing.T, body string) *httptest.ResponseRecorder {
+func performManageUserRequest(t *testing.T, body string, idempotencyKeys ...string) *httptest.ResponseRecorder {
 	t.Helper()
-	return performVerifiedManageUserRequest(t, body, service.AuthIdentity{UserID: 9999}, "")
+	return performVerifiedManageUserRequest(t, body, service.AuthIdentity{UserID: 9999}, "", idempotencyKeys...)
 }
 
 // performVerifiedManageUserRequest drives ManageUser as the root operator from
 // a dashboard login session, carrying the step-up proof status or role changes need.
-func performVerifiedManageUserRequest(t *testing.T, body string, identity service.AuthIdentity, proof string) *httptest.ResponseRecorder {
+// Each idempotency key is sent as its own Idempotency-Key header value.
+func performVerifiedManageUserRequest(t *testing.T, body string, identity service.AuthIdentity, proof string, idempotencyKeys ...string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -96,6 +98,9 @@ func performVerifiedManageUserRequest(t *testing.T, body string, identity servic
 	c.Request.Header.Set("Content-Type", "application/json")
 	if proof != "" {
 		c.Request.Header.Set("X-Security-Proof", proof)
+	}
+	for _, key := range idempotencyKeys {
+		c.Request.Header.Add("Idempotency-Key", key)
 	}
 	c.Set("id", identity.UserID)
 	c.Set("role", common.RoleRootUser)
@@ -534,14 +539,14 @@ func TestManageUserQuotaConcurrentSnapshots(t *testing.T) {
 		}
 	}))
 	type result struct {
-		adjustment *model.UserQuotaAdjustment
+		adjustment *model.UserQuotaAdjustmentResult
 		err        error
 		value      int
 	}
 	results := make(chan result, 2)
 	for _, value := range []int{10, 20} {
 		go func(value int) {
-			adjustment, err := model.AdjustUserQuota(user.Id, common.RoleRootUser, "add", value)
+			adjustment, err := model.AdjustUserQuota(model.UserQuotaAdjustmentRequest{UserID: user.Id, OperatorRole: common.RoleRootUser, Mode: "add", Value: value})
 			results <- result{adjustment, err, value}
 		}(value)
 	}
@@ -558,7 +563,7 @@ func TestManageUserQuotaConcurrentSnapshots(t *testing.T) {
 		}
 		require.NotNil(t, result.adjustment)
 		assert.Equal(t, result.value, result.adjustment.After-result.adjustment.Before)
-		committed = append(committed, *result.adjustment)
+		committed = append(committed, result.adjustment.UserQuotaAdjustment)
 	}
 	require.NoError(t, db.Callback().Query().Remove("test:concurrent_quota_start"))
 	require.NotEmpty(t, committed)
@@ -640,4 +645,242 @@ func TestManageUserQuotaCacheUsesCommittedIntegerDifference(t *testing.T) {
 			}
 		})
 	}
+}
+
+// setupIdempotentQuotaTestDB opens the manage-user fixture. On SQLite it swaps in a
+// database with production connection settings (busy timeout and BEGIN IMMEDIATE),
+// so concurrent writers wait for each other as they do in deployment.
+func setupIdempotentQuotaTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	fixture := setupManageUserTestDB(t)
+	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
+		return fixture
+	}
+	db, err := gorm.Open(sqlite.Open(t.TempDir()+"/quota-idempotency.db?_pragma=busy_timeout(30000)&_pragma=journal_mode(WAL)&_txlock=immediate"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Log{}, &model.AuditLog{}, &model.QuotaAdjustmentRequest{}))
+	previousDB, previousLogDB := model.DB, model.LOG_DB
+	model.DB, model.LOG_DB = db, db
+	t.Cleanup(func() {
+		model.DB, model.LOG_DB = previousDB, previousLogDB
+		if sqlDB, err := db.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	return db
+}
+
+type quotaManageResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    *struct {
+		Replayed bool `json:"replayed"`
+	} `json:"data"`
+}
+
+func decodeQuotaManageResponse(t *testing.T, body string) quotaManageResponse {
+	t.Helper()
+	var response quotaManageResponse
+	require.NoError(t, common.Unmarshal([]byte(body), &response), body)
+	return response
+}
+
+func countQuotaManageLogs(t *testing.T, userID int, logType int) int64 {
+	t.Helper()
+	var count int64
+	require.NoError(t, model.LOG_DB.Model(&model.Log{}).Where("user_id = ? AND type = ?", userID, logType).Count(&count).Error)
+	return count
+}
+
+func countQuotaManageAudits(t *testing.T, action string) int64 {
+	t.Helper()
+	var count int64
+	require.NoError(t, model.LOG_DB.Model(&model.AuditLog{}).Where("action = ?", action).Count(&count).Error)
+	return count
+}
+
+func countQuotaAdjustmentRows(t *testing.T) int64 {
+	t.Helper()
+	var count int64
+	require.NoError(t, model.DB.Model(&model.QuotaAdjustmentRequest{}).Count(&count).Error)
+	return count
+}
+
+func TestManageUserQuotaIdempotencyReplayDoesNotReapply(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "idempotent-replay", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	body := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+
+	first := decodeQuotaManageResponse(t, performManageUserRequest(t, body, "replay-key-1").Body.String())
+	require.True(t, first.Success)
+	require.NotNil(t, first.Data)
+	assert.False(t, first.Data.Replayed)
+	second := decodeQuotaManageResponse(t, performManageUserRequest(t, body, "replay-key-1").Body.String())
+	require.True(t, second.Success)
+	require.NotNil(t, second.Data)
+	assert.True(t, second.Data.Replayed)
+
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1500, user.Quota)
+	assert.Equal(t, int64(1), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+	assert.Equal(t, int64(1), countQuotaManageAudits(t, "user.quota_add"))
+	assert.Equal(t, int64(1), countQuotaManageAudits(t, "user.quota_replay"))
+	assert.Equal(t, int64(1), countQuotaAdjustmentRows(t))
+}
+
+func TestManageUserQuotaIdempotencyRejectsDifferentParameters(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "idempotent-mismatch", AffCode: "idempotent-mismatch-aff", Quota: 1000}
+	other := model.User{Username: "idempotent-other", AffCode: "idempotent-other-aff", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	require.NoError(t, db.Create(&other).Error)
+	applied := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+	require.JSONEq(t, `{"success":true,"message":"","data":{"replayed":false}}`, performManageUserRequest(t, applied, "mismatch-key").Body.String())
+
+	for _, body := range []string{
+		fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":600}`, user.Id),
+		fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"subtract","value":500}`, user.Id),
+		fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"override","value":1500}`, user.Id),
+		fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, other.Id),
+	} {
+		response := decodeQuotaManageResponse(t, performManageUserRequest(t, body, "mismatch-key").Body.String())
+		assert.False(t, response.Success, body)
+		assert.Equal(t, "Idempotency key was already used with different parameters", response.Message, body)
+	}
+
+	require.NoError(t, db.First(&user, user.Id).Error)
+	require.NoError(t, db.First(&other, other.Id).Error)
+	assert.Equal(t, 1500, user.Quota)
+	assert.Equal(t, 1000, other.Quota)
+	assert.Equal(t, int64(1), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+	assert.Equal(t, int64(0), countQuotaManageLogs(t, other.Id, model.LogTypeTopup))
+	assert.Equal(t, int64(1), countQuotaAdjustmentRows(t))
+}
+
+func TestManageUserQuotaIdempotencyKeyValidation(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "idempotent-validation", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	body := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+
+	for _, tc := range []struct {
+		name string
+		keys []string
+	}{
+		{"empty", []string{""}},
+		{"space", []string{"a b"}},
+		{"non_ascii", []string{"é"}},
+		{"del_control", []string{"a\x7fb"}},
+		{"too_long", []string{strings.Repeat("k", 129)}},
+		{"repeated_header", []string{"same", "same"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := decodeQuotaManageResponse(t, performManageUserRequest(t, body, tc.keys...).Body.String())
+			assert.False(t, response.Success)
+			assert.Equal(t, "Invalid idempotency key", response.Message)
+		})
+	}
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1000, user.Quota)
+	assert.Equal(t, int64(0), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+	assert.Equal(t, int64(0), countQuotaAdjustmentRows(t))
+
+	// 128 bytes made only of the two printable edge characters 0x21 and 0x7E is accepted.
+	response := decodeQuotaManageResponse(t, performManageUserRequest(t, body, strings.Repeat("!~", 64)).Body.String())
+	require.True(t, response.Success)
+	require.NotNil(t, response.Data)
+	assert.False(t, response.Data.Replayed)
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1500, user.Quota)
+}
+
+func TestManageUserQuotaWithoutIdempotencyKeyKeepsResponseAndRecordsNoKey(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "plain-quota", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	body := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+
+	for range 2 {
+		require.JSONEq(t, `{"success":true,"message":""}`, performManageUserRequest(t, body).Body.String())
+	}
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 2000, user.Quota, "without a key every request applies")
+	assert.Equal(t, int64(2), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+	assert.Equal(t, int64(0), countQuotaAdjustmentRows(t))
+}
+
+func TestManageUserQuotaIdempotencyFailedAdjustmentLeavesNoKey(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "idempotent-failure", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	body := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+
+	// The key insert runs after the balance update, inside the same transaction.
+	// Failing it must roll back both the balance change and the key.
+	require.NoError(t, db.Callback().Create().Before("gorm:create").Register("test:fail_quota_request_insert", func(tx *gorm.DB) {
+		if tx.Statement.Table == "quota_adjustment_requests" {
+			tx.AddError(errors.New("injected quota request insert failure"))
+		}
+	}))
+	failed := decodeQuotaManageResponse(t, performManageUserRequest(t, body, "failed-key").Body.String())
+	assert.False(t, failed.Success)
+	require.NoError(t, db.Callback().Create().Remove("test:fail_quota_request_insert"))
+
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1000, user.Quota)
+	assert.Equal(t, int64(0), countQuotaAdjustmentRows(t))
+	assert.Equal(t, int64(0), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+
+	retry := decodeQuotaManageResponse(t, performManageUserRequest(t, body, "failed-key").Body.String())
+	require.True(t, retry.Success, retry.Message)
+	require.NotNil(t, retry.Data)
+	assert.False(t, retry.Data.Replayed, "a retry after a rolled-back attempt applies normally")
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1500, user.Quota)
+	assert.Equal(t, int64(1), countQuotaAdjustmentRows(t))
+	assert.Equal(t, int64(1), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
+}
+
+func TestManageUserQuotaIdempotentConcurrentRequestsApplyOnce(t *testing.T) {
+	db := setupIdempotentQuotaTestDB(t)
+	createQuotaTestOperator(t, db, common.RoleRootUser)
+	user := model.User{Username: "idempotent-concurrent", Quota: 1000}
+	require.NoError(t, db.Create(&user).Error)
+	body := fmt.Sprintf(`{"id":%d,"action":"add_quota","mode":"add","value":500}`, user.Id)
+
+	const attempts = 8
+	raw := make([]string, attempts)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			raw[i] = performManageUserRequest(t, body, "concurrent-key").Body.String()
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	applied := 0
+	for _, text := range raw {
+		response := decodeQuotaManageResponse(t, text)
+		require.True(t, response.Success, text)
+		require.NotNil(t, response.Data, text)
+		if !response.Data.Replayed {
+			applied++
+		}
+	}
+	assert.Equal(t, 1, applied, "exactly one of the same-key requests applies")
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1500, user.Quota)
+	assert.Equal(t, int64(1), countQuotaAdjustmentRows(t))
+	assert.Equal(t, int64(1), countQuotaManageLogs(t, user.Id, model.LogTypeTopup))
 }
