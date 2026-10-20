@@ -19,6 +19,10 @@ const (
 	MsgAuthTokenGroupDeprecated   = "auth.token_group_deprecated"
 	MsgAuthChannelSelectForbidden = "auth.channel_select_forbidden"
 
+	MsgAuthClaudeCodeOnly           = "auth.claude_code_only"
+	MsgAuthClaudeCodeVersionTooLow  = "auth.claude_code_version_too_low"
+	MsgAuthClaudeCodeVersionTooHigh = "auth.claude_code_version_too_high"
+
 	MsgRateLimitReached      = "rate_limit.reached"
 	MsgRateLimitTotalReached = "rate_limit.total_reached"
 

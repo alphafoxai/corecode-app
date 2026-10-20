@@ -330,6 +330,18 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "claude_code_client_setting.groups":
+		err = operation_setting.ValidateClaudeCodeClientGroups(option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	case "claude_code_client_setting.min_version", "claude_code_client_setting.max_version":
+		err = operation_setting.ValidateClaudeCodeVersion(option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "billing_setting.billing_expr":
 		expressions := make(map[string]string)
 		if err = common.UnmarshalJsonStr(option.Value.(string), &expressions); err != nil {

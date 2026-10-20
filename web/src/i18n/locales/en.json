@@ -7269,6 +7269,18 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Claude Code clients": "Claude Code clients",
+    "Requests in the selected groups must come from the Claude Code CLI, judged by its User-Agent, headers, system prompt and metadata. Other clients get a 403 before channel selection and are not billed. A client that copies these fields can still pass.": "Requests in the selected groups must come from the Claude Code CLI, judged by its User-Agent, headers, system prompt and metadata. Other clients get a 403 before channel selection and are not billed. A client that copies these fields can still pass.",
+    "Save Claude Code client settings": "Save Claude Code client settings",
+    "Claude Code only groups": "Claude Code only groups",
+    "Select groups": "Select groups",
+    "Tokens in these groups accept Claude Code only. An auto token is checked when any of its candidate groups is listed.": "Tokens in these groups accept Claude Code only. An auto token is checked when any of its candidate groups is listed.",
+    "Minimum Claude Code version": "Minimum Claude Code version",
+    "Maximum Claude Code version": "Maximum Claude Code version",
+    "Applies to the groups above. Leave blank for no minimum.": "Applies to the groups above. Leave blank for no minimum.",
+    "Applies to the groups above. Leave blank for no maximum.": "Applies to the groups above. Leave blank for no maximum.",
+    "Use the form x.y.z, for example 2.1.78": "Use the form x.y.z, for example 2.1.78",
+    "The minimum version cannot be higher than the maximum version": "The minimum version cannot be higher than the maximum version"
   }
 }

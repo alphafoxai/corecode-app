@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createSectionRegistry } from '../utils/section-registry'
 import { ChannelHealthSection } from './channel-health-section'
+import { ClaudeCodeClientsSection } from './claude-code-clients-section'
 import type { RequestPolicySettings } from './defaults'
 import { RequestChecksSection } from './request-checks-section'
 import { RoutingPolicySection } from './routing-section'
@@ -32,6 +33,22 @@ const POLICY_SECTIONS = [
           CheckSensitiveEnabled: settings.CheckSensitiveEnabled,
           CheckSensitiveOnPromptEnabled: settings.CheckSensitiveOnPromptEnabled,
           SensitiveWords: settings.SensitiveWords,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'clients',
+    titleKey: 'Claude Code clients',
+    build: (settings: RequestPolicySettings) => (
+      <ClaudeCodeClientsSection
+        defaultValues={{
+          'claude_code_client_setting.groups':
+            settings['claude_code_client_setting.groups'],
+          'claude_code_client_setting.min_version':
+            settings['claude_code_client_setting.min_version'],
+          'claude_code_client_setting.max_version':
+            settings['claude_code_client_setting.max_version'],
         }}
       />
     ),

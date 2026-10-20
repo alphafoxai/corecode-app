@@ -628,6 +628,11 @@ func TokenAuth() func(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		// Relay routes only: the token's billing and dashboard queries are not
+		// client traffic.
+		if c.GetString(RouteTagKey) == "relay" && !enforceClaudeCodeOnlyGroup(c, userCache.Group) {
+			return
+		}
 		c.Next()
 	}
 }

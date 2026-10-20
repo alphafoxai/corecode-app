@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { ChannelAffinitySettings } from '../general/channel-affinity/types'
 import type { SecuritySettings } from '../types'
+import type { ClaudeCodeClientSettings } from './claude-code-clients-section'
 
 export type RetrySettings = {
   RetryTimes: number
@@ -44,6 +45,7 @@ export type FilteringSettings = Pick<
 export type RequestPolicySettings = RetrySettings &
   HealthSettings &
   FilteringSettings &
+  ClaudeCodeClientSettings &
   Pick<ChannelAffinitySettings, keyof ChannelAffinitySettings>
 
 export const defaultRequestPolicySettings: RequestPolicySettings = {
@@ -69,4 +71,7 @@ export const defaultRequestPolicySettings: RequestPolicySettings = {
   CheckSensitiveEnabled: false,
   CheckSensitiveOnPromptEnabled: false,
   SensitiveWords: '',
+  'claude_code_client_setting.groups': '[]',
+  'claude_code_client_setting.min_version': '',
+  'claude_code_client_setting.max_version': '',
 }
