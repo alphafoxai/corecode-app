@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-// The console has one fixed theme (styles/derouter-brand.css); only the
+// The console has one fixed theme (styles/corecode-brand.css); only the
 // light/dark mode is a user preference.
 export const THEME_STORAGE_KEYS = {
   mode: 'newapi:theme:v1:mode',

@@ -20,11 +20,11 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 /* Editorial serif (Lora) for titles; see `--font-serif` in theme.css for the
- * Latin + CJK fallback stack and derouter-brand.css for where it applies. */
+ * Latin + CJK fallback stack and corecode-brand.css for where it applies. */
 @import '@fontsource-variable/lora';
 
 @import './theme.css';
-@import './derouter-brand.css';
+@import './corecode-brand.css';
 
 @layer base {
   :root {
@@ -107,7 +107,7 @@ For commercial licensing, please contact support@quantumnous.com
   }
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
-    /* `--font-body` is the sans UI stack (theme.css, derouter-brand.css). */
+    /* `--font-body` is the sans UI stack (theme.css, corecode-brand.css). */
     font-family: var(--font-body);
   }
 

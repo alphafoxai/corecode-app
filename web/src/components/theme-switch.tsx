@@ -34,7 +34,7 @@ export function ThemeSwitch() {
   const { t } = useTranslation()
   const { theme, resolvedTheme, setTheme } = useTheme()
 
-  /* Match the browser chrome to the canvas (derouter-brand.css). */
+  /* Match the browser chrome to the canvas (corecode-brand.css). */
   useEffect(() => {
     const themeColor = resolvedTheme === 'dark' ? '#262624' : '#faf9f5'
     const metaThemeColor = document.querySelector("meta[name='theme-color']")

@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 @theme inline {
   --font-sans: var(--font-ui-sans);
-  /* Editorial serif token for titles (derouter-brand.css). Lora carries only
+  /* Editorial serif token for titles (corecode-brand.css). Lora carries only
    * Latin glyphs, so the stack walks through CJK serifs (Noto / Source Han
    * / Songti / SimSun) before the generic `serif` fallback. Without these
    * explicit CJK fonts the browser's generic-serif pick on Windows is
@@ -97,7 +97,7 @@ For commercial licensing, please contact support@quantumnous.com
   --app-header-height: 3rem;
   /* Static build-channel fallback consumed when JS hasn't booted yet. */
   --app-rev: '2k6e8r7p';
-  /* The browser's sans-serif until derouter-brand.css sets the UI stack. */
+  /* The browser's sans-serif until corecode-brand.css sets the UI stack. */
   --font-ui-sans: sans-serif;
   --font-body: var(--font-ui-sans);
   --background: oklch(1 0 0);
