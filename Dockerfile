@@ -27,14 +27,24 @@ ADD relaykit/go.mod ./relaykit/go.mod
 ADD tokenkit/go.mod ./tokenkit/go.mod
 # The module cache and the build cache are the two costs of a Go build: the
 # first avoids re-downloading dependencies, the second reuses compiled packages.
+# `go mod download` fetches the module graph, which is what gives the module a
+# directory; without it `go list -m {{.Dir}}` for the PGO module prints nothing
+# and the build reads a profile from "/default.pgo".
 RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
-    go mod download
+    go mod download && go mod download github.com/Calcium-Ion/moejs
 
 COPY . .
 COPY --from=builder /build/web/dist ./web/dist
 RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=new-api-go-build,target=/root/.cache/go-build \
-    go build -pgo="$(go list -m -f '{{.Dir}}' github.com/Calcium-Ion/moejs)/default.pgo" -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
+    set -eu; \
+    pgo_dir=$(go list -m -f '{{.Dir}}' github.com/Calcium-Ion/moejs); \
+    if [ -z "$pgo_dir" ] || [ ! -f "$pgo_dir/default.pgo" ]; then \
+      echo "build: PGO profile not found (dir='${pgo_dir}'); refusing to build without it" >&2; \
+      exit 1; \
+    fi; \
+    go build -pgo="$pgo_dir/default.pgo" \
+      -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
 
 FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 
