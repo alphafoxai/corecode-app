@@ -35,14 +35,8 @@ import { formatNumber, formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-import {
-  estimateRunwayDays,
-  type DailySpend,
-} from '../../lib/customer-overview'
-
-/** Days of spend the runway estimate averages over. */
-const RUNWAY_WINDOW_DAYS = 7
-const LOW_RUNWAY_DAYS = 3
+import { useBalanceStatus } from '../../hooks/use-balance-status'
+import type { DailySpend } from '../../lib/customer-overview'
 
 const QUICK_LINKS: {
   to: '/pricing' | '/wallet' | '/security'
@@ -54,15 +48,6 @@ const QUICK_LINKS: {
   { to: '/security', labelKey: 'Security & Access', icon: ShieldCheck },
 ]
 
-type BalanceHealth = 'healthy' | 'low' | 'empty'
-
-const HEALTH_STYLES: Record<BalanceHealth, { dot: string; labelKey: string }> =
-  {
-    healthy: { dot: 'bg-success', labelKey: 'Healthy' },
-    low: { dot: 'bg-warning', labelKey: 'Low balance' },
-    empty: { dot: 'bg-destructive', labelKey: 'Balance depleted' },
-  }
-
 export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
@@ -71,25 +56,7 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
   const used = Number(user?.used_quota ?? 0)
   const requests = Number(user?.request_count ?? 0)
   const today = props.daily.at(-1)?.quota ?? 0
-  const runway = estimateRunwayDays(
-    balance,
-    props.daily.slice(-RUNWAY_WINDOW_DAYS)
-  )
-
-  let health: BalanceHealth = 'healthy'
-  if (balance <= 0) health = 'empty'
-  else if (runway !== null && runway < LOW_RUNWAY_DAYS) health = 'low'
-  const healthStyle = HEALTH_STYLES[health]
-
-  let runwayText = t('Runway appears after your first requests')
-  if (runway !== null) {
-    runwayText =
-      runway >= 365
-        ? t('Lasts over a year at your recent daily spend')
-        : t('About {{days}} days at your recent daily spend', {
-            days: formatNumber(Math.max(1, Math.floor(runway)), locale),
-          })
-  }
+  const status = useBalanceStatus(balance, props.daily)
 
   return (
     <section
@@ -105,10 +72,10 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
         </h2>
         <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
           <span
-            className={cn('size-1.5 rounded-full', healthStyle.dot)}
+            className={cn('size-1.5 rounded-full', status.dotClassName)}
             aria-hidden
           />
-          {t(healthStyle.labelKey)}
+          {status.label}
         </span>
       </div>
 
@@ -116,7 +83,7 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
         {formatQuota(balance)}
       </p>
       <div className='text-muted-foreground mt-2 min-h-5 text-xs'>
-        {props.loading ? <Skeleton className='h-4 w-40' /> : runwayText}
+        {props.loading ? <Skeleton className='h-4 w-40' /> : status.runwayText}
       </div>
 
       <div className='mt-5 flex flex-wrap gap-2'>

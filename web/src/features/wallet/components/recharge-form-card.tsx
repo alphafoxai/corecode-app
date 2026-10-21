@@ -143,6 +143,15 @@ export function RechargeFormCard({
   const minTopup = getMinTopupAmount(topupInfo)
   const redemptionEnabled = topupInfo?.enable_redemption !== false
 
+  // CoreCode fork: say what this card can do today instead of describing a
+  // payment form that is not there.
+  let addFundsDescription = t('Choose an amount and payment method')
+  if (!hasAnyTopup) {
+    addFundsDescription = redemptionEnabled
+      ? t('Online payment is not open yet. Redeem a code to add credits.')
+      : t('Adding credits online is not open yet.')
+  }
+
   if (loading) {
     return (
       <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
@@ -197,7 +206,7 @@ export function RechargeFormCard({
   return (
     <TitledCard
       title={t('Add Funds')}
-      description={t('Choose an amount and payment method')}
+      description={addFundsDescription}
       icon={<WalletCards className='h-4 w-4' />}
       iconTone='success'
       disableHoverEffect
@@ -487,15 +496,7 @@ export function RechargeFormCard({
             </>
           )}
         </div>
-      ) : (
-        <Alert>
-          <AlertDescription>
-            {t(
-              'Online topup is not enabled. Please use redemption code or contact administrator.'
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+      ) : null}
 
       {/* Creem Products Section */}
       {enableCreemTopup &&
@@ -515,7 +516,12 @@ export function RechargeFormCard({
 
       {/* Redemption Code Section */}
       {redemptionEnabled ? (
-        <div className='space-y-2.5 border-t pt-4 sm:space-y-3 sm:pt-6'>
+        <div
+          className={cn(
+            'space-y-2.5 sm:space-y-3',
+            hasAnyTopup && 'border-t pt-4 sm:pt-6'
+          )}
+        >
           <div className='flex items-center gap-2'>
             <IconBadge tone='warning' size='xs'>
               <Gift />
@@ -561,13 +567,38 @@ export function RechargeFormCard({
           )}
         </div>
       ) : (
-        <Alert className='border-t'>
-          <AlertDescription>
-            {t(
-              'Redemption codes are disabled until the administrator confirms compliance terms.'
+        !hasAnyTopup && (
+          <div className='flex flex-col items-start gap-3 rounded-xl border border-dashed px-4 py-5'>
+            <IconBadge tone='warning' size='md'>
+              <Gift />
+            </IconBadge>
+            <div className='space-y-1'>
+              <p className='text-sm font-medium'>
+                {t('Credits are added by the operator for now')}
+              </p>
+              <p className='text-muted-foreground text-sm text-pretty'>
+                {t(
+                  'Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.'
+                )}
+              </p>
+            </div>
+            {topupLink && (
+              <Button
+                size='sm'
+                render={
+                  <a
+                    href={topupLink}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                  />
+                }
+              >
+                {t('Contact us')}
+                <ExternalLink data-icon='inline-end' />
+              </Button>
             )}
-          </AlertDescription>
-        </Alert>
+          </div>
+        )
       )}
     </TitledCard>
   )

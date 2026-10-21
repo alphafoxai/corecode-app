@@ -7433,6 +7433,15 @@
     "Per day": "Par jour",
     "Per turn": "Par tour",
     "Turns per day": "Tours par jour",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Sans le cache, cela coûterait {{amount}} par jour. Le cache économise {{share}}."
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Sans le cache, cela coûterait {{amount}} par jour. Le cache économise {{share}}.",
+    "Adding credits online is not open yet.": "L’ajout de crédits en ligne n’est pas encore ouvert.",
+    "Contact us": "Nous contacter",
+    "Credit history": "Historique des crédits",
+    "Credits are added by the operator for now": "Les crédits sont ajoutés par l’opérateur pour le moment",
+    "Credits you add show up here.": "Les crédits ajoutés apparaissent ici.",
+    "Last 7 days": "7 derniers jours",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Le paiement en ligne et les codes ne sont pas encore ouverts. Envoyez-nous l’e-mail du compte et le montant souhaité.",
+    "Online payment is not open yet. Redeem a code to add credits.": "Le paiement en ligne n’est pas encore ouvert. Utilisez un code pour ajouter des crédits.",
+    "Redemptions, payments and top-ups by the operator.": "Codes, paiements et ajouts par l’opérateur."
   }
 }

@@ -7433,6 +7433,15 @@
     "Per day": "每天",
     "Per turn": "每轮",
     "Turns per day": "每天轮数",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "不走缓存每天要 {{amount}}，缓存帮你省下 {{share}}。"
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "不走缓存每天要 {{amount}}，缓存帮你省下 {{share}}。",
+    "Adding credits online is not open yet.": "暂未开放在线充值。",
+    "Contact us": "联系我们",
+    "Credit history": "入账记录",
+    "Credits are added by the operator for now": "目前由我们为你添加额度",
+    "Credits you add show up here.": "每次入账都会显示在这里。",
+    "Last 7 days": "近 7 天",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "在线支付和兑换码暂未开放。请把账户邮箱和需要的金额发给我们。",
+    "Online payment is not open yet. Redeem a code to add credits.": "在线支付暂未开放，可以用兑换码充值。",
+    "Redemptions, payments and top-ups by the operator.": "兑换码、支付和人工充值。"
   }
 }

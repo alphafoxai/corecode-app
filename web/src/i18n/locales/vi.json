@@ -7433,6 +7433,15 @@
     "Per day": "Mỗi ngày",
     "Per turn": "Mỗi lượt",
     "Turns per day": "Số lượt mỗi ngày",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Không có cache sẽ tốn {{amount}} mỗi ngày. Cache giúp tiết kiệm {{share}}."
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Không có cache sẽ tốn {{amount}} mỗi ngày. Cache giúp tiết kiệm {{share}}.",
+    "Adding credits online is not open yet.": "Chưa mở nạp tiền trực tuyến.",
+    "Contact us": "Liên hệ",
+    "Credit history": "Lịch sử nạp",
+    "Credits are added by the operator for now": "Hiện tại số dư do nhà vận hành nạp",
+    "Credits you add show up here.": "Các khoản nạp sẽ hiện ở đây.",
+    "Last 7 days": "7 ngày qua",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Chưa mở thanh toán trực tuyến và mã đổi. Hãy gửi cho chúng tôi email tài khoản và số tiền cần nạp.",
+    "Online payment is not open yet. Redeem a code to add credits.": "Chưa mở thanh toán trực tuyến. Hãy dùng mã đổi để nạp.",
+    "Redemptions, payments and top-ups by the operator.": "Mã đổi, thanh toán và nạp bởi nhà vận hành."
   }
 }

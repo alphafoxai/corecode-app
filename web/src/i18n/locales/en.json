@@ -7433,6 +7433,15 @@
     "Per day": "Per day",
     "Per turn": "Per turn",
     "Turns per day": "Turns per day",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Without the cache this would be {{amount}} a day. The cache saves {{share}}."
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Without the cache this would be {{amount}} a day. The cache saves {{share}}.",
+    "Adding credits online is not open yet.": "Adding credits online is not open yet.",
+    "Contact us": "Contact us",
+    "Credit history": "Credit history",
+    "Credits are added by the operator for now": "Credits are added by the operator for now",
+    "Credits you add show up here.": "Credits you add show up here.",
+    "Last 7 days": "Last 7 days",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.",
+    "Online payment is not open yet. Redeem a code to add credits.": "Online payment is not open yet. Redeem a code to add credits.",
+    "Redemptions, payments and top-ups by the operator.": "Redemptions, payments and top-ups by the operator."
   }
 }

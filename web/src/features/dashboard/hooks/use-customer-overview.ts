@@ -26,10 +26,7 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 import { getStartOfDay } from '@/lib/time'
 
 import { getUserQuotaDates } from '../api'
-import {
-  bucketDailySpend,
-  summarizeRecentLogs,
-} from '../lib/customer-overview'
+import { bucketDailySpend, summarizeRecentLogs } from '../lib/customer-overview'
 
 export const OVERVIEW_TREND_DAYS = 14
 /** Requests the cache hit rate and first-token latency are averaged over. */
@@ -38,11 +35,12 @@ export const OVERVIEW_RECENT_LOGS = 100
 const LOG_TYPE_CONSUME = 2
 
 /**
- * Everything the customer overview reads, fetched once and shared by its
- * panels. Each query is scoped to the signed-in user's own data.
+ * The signed-in user's spend per local day over the last
+ * OVERVIEW_TREND_DAYS days, oldest first. The overview and the wallet share
+ * this query.
  */
-export function useCustomerOverview() {
-  // Fixed at mount so the query keys stay stable across renders.
+export function useDailySpend() {
+  // Fixed at mount so the query key stays stable across renders.
   const range = useMemo(() => {
     const end = Math.floor(Date.now() / 1000)
     const start = getStartOfDay()
@@ -50,7 +48,7 @@ export function useCustomerOverview() {
     return { start: Math.floor(start.getTime() / 1000), end }
   }, [])
 
-  const trendQuery = useQuery({
+  const query = useQuery({
     queryKey: ['dashboard', 'overview', 'daily-spend', range.start],
     queryFn: async () =>
       requireServerSuccess(
@@ -62,6 +60,21 @@ export function useCustomerOverview() {
       ).data ?? [],
     staleTime: 60 * 1000,
   })
+
+  const daily = useMemo(
+    () => bucketDailySpend(query.data ?? [], OVERVIEW_TREND_DAYS, range.end),
+    [range.end, query.data]
+  )
+
+  return { daily, loading: query.isLoading }
+}
+
+/**
+ * Everything the customer overview reads, fetched once and shared by its
+ * panels. Each query is scoped to the signed-in user's own data.
+ */
+export function useCustomerOverview() {
+  const spend = useDailySpend()
 
   const logsQuery = useQuery({
     queryKey: ['dashboard', 'overview', 'recent-logs'],
@@ -86,24 +99,14 @@ export function useCustomerOverview() {
     staleTime: 60 * 1000,
   })
 
-  const daily = useMemo(
-    () =>
-      bucketDailySpend(
-        trendQuery.data ?? [],
-        OVERVIEW_TREND_DAYS,
-        range.end
-      ),
-    [range.end, trendQuery.data]
-  )
-
   const recent = useMemo(
     () => summarizeRecentLogs(logsQuery.data ?? []),
     [logsQuery.data]
   )
 
   return {
-    daily,
-    trendLoading: trendQuery.isLoading,
+    daily: spend.daily,
+    trendLoading: spend.loading,
     recent,
     recentLogs: logsQuery.data ?? [],
     logsLoading: logsQuery.isLoading,

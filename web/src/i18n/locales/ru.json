@@ -7433,6 +7433,15 @@
     "Per day": "В день",
     "Per turn": "За ход",
     "Turns per day": "Ходов в день",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Без кэша это стоило бы {{amount}} в день. Кэш экономит {{share}}."
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Без кэша это стоило бы {{amount}} в день. Кэш экономит {{share}}.",
+    "Adding credits online is not open yet.": "Пополнение онлайн пока недоступно.",
+    "Contact us": "Связаться с нами",
+    "Credit history": "История пополнений",
+    "Credits are added by the operator for now": "Пока баланс пополняет оператор",
+    "Credits you add show up here.": "Здесь появятся ваши пополнения.",
+    "Last 7 days": "За 7 дней",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Онлайн-оплата и коды пока недоступны. Напишите нам email аккаунта и нужную сумму.",
+    "Online payment is not open yet. Redeem a code to add credits.": "Онлайн-оплата пока недоступна. Пополните баланс кодом.",
+    "Redemptions, payments and top-ups by the operator.": "Коды, платежи и пополнения оператором."
   }
 }

@@ -7433,6 +7433,15 @@
     "Per day": "1日あたり",
     "Per turn": "1ターンあたり",
     "Turns per day": "1日のターン数",
-    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "キャッシュなしでは1日 {{amount}} かかります。キャッシュで {{share}} 節約できます。"
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "キャッシュなしでは1日 {{amount}} かかります。キャッシュで {{share}} 節約できます。",
+    "Adding credits online is not open yet.": "オンラインでのチャージはまだ利用できません。",
+    "Contact us": "お問い合わせ",
+    "Credit history": "チャージ履歴",
+    "Credits are added by the operator for now": "現在は運営がクレジットを追加します",
+    "Credits you add show up here.": "チャージした記録がここに表示されます。",
+    "Last 7 days": "過去7日",
+    "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "オンライン決済と引き換えコードはまだ利用できません。アカウントのメールアドレスと必要な金額をお知らせください。",
+    "Online payment is not open yet. Redeem a code to add credits.": "オンライン決済はまだ利用できません。引き換えコードでチャージできます。",
+    "Redemptions, payments and top-ups by the operator.": "引き換えコード、決済、運営による追加。"
   }
 }

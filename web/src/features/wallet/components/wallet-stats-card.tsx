@@ -16,14 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Activity, BarChart3, WalletCards } from 'lucide-react'
+/**
+ * CoreCode fork: the balance leads, with its runway and how fast it has been
+ * going, so a customer can decide how much to add without leaving the page.
+ */
 import { useTranslation } from 'react-i18next'
 
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatQuota } from '@/lib/format'
+import { useBalanceStatus } from '@/features/dashboard/hooks/use-balance-status'
+import { useDailySpend } from '@/features/dashboard/hooks/use-customer-overview'
+import { toIntlLocale } from '@/i18n/languages'
+import { formatNumber, formatQuota } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import type { UserWalletData } from '../types'
+
+const WEEK_DAYS = 7
 
 interface WalletStatsCardProps {
   user: UserWalletData | null
@@ -31,72 +39,89 @@ interface WalletStatsCardProps {
 }
 
 export function WalletStatsCard(props: WalletStatsCardProps) {
-  const { t } = useTranslation()
-  if (props.loading) {
-    return (
-      <div className='grid grid-cols-3 divide-x rounded-lg border'>
-        {['balance', 'usage', 'requests'].map((key) => (
-          <div key={key} className='min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4'>
-            <Skeleton className='h-3.5 w-full' />
-            <Skeleton className='mt-2 h-6 w-full sm:h-7' />
-            <Skeleton className='mt-1.5 hidden h-3.5 w-24 md:block' />
-          </div>
-        ))}
-      </div>
-    )
-  }
+  const { t, i18n } = useTranslation()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  const spend = useDailySpend()
+  const balance = props.user?.quota ?? 0
+  const status = useBalanceStatus(balance, spend.daily)
+  const weekSpend = spend.daily
+    .slice(-WEEK_DAYS)
+    .reduce((sum, day) => sum + day.quota, 0)
 
-  const stats: {
-    label: string
-    value: string
-    description: string
-    icon: typeof WalletCards
-    tone: IconBadgeTone
-  }[] = [
+  const facts = [
     {
-      label: t('Current Balance'),
-      value: formatQuota(props.user?.quota ?? 0),
-      description: t('Remaining quota'),
-      icon: WalletCards,
-      tone: 'success',
+      label: t('Last 7 days'),
+      value: formatQuota(weekSpend),
+      loading: spend.loading,
     },
     {
-      label: t('Total Usage'),
+      label: t('Total spent'),
       value: formatQuota(props.user?.used_quota ?? 0),
-      description: t('Total consumed quota'),
-      icon: BarChart3,
-      tone: 'info',
     },
     {
-      label: t('API Requests'),
-      value: (props.user?.request_count ?? 0).toLocaleString(),
-      description: t('Total requests made'),
-      icon: Activity,
-      tone: 'chart-4',
+      label: t('Requests'),
+      value: formatNumber(props.user?.request_count ?? 0, locale),
     },
   ]
 
   return (
-    <div className='grid grid-cols-3 divide-x rounded-lg border'>
-      {stats.map((item) => (
-        <div key={item.label} className='min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4'>
-          <div className='flex items-center gap-1.5 sm:gap-2.5'>
-            <IconBadge tone={item.tone} size='stat'>
-              <item.icon />
-            </IconBadge>
-            <div className='text-muted-foreground truncate text-[11px] font-medium tracking-wider uppercase sm:text-xs'>
-              {item.label}
-            </div>
-          </div>
-
-          <div className='text-foreground mt-1.5 font-mono text-sm font-bold tracking-tight break-all tabular-nums sm:mt-2.5 sm:text-2xl'>
-            {item.value}
-          </div>
-          <div className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
-            {item.description}
-          </div>
+    <section
+      aria-labelledby='wallet-balance-title'
+      className='bg-card grid overflow-hidden rounded-2xl border shadow-xs md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]'
+    >
+      <div className='flex min-w-0 flex-col gap-2 p-4 sm:p-5'>
+        <div className='flex items-center justify-between gap-2'>
+          <h2
+            id='wallet-balance-title'
+            className='text-muted-foreground font-sans text-sm font-medium tracking-normal'
+          >
+            {t('Balance')}
+          </h2>
+          {!props.loading && (
+            <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
+              <span
+                className={cn('size-1.5 rounded-full', status.dotClassName)}
+                aria-hidden
+              />
+              {status.label}
+            </span>
+          )}
         </div>
-      ))}
-    </div>
+        {props.loading ? (
+          <Skeleton className='h-9 w-36' />
+        ) : (
+          <p className='text-[2.25rem] leading-none font-semibold tracking-tight tabular-nums'>
+            {formatQuota(balance)}
+          </p>
+        )}
+        <div className='text-muted-foreground min-h-4 text-xs'>
+          {spend.loading ? (
+            <Skeleton className='h-4 w-40' />
+          ) : (
+            status.runwayText
+          )}
+        </div>
+      </div>
+
+      <dl className='bg-border grid grid-cols-3 gap-px border-t md:border-t-0 md:border-l'>
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            className='bg-card flex min-w-0 flex-col justify-center gap-1 px-4 py-4 sm:px-5'
+          >
+            <dt className='text-muted-foreground truncate text-xs'>
+              {fact.label}
+            </dt>
+            <dd className='truncate text-lg font-semibold tabular-nums sm:text-xl'>
+              {props.loading || fact.loading ? (
+                <Skeleton className='h-6 w-16' />
+              ) : (
+                fact.value
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }
