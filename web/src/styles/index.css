@@ -19,17 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/public-sans';
-/* Editorial serif (Lora) backing the `serif` font axis and the Anthropic
- * preset's default typography. See `--font-serif` in theme.css for the
- * full Latin + CJK fallback stack and `theme-presets.css` for the cascade
- * that activates it. Loaded globally so font-switching is instantaneous
- * with no FOUT once the variable is fetched. */
+/* Editorial serif (Lora) for titles; see `--font-serif` in theme.css for the
+ * Latin + CJK fallback stack and derouter-brand.css for where it applies. */
 @import '@fontsource-variable/lora';
 
 @import './theme.css';
 @import './derouter-brand.css';
-@import './theme-presets.css';
 
 @layer base {
   :root {
@@ -112,9 +107,7 @@ For commercial licensing, please contact support@quantumnous.com
   }
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
-    /* Font is driven by the theme's font axis via `--font-body`
-     * (defined in theme.css, swapped by `[data-theme-font='...']` blocks
-     * in theme-presets.css). Defaults to the browser's sans-serif. */
+    /* `--font-body` is the sans UI stack (theme.css, derouter-brand.css). */
     font-family: var(--font-body);
   }
 

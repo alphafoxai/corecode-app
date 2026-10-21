@@ -20,9 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 @theme inline {
   --font-sans: var(--font-ui-sans);
-  --font-public-sans: 'Public Sans Variable', 'Public Sans', sans-serif;
-  /* Editorial serif token — the body face used by the `serif` font axis
-   * and by presets that opt in (currently Anthropic). Lora carries only
+  /* Editorial serif token for titles (derouter-brand.css). Lora carries only
    * Latin glyphs, so the stack walks through CJK serifs (Noto / Source Han
    * / Songti / SimSun) before the generic `serif` fallback. Without these
    * explicit CJK fonts the browser's generic-serif pick on Windows is
@@ -99,8 +97,7 @@ For commercial licensing, please contact support@quantumnous.com
   --app-header-height: 3rem;
   /* Static build-channel fallback consumed when JS hasn't booted yet. */
   --app-rev: '2k6e8r7p';
-  /* Auto starts with the browser font, including before JS applies the
-   * saved preference. Explicit Sans selects Public Sans in theme-presets.css. */
+  /* The browser's sans-serif until derouter-brand.css sets the UI stack. */
   --font-ui-sans: sans-serif;
   --font-body: var(--font-ui-sans);
   --background: oklch(1 0 0);

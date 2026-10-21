@@ -58,7 +58,7 @@ const VENDOR_COLOURS: Record<string, string> = {
 }
 
 const FALLBACK_PALETTE = [
-  '#0ea5e9',
+  '#6a9bcc',
   '#22c55e',
   '#a855f7',
   '#f97316',
@@ -66,7 +66,7 @@ const FALLBACK_PALETTE = [
   '#eab308',
   '#ec4899',
   '#84cc16',
-  '#6366f1',
+  '#8a6d4e',
   '#10b981',
   '#f43f5e',
   '#0891b2',

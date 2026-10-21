@@ -38,14 +38,13 @@ export function resolveThemeRadiusPx(
 }
 
 export function useThemeRadiusPx(
-  cssVariable = '--radius-md',
-  refreshKey?: string
+  cssVariable = '--radius-md'
 ): number | undefined {
   const [radius, setRadius] = useState<number | undefined>()
 
   useEffect(() => {
     setRadius(resolveThemeRadiusPx(cssVariable))
-  }, [cssVariable, refreshKey])
+  }, [cssVariable])
 
   return radius
 }

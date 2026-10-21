@@ -17,21 +17,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /*
- * DeRouter fork: the CoreCode palette as this build's Default preset.
+ * DeRouter fork: the console's only theme. Users switch light and dark;
+ * there are no presets, fonts, radius or density options.
  *
- * Tokens follow the Claude Design System notes in Caho1/open-claude-ui
- * (code-examples/cds-theme.css), the same system corecode.live's landing page
- * uses: warm paper surfaces stepped by a few percent of lightness, 10%
- * hairlines instead of hard borders, one clay accent, two-layer shadows.
- * This file only redefines variables ./theme.css declares. It is imported
- * after theme.css and before theme-presets.css, so named presets still
- * override it and the upstream stylesheets change by one import line.
+ * Claude look, from two sources:
+ *   - upstream's former Anthropic preset: cream canvas #faf9f5, warm ink
+ *     #141413, warm gray text #5e5d59, olive/sky/fig accents for charts,
+ *     editorial serif headings;
+ *   - the Claude Design System notes in Caho1/open-claude-ui
+ *     (code-examples/cds-theme.css): white cards on the canvas, 10–12% warm
+ *     hairlines instead of hard borders, one clay accent, two-layer shadows.
+ * Dark follows Claude's warm charcoal (#1f1e1d sidebar, #262624 canvas,
+ * #30302e cards), never pure black.
+ *
+ * Body text stays sans: Chinese serif at table sizes reads poorly. Serif is
+ * for titles only.
  *
  * Contrast (WCAG 2.1, measured): light primary #b5532f is 4.95:1 under white
- * and 4.8:1 as text on the canvas; CDS's #c6613f (4.05:1) stays for the ring
- * and sidebar marks, which need 3:1. Dark primary is CDS clay #d97757 with
- * #151515 ink on it (5.85:1) and 5.6:1 as text on dark cards. Muted text is
- * #6b6b6b light (5.3:1) and #a3a3a3 dark (6.5:1 on popovers).
+ * and 4.7:1 as text on the canvas (Claude's #c96442 is 3.9:1 under white, so
+ * it is kept for the ring and sidebar marks, which need 3:1). Dark primary
+ * #e08264 carries #141413 ink (6.6:1) and is 4.75:1 as text on cards. Muted
+ * text, status colors and destructive are at least 4.5:1 on canvas and cards
+ * in both modes.
  */
 :root {
   --radius: 0.625rem;
@@ -40,22 +47,21 @@ For commercial licensing, please contact support@quantumnous.com
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC',
     sans-serif;
 
-  /* Surfaces: canvas #fcfcfb, cards and inputs #fff, sidebar #f9f9f7. */
-  --background: #fcfcfb;
-  --foreground: #151515;
+  --background: #faf9f5;
+  --foreground: #141413;
   --card: #ffffff;
-  --card-foreground: #151515;
+  --card-foreground: #141413;
   --popover: #ffffff;
-  --popover-foreground: #151515;
+  --popover-foreground: #141413;
 
   --primary: #b5532f;
   --primary-foreground: #ffffff;
-  --secondary: hsla(0, 0%, 8%, 0.05);
-  --secondary-foreground: #151515;
-  --muted: #f3f3f0;
-  --muted-foreground: #6b6b6b;
-  --accent: hsla(0, 0%, 8%, 0.05);
-  --accent-foreground: #151515;
+  --secondary: #f0eee6;
+  --secondary-foreground: #141413;
+  --muted: #f0eee6;
+  --muted-foreground: #5e5d59;
+  --accent: rgb(31 30 29 / 0.06);
+  --accent-foreground: #141413;
 
   --destructive: #c0392b;
   --destructive-foreground: #ffffff;
@@ -65,91 +71,87 @@ For commercial licensing, please contact support@quantumnous.com
   --warning-foreground: #ffffff;
   --info: #2a6bb8;
   --info-foreground: #ffffff;
-  --neutral: #6b6b6b;
+  --neutral: #5e5d59;
   --neutral-foreground: #ffffff;
 
-  /* Hairlines: 10% ink for structure, 20% for inputs that must read as fields. */
-  --border: hsla(0, 0%, 8%, 0.1);
-  --input: hsla(0, 0%, 8%, 0.2);
-  --ring: #c6613f;
+  --border: rgb(31 30 29 / 0.12);
+  --input: rgb(31 30 29 / 0.22);
+  --ring: #c96442;
 
-  /* Clay first, then the quiet Anthropic accents (olive, sky, fig, cactus). */
   --chart-1: #d97757;
   --chart-2: #788c5d;
   --chart-3: #6a9bcc;
   --chart-4: #c46686;
-  --chart-5: #bcd1ca;
+  --chart-5: #a3b9b2;
   --overview-accent-1: #d97757;
   --overview-accent-2: #788c5d;
   --overview-accent-3: #6a9bcc;
 
-  --sidebar: #f9f9f7;
-  --sidebar-foreground: #151515;
-  --sidebar-primary: #c6613f;
+  --sidebar: #f5f4ed;
+  --sidebar-foreground: #141413;
+  --sidebar-primary: #c96442;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: hsla(0, 0%, 8%, 0.06);
-  --sidebar-accent-foreground: #151515;
-  --sidebar-border: hsla(0, 0%, 8%, 0.08);
-  --sidebar-ring: #c6613f;
+  --sidebar-accent: rgb(31 30 29 / 0.07);
+  --sidebar-accent-foreground: #141413;
+  --sidebar-border: rgb(31 30 29 / 0.1);
+  --sidebar-ring: #c96442;
 
-  --skeleton-base: #f0efec;
-  --skeleton-highlight: #f9f9f7;
+  --skeleton-base: #efede4;
+  --skeleton-highlight: #f7f6f1;
 }
 
 .dark {
-  /* Dark ladder steps by 2 hex units: #0b0b0b sidebar, #151515 canvas,
-   * #1a1a19 cards, #20201f popovers. No pure black. */
-  --background: #151515;
-  --foreground: #f5f5f5;
-  --card: #1a1a19;
-  --card-foreground: #f5f5f5;
-  --popover: #20201f;
-  --popover-foreground: #f5f5f5;
+  --background: #262624;
+  --foreground: #faf9f5;
+  --card: #30302e;
+  --card-foreground: #faf9f5;
+  --popover: #30302e;
+  --popover-foreground: #faf9f5;
 
-  --primary: #d97757;
-  --primary-foreground: #151515;
-  --secondary: hsla(0, 0%, 100%, 0.06);
-  --secondary-foreground: #f5f5f5;
-  --muted: #1e1e1d;
-  --muted-foreground: #a3a3a3;
-  --accent: hsla(0, 0%, 100%, 0.06);
-  --accent-foreground: #f5f5f5;
+  --primary: #e08264;
+  --primary-foreground: #141413;
+  --secondary: #3a3937;
+  --secondary-foreground: #faf9f5;
+  --muted: #2d2c2a;
+  --muted-foreground: #a6a39b;
+  --accent: rgb(250 249 245 / 0.07);
+  --accent-foreground: #faf9f5;
 
-  --destructive: #ef6b5b;
-  --destructive-foreground: #151515;
+  --destructive: #f28b7c;
+  --destructive-foreground: #141413;
   --success: #8fb07a;
-  --success-foreground: #151515;
+  --success-foreground: #141413;
   --warning: #e0a44a;
-  --warning-foreground: #151515;
+  --warning-foreground: #141413;
   --info: #7fb0e0;
-  --info-foreground: #151515;
-  --neutral: #a3a3a3;
-  --neutral-foreground: #151515;
+  --info-foreground: #141413;
+  --neutral: #a6a39b;
+  --neutral-foreground: #141413;
 
-  --border: hsla(0, 0%, 100%, 0.09);
-  --input: hsla(0, 0%, 100%, 0.18);
+  --border: rgb(250 249 245 / 0.1);
+  --input: rgb(250 249 245 / 0.18);
   --ring: #d97757;
 
   --chart-1: #e08264;
   --chart-2: #9bb07d;
   --chart-3: #8cb4dc;
   --chart-4: #d88aa4;
-  --chart-5: #bcd1ca;
+  --chart-5: #a9c4bc;
   --overview-accent-1: #e08264;
   --overview-accent-2: #9bb07d;
   --overview-accent-3: #8cb4dc;
 
-  --sidebar: #0b0b0b;
-  --sidebar-foreground: #f5f5f5;
+  --sidebar: #1f1e1d;
+  --sidebar-foreground: #faf9f5;
   --sidebar-primary: #d97757;
-  --sidebar-primary-foreground: #151515;
-  --sidebar-accent: hsla(0, 0%, 100%, 0.07);
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: hsla(0, 0%, 100%, 0.08);
+  --sidebar-primary-foreground: #141413;
+  --sidebar-accent: rgb(250 249 245 / 0.07);
+  --sidebar-accent-foreground: #faf9f5;
+  --sidebar-border: rgb(250 249 245 / 0.08);
   --sidebar-ring: #d97757;
 
-  --skeleton-base: #20201f;
-  --skeleton-highlight: #2c2c2a;
+  --skeleton-base: #30302e;
+  --skeleton-highlight: #3a3937;
 }
 
 /* Two-layer shadows: near occlusion plus far diffusion, never one flat blur. */
@@ -158,4 +160,20 @@ For commercial licensing, please contact support@quantumnous.com
   --shadow-md: 0 2px 4px 0 rgb(0 0 0 / 0.05), 0 6px 16px 0 rgb(0 0 0 / 0.08);
   --shadow-lg: 0 4px 8px 0 rgb(0 0 0 / 0.06), 0 12px 28px -2px rgb(0 0 0 / 0.08);
   --shadow-xl: 0 8px 24px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.08);
+}
+
+/* Editorial titles: serif, medium weight, slight negative tracking (from the
+ * former Anthropic preset). Body, tables, inputs and numbers stay sans. */
+:is(h1, h2, h3),
+[data-slot='card-title'],
+[data-slot='dialog-title'],
+[data-slot='alert-dialog-title'],
+[data-slot='sheet-title'],
+[data-slot='drawer-title'] {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+h1 {
+  letter-spacing: -0.02em;
 }

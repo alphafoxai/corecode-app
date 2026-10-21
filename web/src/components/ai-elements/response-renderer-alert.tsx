@@ -32,9 +32,8 @@ import type {
 const alertConfig = {
   note: {
     label: 'Note',
-    className:
-      'border-blue-500/40 bg-blue-500/8 text-blue-950 dark:text-blue-100',
-    markerClassName: 'text-blue-600 dark:text-blue-300',
+    className: 'border-info/40 bg-info/8 text-foreground',
+    markerClassName: 'text-info',
   },
   tip: {
     label: 'Tip',
@@ -44,9 +43,8 @@ const alertConfig = {
   },
   important: {
     label: 'Important',
-    className:
-      'border-violet-500/40 bg-violet-500/8 text-violet-950 dark:text-violet-100',
-    markerClassName: 'text-violet-600 dark:text-violet-300',
+    className: 'border-primary/40 bg-primary/8 text-foreground',
+    markerClassName: 'text-primary',
   },
   warning: {
     label: 'Warning',

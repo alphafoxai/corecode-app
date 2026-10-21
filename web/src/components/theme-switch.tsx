@@ -32,15 +32,14 @@ import { cn } from '@/lib/utils'
 
 export function ThemeSwitch() {
   const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
 
-  /* Update theme-color meta tag
-   * when theme is updated */
+  /* Match the browser chrome to the canvas (derouter-brand.css). */
   useEffect(() => {
-    const themeColor = theme === 'dark' ? '#020817' : '#fff'
+    const themeColor = resolvedTheme === 'dark' ? '#262624' : '#faf9f5'
     const metaThemeColor = document.querySelector("meta[name='theme-color']")
     if (metaThemeColor) metaThemeColor.setAttribute('content', themeColor)
-  }, [theme])
+  }, [resolvedTheme])
 
   return (
     <DropdownMenu modal={false}>
