@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "Áp dụng cho các nhóm ở trên. Để trống nếu không giới hạn tối thiểu.",
     "Applies to the groups above. Leave blank for no maximum.": "Áp dụng cho các nhóm ở trên. Để trống nếu không giới hạn tối đa.",
     "Use the form x.y.z, for example 2.1.78": "Dùng định dạng x.y.z, ví dụ 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "Phiên bản tối thiểu không được cao hơn phiên bản tối đa"
+    "The minimum version cannot be higher than the maximum version": "Phiên bản tối thiểu không được cao hơn phiên bản tối đa",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "Liên kết đăng nhập đã gửi tới {{email}}. Chỉ dùng một lần và hết hạn trong 10 phút.",
+    "Create an account automatically when an unknown email address signs in": "Tự động tạo tài khoản khi email chưa đăng ký đăng nhập",
+    "Email Link Registration": "Đăng ký bằng liên kết email",
+    "Email Link Sign-in": "Đăng nhập bằng liên kết email",
+    "Failed to send sign-in link": "Không gửi được liên kết đăng nhập",
+    "Let customers sign in with a one-time link sent to their email": "Cho phép khách hàng đăng nhập bằng liên kết một lần gửi tới email",
+    "Request a new link": "Yêu cầu liên kết mới",
+    "Resend link ({{seconds}}s)": "Gửi lại liên kết ({{seconds}}s)",
+    "Send sign-in link": "Gửi liên kết đăng nhập",
+    "Sign in another way": "Đăng nhập cách khác",
+    "Sign in with an email link": "Đăng nhập bằng liên kết email",
+    "Sign-in link sent, please check your inbox": "Đã gửi liên kết đăng nhập, vui lòng kiểm tra hộp thư",
+    "Signing you in…": "Đang đăng nhập…",
+    "This sign-in link is invalid or has expired.": "Liên kết đăng nhập này không hợp lệ hoặc đã hết hạn.",
+    "We will email you a one-time sign-in link.": "Chúng tôi sẽ gửi liên kết đăng nhập một lần tới email của bạn.",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "Chúng tôi sẽ gửi liên kết đăng nhập. Email chưa đăng ký sẽ tự tạo tài khoản.",
+    "Email link sign-in has been disabled by administrator": "Đăng nhập bằng liên kết email đã bị quản trị viên tắt",
+    "Failed to send sign-in email, please contact the administrator": "Gửi email đăng nhập thất bại, vui lòng liên hệ quản trị viên",
+    "Sign-in link is invalid or has expired, please request a new one": "Liên kết đăng nhập không hợp lệ hoặc đã hết hạn, vui lòng yêu cầu liên kết mới",
+    "Please wait {{seconds}} seconds before requesting another link.": "Vui lòng chờ {{seconds}} giây trước khi yêu cầu liên kết khác.",
+    "Too many sign-in links requested, please try again later.": "Yêu cầu quá nhiều liên kết đăng nhập, vui lòng thử lại sau."
   }
 }

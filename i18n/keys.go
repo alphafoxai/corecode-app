@@ -68,6 +68,12 @@ const (
 	MsgEmailPasswordResetLink         = "email.password_reset.link"
 	MsgEmailPasswordResetLinkFallback = "email.password_reset.link_fallback"
 	MsgEmailPasswordResetValidity     = "email.password_reset.validity"
+
+	MsgEmailMagicLinkSubject      = "email.magic_link.subject"
+	MsgEmailMagicLinkGreeting     = "email.magic_link.greeting"
+	MsgEmailMagicLinkLink         = "email.magic_link.link"
+	MsgEmailMagicLinkLinkFallback = "email.magic_link.link_fallback"
+	MsgEmailMagicLinkValidity     = "email.magic_link.validity"
 )
 
 // Low-quota notices, in the recipient's saved language

@@ -54,6 +54,11 @@ email.password_reset.greeting: "您好，您正在進行{{.SystemName}}密碼重
 email.password_reset.link: "點擊 <a href='{{.Link}}'>此處</a> 進行密碼重設。"
 email.password_reset.link_fallback: "如果連結無法點擊，請嘗試點擊下面的連結或將其複製到瀏覽器中開啟：<br> {{.Link}}"
 email.password_reset.validity: "重設連結 {{.Minutes}} 分鐘內有效，如果不是本人操作，請忽略。"
+email.magic_link.subject: "{{.SystemName}}登入連結"
+email.magic_link.greeting: "您好，這是您的{{.SystemName}}一次性登入連結。"
+email.magic_link.link: "點擊 <a href='{{.Link}}'>此處</a> 直接登入。"
+email.magic_link.link_fallback: "如果連結無法點擊，請嘗試點擊下面的連結或將其複製到瀏覽器中開啟：<br> {{.Link}}"
+email.magic_link.validity: "登入連結 {{.Minutes}} 分鐘內有效，且僅可使用一次。如果不是本人操作，請忽略。"
 
 # Low-quota notices
 notify.quota_low_title: "您的額度即將用盡"

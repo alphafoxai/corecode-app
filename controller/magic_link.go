@@ -1,0 +1,239 @@
+package controller
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/system_setting"
+
+	"github.com/gin-gonic/gin"
+)
+
+type magicLinkRequest struct {
+	Email    string `json:"email"`
+	Token    string `json:"token"`
+	Redirect string `json:"redirect"`
+}
+
+func magicLinkSendEnabled() bool {
+	return common.MagicLinkLoginEnabled
+}
+
+func magicLinkRegisterAllowed() bool {
+	return common.RegisterEnabled && common.MagicLinkRegisterEnabled
+}
+
+// checkMagicLinkThrottle rejects send bursts aimed at one mailbox or issued from
+// one client address. auth_flows rows are the durable counter, so a restart or a
+// second instance cannot hand a throttled caller a fresh budget.
+func checkMagicLinkThrottle(c *gin.Context, email string) bool {
+	lastSent, err := model.MagicLinkLastSentAt(email)
+	if err != nil {
+		common.SysError(common.LogText("magic link throttle lookup failed: %v", err))
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+		return false
+	}
+	if wait := magicLinkResendWait(lastSent); wait > 0 {
+		common.ApiErrorStatus(c, http.StatusTooManyRequests, common.NewMessage("Please wait {{seconds}} seconds before requesting another link.", map[string]any{"seconds": int64((wait + time.Second - 1) / time.Second)}))
+		return false
+	}
+	recentForEmail, recentForIP, err := magicLinkRecentCounts(email, c.ClientIP())
+	if err != nil {
+		common.SysError(common.LogText("magic link throttle lookup failed: %v", err))
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+		return false
+	}
+	if recentForEmail >= model.MagicLinkMaxPerEmail || recentForIP >= model.MagicLinkMaxPerIP {
+		common.ApiErrorStatus(c, http.StatusTooManyRequests, common.NewMessage("Too many sign-in links requested, please try again later."))
+		return false
+	}
+	return true
+}
+
+func magicLinkRecentCounts(email, clientIP string) (int64, int64, error) {
+	recentForEmail, err := model.CountMagicLinksSince(time.Now().Add(-model.MagicLinkWindow), email, "")
+	if err != nil {
+		return 0, 0, err
+	}
+	recentForIP, err := model.CountMagicLinksSince(time.Now().Add(-model.MagicLinkWindow), "", clientIP)
+	if err != nil {
+		return 0, recentForIP, err
+	}
+	return recentForEmail, recentForIP, nil
+}
+
+func magicLinkResendWait(lastSent time.Time) time.Duration {
+	if lastSent.IsZero() {
+		return 0
+	}
+	wait := model.MagicLinkSendInterval - time.Since(lastSent)
+	if wait < 0 {
+		return 0
+	}
+	return wait
+}
+
+// SendMagicLink emails a single-use sign-in link. The response is the same
+// whether or not the address has an account, so requesting a link does not
+// confirm who registered unless registration is closed.
+func SendMagicLink(c *gin.Context) {
+	if !magicLinkSendEnabled() {
+		common.ApiErrorT(c, "Email link sign-in has been disabled by administrator")
+		return
+	}
+	var req magicLinkRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	email, err := service.ValidateAccountEmail(req.Email)
+	if err != nil {
+		writeSecurityOperationError(c, err)
+		return
+	}
+	if !checkMagicLinkThrottle(c, email) {
+		return
+	}
+	user, lookupErr := model.GetUniqueUserByEmail(email)
+	if lookupErr != nil && !errors.Is(lookupErr, model.ErrEmailNotFound) && !errors.Is(lookupErr, model.ErrEmailAmbiguous) {
+		common.SysLog(common.LogText("magic link account lookup failed: %v", lookupErr))
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+		return
+	}
+	if user == nil && !magicLinkRegisterAllowed() {
+		// Registration closed and no account: answer exactly as if a link were on
+		// its way, the same non-enumerating behavior as password reset.
+		common.SysLog(common.LogText("magic link requested for unregistered address, sending nothing"))
+		c.JSON(http.StatusOK, gin.H{
+			"success":      true,
+			"message":      "",
+			"resend_after": int64(model.MagicLinkSendInterval.Seconds()),
+		})
+		return
+	}
+	token, expiresAt, err := model.CreateMagicLink(email, c.ClientIP())
+	if err != nil {
+		common.SysError(common.LogText("failed to create magic link: %v", err))
+		common.ApiErrorT(c, "Failed to send sign-in email, please contact the administrator")
+		return
+	}
+	lang := i18n.StatedLang(c)
+	if user != nil {
+		// The recipient owns the mailbox, so their saved language wins over the
+		// request language of whoever pressed the button.
+		if saved := user.GetSetting().Language; saved != "" {
+			lang = saved
+		}
+	}
+	link := strings.TrimSuffix(system_setting.ServerAddress, "/") + "/email-login?token=" + url.QueryEscape(token)
+	if redirect := model.SafeMagicLinkRedirect(req.Redirect); redirect != "" {
+		link += "&redirect=" + url.QueryEscape(redirect)
+	}
+	systemName := map[string]any{"SystemName": common.SystemName}
+	subject := i18n.Translate(lang, i18n.MsgEmailMagicLinkSubject, systemName)
+	content := fmt.Sprintf("<p>%s</p>"+
+		"<p>%s</p>"+
+		"<p>%s </p>"+
+		"<p>%s</p>",
+		i18n.Translate(lang, i18n.MsgEmailMagicLinkGreeting, systemName),
+		i18n.Translate(lang, i18n.MsgEmailMagicLinkLink, map[string]any{"Link": link}),
+		i18n.Translate(lang, i18n.MsgEmailMagicLinkLinkFallback, map[string]any{"Link": link}),
+		i18n.Translate(lang, i18n.MsgEmailMagicLinkValidity, map[string]any{"Minutes": int(time.Until(expiresAt).Round(time.Minute) / time.Minute)}))
+	if err := common.SendEmail(subject, email, content); err != nil {
+		common.SysLog(common.LogText("failed to send magic link email: %v", err))
+		common.ApiErrorT(c, "Failed to send sign-in email, please contact the administrator")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":      true,
+		"message":      "",
+		"expires_at":   expiresAt.Unix(),
+		"resend_after": int64(model.MagicLinkSendInterval.Seconds()),
+	})
+}
+
+// LoginWithMagicLink consumes one sign-in link and issues the browser session.
+// An unregistered address creates the account when registration is enabled.
+// Rejected, expired, replayed, and unknown-address links all share one message.
+func LoginWithMagicLink(c *gin.Context) {
+	if !magicLinkSendEnabled() {
+		common.ApiErrorT(c, "Email link sign-in has been disabled by administrator")
+		return
+	}
+	var req magicLinkRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	email, err := model.ConsumeMagicLink(req.Token)
+	if err != nil {
+		writeMagicLinkError(c, err)
+		return
+	}
+	c.Set("login_method", "magic_link")
+	user, err := model.GetUniqueUserByEmail(email)
+	if errors.Is(err, model.ErrEmailNotFound) {
+		user, err = registerMagicLinkUser(c, email)
+	}
+	if err != nil {
+		writeMagicLinkError(c, err)
+		return
+	}
+	setupLogin(user, nil, c)
+}
+
+func registerMagicLinkUser(c *gin.Context, email string) (*model.User, error) {
+	if !magicLinkRegisterAllowed() {
+		return nil, model.ErrMagicLinkRegistrationDisabled
+	}
+	cleanUser := model.User{
+		Username:    magicLinkUsername(email),
+		DisplayName: email,
+		Email:       email,
+		Role:        common.RoleCommonUser,
+		Status:      common.UserStatusEnabled,
+	}
+	if err := cleanUser.Insert(0); err != nil {
+		return nil, err
+	}
+	if err := issueDefaultAPIToken(c, &cleanUser); err != nil {
+		common.SysLog(common.LogText("failed to create default token for magic link user: %v", err))
+		return nil, model.ErrDatabase
+	}
+	return model.GetSelfUserById(cleanUser.Id)
+}
+
+// magicLinkUsername derives the account name from the address. The stored name
+// stays within the console's 20-character display limit while the mailbox remains
+// the identity that the link resolves.
+func magicLinkUsername(email string) string {
+	name := email
+	if at := strings.IndexByte(name, '@'); at > 0 {
+		name = name[:at]
+	}
+	if len(name) > model.UserNameMaxLength {
+		name = name[:model.UserNameMaxLength]
+	}
+	return name
+}
+
+func writeMagicLinkError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, model.ErrMagicLinkRegistrationDisabled):
+		common.ApiErrorT(c, "New user registration has been disabled by administrator")
+	case errors.Is(err, model.ErrDatabase):
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+	default:
+		// Invalid, expired, consumed, replayed, ambiguous, or a failed insert:
+		// one message, no existence signal.
+		common.ApiErrorT(c, "Sign-in link is invalid or has expired, please request a new one")
+	}
+}

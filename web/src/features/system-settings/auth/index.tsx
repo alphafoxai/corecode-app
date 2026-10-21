@@ -27,6 +27,8 @@ import {
 const defaultAuthSettings: AuthSettings = {
   PasswordLoginEnabled: true,
   PasswordRegisterEnabled: true,
+  MagicLinkLoginEnabled: true,
+  MagicLinkRegisterEnabled: true,
   EmailVerificationEnabled: false,
   RegisterEnabled: true,
   EmailDomainRestrictionEnabled: false,

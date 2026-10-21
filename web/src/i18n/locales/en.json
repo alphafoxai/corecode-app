@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "Applies to the groups above. Leave blank for no minimum.",
     "Applies to the groups above. Leave blank for no maximum.": "Applies to the groups above. Leave blank for no maximum.",
     "Use the form x.y.z, for example 2.1.78": "Use the form x.y.z, for example 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "The minimum version cannot be higher than the maximum version"
+    "The minimum version cannot be higher than the maximum version": "The minimum version cannot be higher than the maximum version",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.",
+    "Create an account automatically when an unknown email address signs in": "Create an account automatically when an unknown email address signs in",
+    "Email Link Registration": "Email Link Registration",
+    "Email Link Sign-in": "Email Link Sign-in",
+    "Failed to send sign-in link": "Failed to send sign-in link",
+    "Let customers sign in with a one-time link sent to their email": "Let customers sign in with a one-time link sent to their email",
+    "Request a new link": "Request a new link",
+    "Resend link ({{seconds}}s)": "Resend link ({{seconds}}s)",
+    "Send sign-in link": "Send sign-in link",
+    "Sign in another way": "Sign in another way",
+    "Sign in with an email link": "Sign in with an email link",
+    "Sign-in link sent, please check your inbox": "Sign-in link sent, please check your inbox",
+    "Signing you in…": "Signing you in…",
+    "This sign-in link is invalid or has expired.": "This sign-in link is invalid or has expired.",
+    "We will email you a one-time sign-in link.": "We will email you a one-time sign-in link.",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "We will email you a sign-in link. New email addresses create an account automatically.",
+    "Email link sign-in has been disabled by administrator": "Email link sign-in has been disabled by administrator",
+    "Failed to send sign-in email, please contact the administrator": "Failed to send sign-in email, please contact the administrator",
+    "Sign-in link is invalid or has expired, please request a new one": "Sign-in link is invalid or has expired, please request a new one",
+    "Please wait {{seconds}} seconds before requesting another link.": "Please wait {{seconds}} seconds before requesting another link.",
+    "Too many sign-in links requested, please try again later.": "Too many sign-in links requested, please try again later."
   }
 }

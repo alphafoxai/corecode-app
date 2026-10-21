@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "S'applique aux groupes ci-dessus. Laisser vide pour aucun minimum.",
     "Applies to the groups above. Leave blank for no maximum.": "S'applique aux groupes ci-dessus. Laisser vide pour aucun maximum.",
     "Use the form x.y.z, for example 2.1.78": "Utilisez le format x.y.z, par exemple 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "La version minimale ne peut pas être supérieure à la version maximale"
+    "The minimum version cannot be higher than the maximum version": "La version minimale ne peut pas être supérieure à la version maximale",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "Un lien de connexion a été envoyé à {{email}}. Il est à usage unique et expire dans 10 minutes.",
+    "Create an account automatically when an unknown email address signs in": "Créer un compte automatiquement quand une adresse inconnue se connecte",
+    "Email Link Registration": "Inscription par lien e-mail",
+    "Email Link Sign-in": "Connexion par lien e-mail",
+    "Failed to send sign-in link": "Échec d'envoi du lien de connexion",
+    "Let customers sign in with a one-time link sent to their email": "Permettre aux clients de se connecter via un lien à usage unique envoyé par e-mail",
+    "Request a new link": "Demander un nouveau lien",
+    "Resend link ({{seconds}}s)": "Renvoyer le lien ({{seconds}} s)",
+    "Send sign-in link": "Envoyer le lien de connexion",
+    "Sign in another way": "Se connecter autrement",
+    "Sign in with an email link": "Se connecter avec un lien e-mail",
+    "Sign-in link sent, please check your inbox": "Lien de connexion envoyé, consultez votre boîte de réception",
+    "Signing you in…": "Connexion en cours…",
+    "This sign-in link is invalid or has expired.": "Ce lien de connexion est invalide ou a expiré.",
+    "We will email you a one-time sign-in link.": "Nous vous enverrons un lien de connexion à usage unique.",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "Nous vous enverrons un lien de connexion. Les adresses inconnues créent un compte automatiquement.",
+    "Email link sign-in has been disabled by administrator": "La connexion par lien e-mail a été désactivée par l'administrateur",
+    "Failed to send sign-in email, please contact the administrator": "Échec d'envoi de l'e-mail de connexion, contactez l'administrateur",
+    "Sign-in link is invalid or has expired, please request a new one": "Le lien de connexion est invalide ou expiré, veuillez en demander un nouveau",
+    "Please wait {{seconds}} seconds before requesting another link.": "Veuillez attendre {{seconds}} secondes avant de demander un autre lien.",
+    "Too many sign-in links requested, please try again later.": "Trop de liens de connexion demandés, réessayez plus tard."
   }
 }

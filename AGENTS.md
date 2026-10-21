@@ -18,7 +18,8 @@ the deployment relies on.
 ## Where things are
 
 - `router/`, `controller/` — every HTTP route and its handler. `controller/user.go` owns
-  sign-in and registration.
+  password sign-in and registration; `controller/magic_link.go` owns the emailed link
+  that signs a customer in and registers an unknown address through one email field.
 - `model/` — GORM models and the option table. `model/option.go` is where every setting is
   read and written.
 - `relay/`, `relaykit/` — upstream protocol conversion and transport.
@@ -35,6 +36,13 @@ the deployment relies on.
 - **Outbound mail goes through the SMTP options** that `corecode-infra`'s `init-relay.sh`
   writes. Verification codes live in process memory and are capped, so a restart drops
   pending codes.
+- **A sign-in link is not a verification code.** `model/magic_link.go` stores links as
+  `auth_flows` rows — hashed, expiring, consumed atomically in the database — because the
+  in-memory code map is capped, per-process, and does not consume on use. Never put a
+  credential that opens a session into that map.
+- **Password login stays available to root when the switch is off.** `corecode-infra`'s
+  `init-relay.sh` signs in as root on every deploy to write its options, so removing that
+  door also removes the deployment and the mail-outage recovery path.
 - **Customers use `/v1/*`, `/docs/` and the console.** `corecode-infra`'s Caddyfile decides
   what else is reachable; this repository does not.
 - **`web/src/styles/` carries the CoreCode theme.** Light and dark only; the theme drawer

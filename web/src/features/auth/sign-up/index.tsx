@@ -23,11 +23,23 @@ import { useStatus } from '@/hooks/use-status'
 
 import { AuthLayout } from '../auth-layout'
 import { TermsFooter } from '../components/terms-footer'
+import { MagicLinkForm } from '../sign-in/components/magic-link-form'
 import { SignUpForm } from './components/sign-up-form'
 
 export function SignUp() {
   const { t } = useTranslation()
   const { status } = useStatus()
+
+  // Registration is part of sign-in: an emailed link creates the account for an
+  // unknown address. The password form stays the entry only while the link is
+  // switched off.
+  const magicLinkEnabled =
+    (status?.magic_link_enabled ?? status?.data?.magic_link_enabled ?? true) !==
+    false
+  const magicLinkRegisterEnabled =
+    (status?.magic_link_register_enabled ??
+      status?.data?.magic_link_register_enabled ??
+      true) !== false
 
   return (
     <AuthLayout>
@@ -48,7 +60,11 @@ export function SignUp() {
           </p>
         </div>
 
-        <SignUpForm />
+        {magicLinkEnabled && magicLinkRegisterEnabled ? (
+          <MagicLinkForm />
+        ) : (
+          <SignUpForm />
+        )}
 
         <TermsFooter
           variant='sign-up'

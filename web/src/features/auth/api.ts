@@ -40,6 +40,7 @@ import type {
   TwoFAPayload,
   RegisterPayload,
   ApiResponse,
+  MagicLinkResponse,
 } from './types'
 
 // ============================================================================
@@ -156,6 +157,40 @@ export async function sendPasswordResetEmail(
   const res = await api.get('/api/reset_password', {
     params: { email, turnstile },
   })
+  return res.data
+}
+
+// ----------------------------------------------------------------------------
+// Email Link Sign-in
+// ----------------------------------------------------------------------------
+
+// Request a one-time sign-in link. The response is the same whether the
+// address has an account, so it never confirms registration. redirect is the
+// in-app path the link should continue to after it lands.
+export async function requestMagicLink(
+  email: string,
+  redirect?: string
+): Promise<MagicLinkResponse> {
+  const res = await api.post(
+    '/api/magic_link/send',
+    { email, redirect },
+    { skipAuthRefresh: true }
+  )
+  return res.data
+}
+
+// Turn a sign-in link into a browser session. The token is posted rather than
+// fetched so it never reaches a server access log through a GET query string.
+export async function signInWithMagicLink(
+  token: string
+): Promise<LoginResponse> {
+  const res = await api.post(
+    '/api/magic_link/login',
+    { token },
+    {
+      skipAuthRefresh: true,
+    }
+  )
   return res.data
 }
 
