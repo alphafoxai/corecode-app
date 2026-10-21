@@ -101,13 +101,18 @@ jobs:
 
       # The tag is <version>-<commit>: the version from the tree, the commit for
       # uniqueness, so a rerun of the same commit republishes the same tag.
+      # The tree carries no version: VERSION is empty and common.Version is the
+      # v0.0.0 placeholder, because upstream injects both at build time. Derive a
+      # sortable version from the commit date so a tag says when it was built,
+      # and write it into VERSION so the image and the console bundle agree.
       - name: Resolve version
         id: version
         run: |
           set -eu
-          version=$(grep -m1 -oE 'VERSION *= *"[^"]+"' common/constants.go 2>/dev/null \
-            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[^"]*' || echo '0.0.0')
-          echo "version=${version:-0.0.0}" >> "$GITHUB_OUTPUT"
+          version="$(git show -s --format=%cd --date=format:%Y.%m.%d HEAD)"
+          printf '%s' "$version" > VERSION
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "derived version $version from the commit date"
 
       - name: Record the tag
         id: tag

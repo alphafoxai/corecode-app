@@ -8,7 +8,11 @@ RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 COPY ./web ./
 COPY ./VERSION /build/VERSION
-RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
+# VERSION ships empty; CI writes it before building. The fallback keeps a local
+# build from stamping an empty version into the console bundle.
+ARG BUILD_VERSION=dev
+RUN if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
+    && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
 
 FROM golang:1.26.1-alpine@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder2
 ENV GO111MODULE=on CGO_ENABLED=0 GOWORK=off
@@ -40,6 +44,9 @@ RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
 
 COPY . .
 COPY --from=builder /build/web/dist ./web/dist
+# Same fallback as the console stage: the Go binary stamps the version too.
+ARG BUILD_VERSION=dev
+RUN if [ ! -s VERSION ]; then printf '%s' "$BUILD_VERSION" > VERSION; fi
 RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=new-api-go-build,target=/root/.cache/go-build \
     set -eu; \
