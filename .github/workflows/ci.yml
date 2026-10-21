@@ -1,8 +1,11 @@
-# Builds this component's image and pushes it to Artifact Registry.
+# Builds this component's image, pushes it to Artifact Registry, and on a main
+# push deploys it to production.
 #
-# It does not deploy. The relay pulls whatever tag corecode-infra pins, so a
-# release is two reviewable steps: publish the image here, move the pin there.
-# That is what keeps one component's release from rolling its neighbours.
+# This repository is public (AGPL-3.0), and the org's self-hosted runner group
+# does not admit public repositories: a fork pull request would run arbitrary
+# code on a machine with production reach. So check and build stay on
+# GitHub-hosted runners, and only the deploy job — which runs no code from this
+# repository — uses the self-hosted pool.
 name: ci
 
 on:
@@ -17,6 +20,9 @@ on:
   workflow_dispatch:
 
 concurrency:
+  # Only a pull request cancels its own older runs. A main push must not cancel
+  # an in-flight deploy: cancelling mid-rollout leaves the container created but
+  # never started.
   group: corecode-app-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -28,6 +34,10 @@ env:
   PROJECT: alphafox-506201
   REGION: us-east1
   IMAGE: us-east1-docker.pkg.dev/alphafox-506201/derouter/new-api
+  # Buildx writes an OCI build record per build; nobody imports it, and it counts
+  # against the org's Actions storage quota.
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
+  DOCKER_BUILD_SUMMARY: 'false'
 
 jobs:
   check:
@@ -43,8 +53,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # The web console is a separate Bun build inside this module; the Go tests
-      # do not need it, so it is only built in the publish job.
       - name: Vet and test the Go module
         run: |
           set -eu
@@ -68,81 +76,63 @@ jobs:
           workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
           service_account: derouter-build@alphafox-506201.iam.gserviceaccount.com
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - name: Log in to Artifact Registry
+        run: gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
 
-      # The tag is <package version>-<commit>, read from the tree so a rerun of
-      # the same commit republishes the same tag.
+      - uses: docker/setup-buildx-action@v3
+
+      # The tag is <version>-<commit>: the version from the tree, the commit for
+      # uniqueness, so a rerun of the same commit republishes the same tag.
       - name: Resolve version
         id: version
         run: |
           set -eu
-          version=$(grep -m1 -oE 'VERSION *= *"[^"]+"' common/constants.go 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[^"]*' || echo '0.0.0')
+          version=$(grep -m1 -oE 'VERSION *= *"[^"]+"' common/constants.go 2>/dev/null \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[^"]*' || echo '0.0.0')
           echo "version=${version:-0.0.0}" >> "$GITHUB_OUTPUT"
-
-      # Built from this checkout, not from a GitHub ref: the tree is the source of
-      # truth now, and cloudbuild/ in corecode-infra still clones the old fork.
-      - name: Build and push
-        run: |
-          set -eu
-          tag="${{ steps.version.outputs.version }}-$(git rev-parse --short=8 HEAD)"
-          gcloud builds submit . --tag "$IMAGE:$tag" \
-            --region "$REGION" --project "$PROJECT" \
-            --service-account "projects/$PROJECT/serviceAccounts/derouter-build@$PROJECT.iam.gserviceaccount.com" \
-            --gcs-source-staging-dir "gs://${PROJECT}_us-east1_cloudbuild/source"
-          echo "published $IMAGE:$tag"
 
       - name: Record the tag
         id: tag
         run: echo "tag=${{ steps.version.outputs.version }}-$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
 
-  # Production deploys from main only, and only after the image is published.
-  # This is the last step of the component's own pipeline: the relay pulls the
-  # tag this run produced and restarts this one container.
+      # A hosted runner has no builder state that survives between runs, so the
+      # layer cache lives in the registry under a second tag. mode=max keeps the
+      # intermediate stages too: this image builds the web bundle before the Go
+      # binary, and both stages are worth reusing.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:buildcache
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+          provenance: false
+          sbom: false
+
+  # Production deploys from main only, after the image is published. It runs no
+  # code from this repository, which is what makes the self-hosted pool safe
+  # here, and the pool is inside the project's network so no long-lived SSH key
+  # has to exist.
   deploy:
     needs: [publish]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, gcp-org, org-shared]
     timeout-minutes: 20
     concurrency:
       group: corecode-app-deploy
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
-          service_account: derouter-ci@alphafox-506201.iam.gserviceaccount.com
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Open IAP tunnel
-        run: |
-          set -eu
-          gcloud compute start-iap-tunnel derouter-relay 22 \
-            --local-host-port=localhost:2222 \
-            --project=alphafox-506201 --zone=us-east1-c &
-          i=0
-          while [ "$i" -lt 30 ]; do
-            if nc -z 127.0.0.1 2222; then exit 0; fi
-            i=$((i + 1)); sleep 1
-          done
-          echo "IAP tunnel did not open" >&2; exit 1
-
-      - name: Deploy to production
+      - name: Deploy to the relay
         env:
-          RELAY_SSH_KEY: ${{ runner.temp }}/relay_key
-          KEY: ${{ secrets.DEROUTE_RELAY_SSH_KEY }}
           TAG: ${{ needs.publish.outputs.tag }}
         run: |
           set -eu
-          umask 077
-          printf '%s\n' "$KEY" > "$RELAY_SSH_KEY"
-          ssh -i "$RELAY_SSH_KEY" -p 2222 \
-            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o HostKeyAlias=derouter-relay \
-            -o UserKnownHostsFile="$GITHUB_WORKSPACE/relay_known_hosts" \
-            runner@127.0.0.1 \
-            "sudo sh /opt/derouter/set-image-tag.sh new-api $TAG"
+          echo "deploying new-api $TAG"
+          gcloud compute ssh derouter-relay \
+            --project=alphafox-506201 --zone=us-east1-c --tunnel-through-iap \
+            --command "sudo sh /opt/derouter/set-image-tag.sh new-api $TAG"
