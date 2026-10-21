@@ -53,6 +53,20 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      # main.go embeds web/dist, so the Go toolchain will not even parse the
+      # module until the console bundle exists. Building it here is a build
+      # prerequisite, not a duplicate of the publish job's image build.
+      - name: Build the console bundle the Go build embeds
+        working-directory: web
+        run: |
+          set -eu
+          bun install --frozen-lockfile
+          DISABLE_ESLINT_PLUGIN='true' bun run build
+
       - name: Vet and test the Go module
         run: |
           set -eu
