@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "Совпадает с ценами",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Совпадает с ценами. Цены за единицу включают групповой коэффициент {{ratio}}x.",
     "Price / 1M": "Цена / 1M",
-    "Subtotal": "Подытог"
+    "Subtotal": "Подытог",
+    "Claude Code cost estimate": "Оценка стоимости Claude Code",
+    "Context per turn (tokens)": "Контекст за ход (токены)",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "Каждый ход заново отправляет контекст. Закэшированная часть оплачивается как чтение кэша, новая — как запись в кэш.",
+    "Output per turn (tokens)": "Вывод за ход (токены)",
+    "Per 30 days": "За 30 дней",
+    "Per day": "В день",
+    "Per turn": "За ход",
+    "Turns per day": "Ходов в день",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Без кэша это стоило бы {{amount}} в день. Кэш экономит {{share}}."
   }
 }

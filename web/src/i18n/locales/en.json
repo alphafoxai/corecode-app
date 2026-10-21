@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "Matches the listed prices",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.",
     "Price / 1M": "Price / 1M",
-    "Subtotal": "Subtotal"
+    "Subtotal": "Subtotal",
+    "Claude Code cost estimate": "Claude Code cost estimate",
+    "Context per turn (tokens)": "Context per turn (tokens)",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.",
+    "Output per turn (tokens)": "Output per turn (tokens)",
+    "Per 30 days": "Per 30 days",
+    "Per day": "Per day",
+    "Per turn": "Per turn",
+    "Turns per day": "Turns per day",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Without the cache this would be {{amount}} a day. The cache saves {{share}}."
   }
 }

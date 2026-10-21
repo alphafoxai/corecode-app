@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "與標價一致",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "與標價一致。單價已含 {{ratio}}x 分組倍率。",
     "Price / 1M": "單價 / 百萬",
-    "Subtotal": "小計"
+    "Subtotal": "小計",
+    "Claude Code cost estimate": "Claude Code 費用估算",
+    "Context per turn (tokens)": "每輪上下文（tokens）",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "每一輪都會重送上下文。已快取的部分按快取讀取計費，新增部分寫入快取。",
+    "Output per turn (tokens)": "每輪輸出（tokens）",
+    "Per 30 days": "每 30 天",
+    "Per day": "每天",
+    "Per turn": "每輪",
+    "Turns per day": "每天輪數",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "不走快取每天要 {{amount}}，快取幫你省下 {{share}}。"
   }
 }

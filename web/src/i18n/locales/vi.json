@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "Khớp với giá niêm yết",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Khớp với giá niêm yết. Đơn giá đã gồm hệ số nhóm {{ratio}}x.",
     "Price / 1M": "Giá / 1M",
-    "Subtotal": "Tạm tính"
+    "Subtotal": "Tạm tính",
+    "Claude Code cost estimate": "Ước tính chi phí Claude Code",
+    "Context per turn (tokens)": "Ngữ cảnh mỗi lượt (token)",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "Mỗi lượt gửi lại toàn bộ ngữ cảnh. Phần đã cache tính theo giá đọc cache; phần mới được ghi vào cache.",
+    "Output per turn (tokens)": "Đầu ra mỗi lượt (token)",
+    "Per 30 days": "Mỗi 30 ngày",
+    "Per day": "Mỗi ngày",
+    "Per turn": "Mỗi lượt",
+    "Turns per day": "Số lượt mỗi ngày",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Không có cache sẽ tốn {{amount}} mỗi ngày. Cache giúp tiết kiệm {{share}}."
   }
 }

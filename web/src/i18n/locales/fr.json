@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "Conforme aux tarifs affichés",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Conforme aux tarifs affichés. Les prix unitaires incluent le ratio de groupe {{ratio}}x.",
     "Price / 1M": "Prix / 1M",
-    "Subtotal": "Sous-total"
+    "Subtotal": "Sous-total",
+    "Claude Code cost estimate": "Estimation du coût Claude Code",
+    "Context per turn (tokens)": "Contexte par tour (jetons)",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "Chaque tour renvoie le contexte. La partie en cache est facturée en lecture de cache ; la partie nouvelle est écrite dans le cache.",
+    "Output per turn (tokens)": "Sortie par tour (jetons)",
+    "Per 30 days": "Sur 30 jours",
+    "Per day": "Par jour",
+    "Per turn": "Par tour",
+    "Turns per day": "Tours par jour",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "Sans le cache, cela coûterait {{amount}} par jour. Le cache économise {{share}}."
   }
 }

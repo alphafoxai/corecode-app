@@ -170,7 +170,9 @@ describe('model cards', () => {
     })
     expect(statusStrip).toHaveTextContent('—')
     expect(statusStrip.querySelectorAll('[aria-hidden]')).toHaveLength(0)
-    expect(screen.getByText('No description available.')).toBeVisible()
+    expect(
+      screen.queryByText('No description available.')
+    ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Details' })).toBeEnabled()
   })
 
@@ -341,6 +343,23 @@ describe('model cards', () => {
     }
   )
 
+  it('lists the cache write price next to the cache read price', () => {
+    render(
+      <ModelCard
+        model={pricingModel({ cache_ratio: 0.1, create_cache_ratio: 1.25 })}
+        onClick={vi.fn()}
+        selectedGroup='default'
+      />
+    )
+
+    expect(screen.getByText('Cache Read').parentElement).toHaveTextContent(
+      /\$0.2\s*\/\s*1M/
+    )
+    expect(screen.getByText('Cache Write').parentElement).toHaveTextContent(
+      /\$2.5\s*\/\s*1M/
+    )
+  })
+
   it('keeps group and recharge pricing correct when changing the token unit, including a free cache price', () => {
     const props = {
       model: pricingModel({ cache_ratio: 0 }),
@@ -357,7 +376,7 @@ describe('model cards', () => {
     expect(screen.getByText('Output').parentElement).toHaveTextContent(
       /\$9\s*\/\s*1M/
     )
-    expect(screen.getByText('Cached').parentElement).toHaveTextContent(
+    expect(screen.getByText('Cache Read').parentElement).toHaveTextContent(
       /\$0\s*\/\s*1M/
     )
     rerender(<ModelCard {...props} tokenUnit='K' />)
@@ -367,7 +386,7 @@ describe('model cards', () => {
     expect(screen.getByText('Output').parentElement).toHaveTextContent(
       /\$0.009\s*\/\s*1K/
     )
-    expect(screen.getByText('Cached').parentElement).toHaveTextContent(
+    expect(screen.getByText('Cache Read').parentElement).toHaveTextContent(
       /\$0\s*\/\s*1K/
     )
   })

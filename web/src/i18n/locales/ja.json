@@ -7424,6 +7424,15 @@
     "Matches the listed prices": "表示価格と一致",
     "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "表示価格と一致しています。単価には {{ratio}}x のグループ倍率が含まれます。",
     "Price / 1M": "単価 / 100万",
-    "Subtotal": "小計"
+    "Subtotal": "小計",
+    "Claude Code cost estimate": "Claude Code の費用見積もり",
+    "Context per turn (tokens)": "1ターンのコンテキスト（トークン）",
+    "Each turn resends the context. Cached context is billed as cache reads; the new part is written to the cache.": "毎ターン、コンテキスト全体が再送されます。キャッシュ済みの部分はキャッシュ読み取り、新しい部分はキャッシュ書き込みとして課金されます。",
+    "Output per turn (tokens)": "1ターンの出力（トークン）",
+    "Per 30 days": "30日あたり",
+    "Per day": "1日あたり",
+    "Per turn": "1ターンあたり",
+    "Turns per day": "1日のターン数",
+    "Without the cache this would be {{amount}} a day. The cache saves {{share}}.": "キャッシュなしでは1日 {{amount}} かかります。キャッシュで {{share}} 節約できます。"
   }
 }
