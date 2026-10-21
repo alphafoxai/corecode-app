@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "合計 {{amount}}",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}}：{{amount}}，{{requests}} 次請求",
     "{{value}} requests": "{{value}} 次請求",
-    "{{value}} requests in the last 7 days": "近 7 天 {{value}} 次"
+    "{{value}} requests in the last 7 days": "近 7 天 {{value}} 次",
+    "Charged": "實際扣費",
+    "Cost check": "扣費核對",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "相差 {{amount}}：本次扣費包含此明細未列出的項目，例如工具呼叫。",
+    "Expected at listed prices": "按標價應扣",
+    "Item": "項目",
+    "Matches the listed prices": "與標價一致",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "與標價一致。單價已含 {{ratio}}x 分組倍率。",
+    "Price / 1M": "單價 / 百萬",
+    "Subtotal": "小計"
   }
 }

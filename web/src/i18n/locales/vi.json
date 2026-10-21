@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "Tổng {{amount}}",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}}: {{amount}}, {{requests}} yêu cầu",
     "{{value}} requests": "{{value}} yêu cầu",
-    "{{value}} requests in the last 7 days": "{{value}} yêu cầu trong 7 ngày qua"
+    "{{value}} requests in the last 7 days": "{{value}} yêu cầu trong 7 ngày qua",
+    "Charged": "Đã trừ",
+    "Cost check": "Đối soát chi phí",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "Chênh lệch {{amount}}: khoản trừ gồm các mục không có trong bảng này, ví dụ gọi công cụ.",
+    "Expected at listed prices": "Dự kiến theo giá niêm yết",
+    "Item": "Mục",
+    "Matches the listed prices": "Khớp với giá niêm yết",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Khớp với giá niêm yết. Đơn giá đã gồm hệ số nhóm {{ratio}}x.",
+    "Price / 1M": "Giá / 1M",
+    "Subtotal": "Tạm tính"
   }
 }

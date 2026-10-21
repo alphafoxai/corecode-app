@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "{{amount}} in total",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}}: {{amount}}, {{requests}} requests",
     "{{value}} requests": "{{value}} requests",
-    "{{value}} requests in the last 7 days": "{{value}} requests in the last 7 days"
+    "{{value}} requests in the last 7 days": "{{value}} requests in the last 7 days",
+    "Charged": "Charged",
+    "Cost check": "Cost check",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.",
+    "Expected at listed prices": "Expected at listed prices",
+    "Item": "Item",
+    "Matches the listed prices": "Matches the listed prices",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.",
+    "Price / 1M": "Price / 1M",
+    "Subtotal": "Subtotal"
   }
 }

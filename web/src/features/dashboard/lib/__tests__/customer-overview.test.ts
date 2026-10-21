@@ -24,7 +24,6 @@ import type { UsageLog } from '@/features/usage-logs/data/schema'
 import {
   bucketDailySpend,
   estimateRunwayDays,
-  getCacheGrade,
   summarizeRecentLogs,
 } from '../customer-overview'
 
@@ -116,19 +115,6 @@ describe('summarizeRecentLogs', () => {
     ])
     expect(summary.requests).toBe(1)
     expect(summary.cacheHitRate).toBe(0)
-  })
-})
-
-describe('getCacheGrade', () => {
-  test.each([
-    [0.95, 'good'],
-    [0.8, 'good'],
-    [0.79, 'fair'],
-    [0.5, 'fair'],
-    [0.49, 'poor'],
-    [0, 'poor'],
-  ] as const)('grades %d as %s', (rate, grade) => {
-    expect(getCacheGrade(rate)).toBe(grade)
   })
 })
 

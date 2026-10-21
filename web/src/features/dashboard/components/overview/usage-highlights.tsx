@@ -20,15 +20,17 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  getCacheGrade,
+  type CacheGrade,
+} from '@/features/usage-logs/lib/cost-check'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber, formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import {
-  getCacheGrade,
-  type CacheGrade,
-  type DailySpend,
-  type RecentUsageSummary,
+import type {
+  DailySpend,
+  RecentUsageSummary,
 } from '../../lib/customer-overview'
 
 const WEEK_DAYS = 7

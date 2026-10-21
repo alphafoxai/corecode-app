@@ -22,27 +22,10 @@ For commercial licensing, please contact support@quantumnous.com
  */
 import type { QuotaDataItem } from '@/features/dashboard/types'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
+import { getInputCacheTokens } from '@/features/usage-logs/lib/cost-check'
+import { parseLogOther } from '@/features/usage-logs/lib/format'
 
 const LOG_TYPE_CONSUME = 2
-
-interface LogUsageFields {
-  cache_tokens?: number
-  cache_creation_tokens?: number
-  cache_creation_tokens_5m?: number
-  cache_creation_tokens_1h?: number
-  claude?: boolean
-  usage_semantic?: string
-  frt?: number
-}
-
-function parseUsageFields(other: string): LogUsageFields {
-  if (!other) return {}
-  try {
-    return JSON.parse(other) as LogUsageFields
-  } catch {
-    return {}
-  }
-}
 
 export interface RecentUsageSummary {
   requests: number
@@ -52,11 +35,7 @@ export interface RecentUsageSummary {
   avgFirstTokenMs: number | null
 }
 
-/**
- * Anthropic usage reports input_tokens without the cached part, so total
- * input is input + cache read + cache write. OpenAI-shaped usage already
- * counts cached tokens inside prompt_tokens.
- */
+/** Cache hit rate and first-token time over a set of request logs. */
 export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
   let requests = 0
   let cacheRead = 0
@@ -67,20 +46,13 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
   for (const log of logs) {
     if (log.type !== LOG_TYPE_CONSUME) continue
     requests++
-    const usage = parseUsageFields(log.other)
-    const read = usage.cache_tokens ?? 0
-    const splitWrite =
-      (usage.cache_creation_tokens_5m ?? 0) +
-      (usage.cache_creation_tokens_1h ?? 0)
-    const write = splitWrite > 0 ? splitWrite : (usage.cache_creation_tokens ?? 0)
-    const prompt = log.prompt_tokens ?? 0
-    const anthropic = usage.claude === true || usage.usage_semantic === 'anthropic'
+    const other = parseLogOther(log.other)
+    const tokens = getInputCacheTokens(log, other)
+    cacheRead += tokens.cacheRead
+    totalInput += tokens.totalInput
 
-    cacheRead += read
-    totalInput += anthropic ? prompt + read + write : Math.max(prompt, read + write)
-
-    if (usage.frt && usage.frt > 0) {
-      firstTokenTotal += usage.frt
+    if (other?.frt && other.frt > 0) {
+      firstTokenTotal += other.frt
       firstTokenCount++
     }
   }
@@ -91,18 +63,6 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
     avgFirstTokenMs:
       firstTokenCount > 0 ? firstTokenTotal / firstTokenCount : null,
   }
-}
-
-export type CacheGrade = 'good' | 'fair' | 'poor'
-
-/**
- * A Claude Code session that stays on one account re-reads most of its
- * context from cache, so a healthy session sits well above 80%.
- */
-export function getCacheGrade(hitRate: number): CacheGrade {
-  if (hitRate >= 0.8) return 'good'
-  if (hitRate >= 0.5) return 'fair'
-  return 'poor'
 }
 
 export interface DailySpend {

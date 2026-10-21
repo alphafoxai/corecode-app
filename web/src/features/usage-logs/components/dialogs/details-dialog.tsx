@@ -84,6 +84,7 @@ import {
   renderAuditContent,
   renderLogContent,
 } from '../../lib/format'
+import { buildCostCheck } from '../../lib/cost-check'
 import { buildQuotaAuditOperation } from '../../lib/quota-audit-operation'
 import {
   getLogTypeConfig,
@@ -93,6 +94,7 @@ import {
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
 import { ResponseModelDetails } from '../model-badge'
 import { PluginAuthorLink } from '../plugin-author-link'
+import { CostCheckSection } from './cost-check-section'
 import { DetailRow, DetailSection } from './log-detail-layout'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
@@ -489,6 +491,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const isTopup = props.log.type === 1
   const isManage = props.log.type === 3
   const isSubscription = other?.billing_source === 'subscription'
+  const costCheck = isViolation ? null : buildCostCheck(props.log, other)
   const isTieredBilling =
     isConsume &&
     !isViolation &&
@@ -1169,6 +1172,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
         {isDisplayableType(props.log.type) && other && (
           <TokenBreakdown log={props.log} other={other} />
         )}
+
+        {/* CoreCode fork: the arithmetic behind a per-token charge */}
+        {costCheck && <CostCheckSection check={costCheck} />}
 
         {/* Billing breakdown (consume type) */}
         {isConsume && other && !isViolation && (

@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "合計 {{amount}}",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}}：{{amount}}、{{requests}} 件",
     "{{value}} requests": "{{value}} 件のリクエスト",
-    "{{value}} requests in the last 7 days": "過去7日で {{value}} 件"
+    "{{value}} requests in the last 7 days": "過去7日で {{value}} 件",
+    "Charged": "実際の請求額",
+    "Cost check": "請求額の確認",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "{{amount}} の差があります。ツール呼び出しなど、この内訳にない項目が含まれています。",
+    "Expected at listed prices": "表示価格での想定額",
+    "Item": "項目",
+    "Matches the listed prices": "表示価格と一致",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "表示価格と一致しています。単価には {{ratio}}x のグループ倍率が含まれます。",
+    "Price / 1M": "単価 / 100万",
+    "Subtotal": "小計"
   }
 }

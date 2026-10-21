@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "{{amount}} au total",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}} : {{amount}}, {{requests}} requêtes",
     "{{value}} requests": "{{value}} requêtes",
-    "{{value}} requests in the last 7 days": "{{value}} requêtes sur les 7 derniers jours"
+    "{{value}} requests in the last 7 days": "{{value}} requêtes sur les 7 derniers jours",
+    "Charged": "Facturé",
+    "Cost check": "Vérification du coût",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "Écart de {{amount}} : le coût inclut des éléments non listés ici, comme des appels d’outils.",
+    "Expected at listed prices": "Attendu aux tarifs affichés",
+    "Item": "Élément",
+    "Matches the listed prices": "Conforme aux tarifs affichés",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Conforme aux tarifs affichés. Les prix unitaires incluent le ratio de groupe {{ratio}}x.",
+    "Price / 1M": "Prix / 1M",
+    "Subtotal": "Sous-total"
   }
 }

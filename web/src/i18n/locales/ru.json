@@ -7415,6 +7415,15 @@
     "{{amount}} in total": "Всего {{amount}}",
     "{{date}}: {{amount}}, {{requests}} requests": "{{date}}: {{amount}}, запросов: {{requests}}",
     "{{value}} requests": "Запросов: {{value}}",
-    "{{value}} requests in the last 7 days": "{{value}} запросов за 7 дней"
+    "{{value}} requests in the last 7 days": "{{value}} запросов за 7 дней",
+    "Charged": "Списано",
+    "Cost check": "Проверка списания",
+    "Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.": "Разница {{amount}}: в списание входят позиции, которых нет в этой разбивке, например вызовы инструментов.",
+    "Expected at listed prices": "По опубликованным ценам",
+    "Item": "Позиция",
+    "Matches the listed prices": "Совпадает с ценами",
+    "Matches the listed prices. Unit prices include the {{ratio}}x group ratio.": "Совпадает с ценами. Цены за единицу включают групповой коэффициент {{ratio}}x.",
+    "Price / 1M": "Цена / 1M",
+    "Subtotal": "Подытог"
   }
 }
