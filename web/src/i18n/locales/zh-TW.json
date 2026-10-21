@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "適用於上方分組。留空表示不限最低版本。",
     "Applies to the groups above. Leave blank for no maximum.": "適用於上方分組。留空表示不限最高版本。",
     "Use the form x.y.z, for example 2.1.78": "格式為 x.y.z，例如 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "最低版本不能高於最高版本"
+    "The minimum version cannot be higher than the maximum version": "最低版本不能高於最高版本",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "登入連結已傳送至 {{email}}，僅可使用一次，10 分鐘內有效。",
+    "Create an account automatically when an unknown email address signs in": "未知信箱登入時自動建立帳戶",
+    "Email Link Registration": "信箱連結註冊",
+    "Email Link Sign-in": "信箱連結登入",
+    "Failed to send sign-in link": "登入連結發送失敗",
+    "Let customers sign in with a one-time link sent to their email": "允許客戶透過發送至信箱的一次性連結登入",
+    "Request a new link": "重新取得連結",
+    "Resend link ({{seconds}}s)": "重新發送連結（{{seconds}}秒）",
+    "Send sign-in link": "發送登入連結",
+    "Sign in another way": "使用其他方式登入",
+    "Sign in with an email link": "使用信箱連結登入",
+    "Sign-in link sent, please check your inbox": "登入連結已發送，請檢查收件匣",
+    "Signing you in…": "正在登入…",
+    "This sign-in link is invalid or has expired.": "此登入連結無效或已過期。",
+    "We will email you a one-time sign-in link.": "我們會向您發送一次性登入連結。",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "我們會向您發送登入連結。未註冊的信箱將自動建立帳戶。",
+    "Email link sign-in has been disabled by administrator": "管理員已停用信箱連結登入",
+    "Failed to send sign-in email, please contact the administrator": "登入郵件發送失敗，請聯絡管理員",
+    "Sign-in link is invalid or has expired, please request a new one": "登入連結無效或已過期，請重新申請",
+    "Please wait {{seconds}} seconds before requesting another link.": "請等待 {{seconds}} 秒後再申請新連結。",
+    "Too many sign-in links requested, please try again later.": "登入連結申請過多，請稍後再試。"
   }
 }

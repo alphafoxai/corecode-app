@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "Применяется к группам выше. Оставьте пустым, чтобы не ограничивать минимум.",
     "Applies to the groups above. Leave blank for no maximum.": "Применяется к группам выше. Оставьте пустым, чтобы не ограничивать максимум.",
     "Use the form x.y.z, for example 2.1.78": "Используйте формат x.y.z, например 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "Минимальная версия не может быть выше максимальной"
+    "The minimum version cannot be higher than the maximum version": "Минимальная версия не может быть выше максимальной",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "Ссылка для входа отправлена на {{email}}. Одноразовая, истекает через 10 минут.",
+    "Create an account automatically when an unknown email address signs in": "Создавать аккаунт автоматически при входе с неизвестного адреса",
+    "Email Link Registration": "Регистрация по ссылке",
+    "Email Link Sign-in": "Вход по ссылке",
+    "Failed to send sign-in link": "Не удалось отправить ссылку для входа",
+    "Let customers sign in with a one-time link sent to their email": "Разрешить вход по одноразовой ссылке, отправленной на почту",
+    "Request a new link": "Запросить новую ссылку",
+    "Resend link ({{seconds}}s)": "Отправить ссылку повторно ({{seconds}} с)",
+    "Send sign-in link": "Отправить ссылку для входа",
+    "Sign in another way": "Войти иначе",
+    "Sign in with an email link": "Войти по ссылке в почте",
+    "Sign-in link sent, please check your inbox": "Ссылка для входа отправлена, проверьте почту",
+    "Signing you in…": "Входим…",
+    "This sign-in link is invalid or has expired.": "Ссылка для входа недействительна или истекла.",
+    "We will email you a one-time sign-in link.": "Мы отправим вам одноразовую ссылку для входа.",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "Мы отправим ссылку для входа. Новые адреса создают аккаунт автоматически.",
+    "Email link sign-in has been disabled by administrator": "Вход по ссылке в почте отключён администратором",
+    "Failed to send sign-in email, please contact the administrator": "Не удалось отправить письмо для входа, свяжитесь с администратором",
+    "Sign-in link is invalid or has expired, please request a new one": "Ссылка для входа недействительна или истекла, запросите новую",
+    "Please wait {{seconds}} seconds before requesting another link.": "Подождите {{seconds}} секунд перед запросом новой ссылки.",
+    "Too many sign-in links requested, please try again later.": "Слишком много запросов ссылок для входа, попробуйте позже."
   }
 }

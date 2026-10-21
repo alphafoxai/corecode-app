@@ -77,6 +77,15 @@ export interface Login2FAResponse {
   data?: AuthBundle
 }
 
+// The send endpoint answers the same for known and unknown addresses; resend_after
+// is the server-side resend throttle in seconds.
+export interface MagicLinkResponse {
+  success: boolean
+  message: string
+  expires_at?: number
+  resend_after?: number
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean
   message: string
@@ -134,6 +143,8 @@ export interface SystemStatus {
     password_login_enabled?: boolean
     password_login_encryption_enabled?: boolean
     password_register_enabled?: boolean
+    magic_link_enabled?: boolean
+    magic_link_register_enabled?: boolean
     custom_oauth_providers?: CustomOAuthProviderInfo[]
     [key: string]: unknown
   }

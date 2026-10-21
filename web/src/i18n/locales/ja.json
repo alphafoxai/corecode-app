@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "上のグループに適用されます。空欄の場合は最低バージョンを制限しません。",
     "Applies to the groups above. Leave blank for no maximum.": "上のグループに適用されます。空欄の場合は最高バージョンを制限しません。",
     "Use the form x.y.z, for example 2.1.78": "x.y.z の形式で入力してください（例：2.1.78）",
-    "The minimum version cannot be higher than the maximum version": "最低バージョンは最高バージョンより高くできません"
+    "The minimum version cannot be higher than the maximum version": "最低バージョンは最高バージョンより高くできません",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "ログインリンクを {{email}} に送信しました。1 回のみ使用でき、10 分で失効します。",
+    "Create an account automatically when an unknown email address signs in": "未知のメールアドレスでのログイン時にアカウントを自動作成",
+    "Email Link Registration": "メールリンク登録",
+    "Email Link Sign-in": "メールリンクログイン",
+    "Failed to send sign-in link": "ログインリンクの送信に失敗しました",
+    "Let customers sign in with a one-time link sent to their email": "ユーザーをメール送信のワンタイムリンクでログイン可能にする",
+    "Request a new link": "新しいリンクを要求",
+    "Resend link ({{seconds}}s)": "リンクを再送（{{seconds}}秒）",
+    "Send sign-in link": "ログインリンクを送信",
+    "Sign in another way": "別の方法でサインイン",
+    "Sign in with an email link": "メールリンクでサインイン",
+    "Sign-in link sent, please check your inbox": "ログインリンクを送信しました。受信箱をご確認ください",
+    "Signing you in…": "ログイン中…",
+    "This sign-in link is invalid or has expired.": "このログインリンクは無効または期限切れです。",
+    "We will email you a one-time sign-in link.": "ワンタイムのログインリンクをメールで送信します。",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "ログインリンクをメールで送信します。未登録のアドレスは自動的にアカウントを作成します。",
+    "Email link sign-in has been disabled by administrator": "メールリンクによるログインは管理者によって無効化されています",
+    "Failed to send sign-in email, please contact the administrator": "ログインメールの送信に失敗しました。管理者にお問い合わせください",
+    "Sign-in link is invalid or has expired, please request a new one": "ログインリンクが無効または期限切れです。再度リクエストしてください",
+    "Please wait {{seconds}} seconds before requesting another link.": "再度リンクをリクエストするまで {{seconds}} 秒お待ちください。",
+    "Too many sign-in links requested, please try again later.": "ログインリンクのリクエストが多すぎます。後で再試行してください。"
   }
 }

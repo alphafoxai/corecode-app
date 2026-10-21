@@ -41,6 +41,8 @@ func InitOptionMap() {
 	common.OptionMap["ImageDownloadPermission"] = strconv.Itoa(common.ImageDownloadPermission)
 	common.OptionMap["PasswordLoginEnabled"] = strconv.FormatBool(common.PasswordLoginEnabled)
 	common.OptionMap["PasswordRegisterEnabled"] = strconv.FormatBool(common.PasswordRegisterEnabled)
+	common.OptionMap["MagicLinkLoginEnabled"] = strconv.FormatBool(common.MagicLinkLoginEnabled)
+	common.OptionMap["MagicLinkRegisterEnabled"] = strconv.FormatBool(common.MagicLinkRegisterEnabled)
 	common.OptionMap["EmailVerificationEnabled"] = strconv.FormatBool(common.EmailVerificationEnabled)
 	common.OptionMap["GitHubOAuthEnabled"] = strconv.FormatBool(common.GitHubOAuthEnabled)
 	common.OptionMap["LinuxDOOAuthEnabled"] = strconv.FormatBool(common.LinuxDOOAuthEnabled)
@@ -380,6 +382,10 @@ func updateOptionMap(key string, value string) (err error) {
 		switch key {
 		case "PasswordRegisterEnabled":
 			common.PasswordRegisterEnabled = boolValue
+		case "MagicLinkLoginEnabled":
+			common.MagicLinkLoginEnabled = boolValue
+		case "MagicLinkRegisterEnabled":
+			common.MagicLinkRegisterEnabled = boolValue
 		case "PasswordLoginEnabled":
 			common.PasswordLoginEnabled = boolValue
 		case "EmailVerificationEnabled":

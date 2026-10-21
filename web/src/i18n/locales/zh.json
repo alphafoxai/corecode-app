@@ -7281,6 +7281,27 @@
     "Applies to the groups above. Leave blank for no minimum.": "适用于上方分组。留空表示不限最低版本。",
     "Applies to the groups above. Leave blank for no maximum.": "适用于上方分组。留空表示不限最高版本。",
     "Use the form x.y.z, for example 2.1.78": "格式为 x.y.z，例如 2.1.78",
-    "The minimum version cannot be higher than the maximum version": "最低版本不能高于最高版本"
+    "The minimum version cannot be higher than the maximum version": "最低版本不能高于最高版本",
+    "A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.": "登录链接已发送至 {{email}}，仅可使用一次，10 分钟内有效。",
+    "Create an account automatically when an unknown email address signs in": "未知邮箱登录时自动创建账户",
+    "Email Link Registration": "邮箱链接注册",
+    "Email Link Sign-in": "邮箱链接登录",
+    "Failed to send sign-in link": "登录链接发送失败",
+    "Let customers sign in with a one-time link sent to their email": "允许客户通过发送到邮箱的一次性链接登录",
+    "Request a new link": "重新获取链接",
+    "Resend link ({{seconds}}s)": "重新发送链接（{{seconds}}秒）",
+    "Send sign-in link": "发送登录链接",
+    "Sign in another way": "使用其他方式登录",
+    "Sign in with an email link": "使用邮箱链接登录",
+    "Sign-in link sent, please check your inbox": "登录链接已发送，请查看收件箱",
+    "Signing you in…": "正在登录…",
+    "This sign-in link is invalid or has expired.": "此登录链接无效或已过期。",
+    "We will email you a one-time sign-in link.": "我们会向您发送一次性登录链接。",
+    "We will email you a sign-in link. New email addresses create an account automatically.": "我们会向您发送登录链接。未注册的邮箱将自动创建账户。",
+    "Email link sign-in has been disabled by administrator": "管理员已停用邮箱链接登录",
+    "Failed to send sign-in email, please contact the administrator": "登录邮件发送失败，请联系管理员",
+    "Sign-in link is invalid or has expired, please request a new one": "登录链接无效或已过期，请重新申请",
+    "Please wait {{seconds}} seconds before requesting another link.": "请等待 {{seconds}} 秒后再申请新链接。",
+    "Too many sign-in links requested, please try again later.": "登录链接申请过多，请稍后再试。"
   }
 }

@@ -55,6 +55,10 @@ export const otpFormSchema = z.object({
 // Validation Constants
 // ============================================================================
 
+// The sign-in form reuses forgotPasswordFormSchema: the mailbox is the only
+// field for both requesting a sign-in link and requesting a password reset.
+export const MAGIC_LINK_COUNTDOWN = 60 // seconds, matches the server resend window
+
 export const PASSWORD_MIN_LENGTH = 8
 export const PASSWORD_MAX_LENGTH = 20
 export const OTP_LENGTH = 6

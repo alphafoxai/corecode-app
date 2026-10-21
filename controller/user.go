@@ -51,10 +51,6 @@ func GetPasswordEncryptionKey(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	if !common.PasswordLoginEnabled {
-		common.ApiErrorT(c, "Password login has been disabled by administrator")
-		return
-	}
 	var loginRequest LoginRequest
 	err := common.DecodeJson(c.Request.Body, &loginRequest)
 	if err != nil {
@@ -93,6 +89,15 @@ func Login(c *gin.Context) {
 		default:
 			common.ApiErrorT(c, "Username or password is incorrect, or user has been banned")
 		}
+		return
+	}
+	// Customers sign in with an emailed link. Password login stays open for the
+	// root account even when the switch is off, so the operator and the
+	// deployment relay can still reach the management API when email delivery
+	// is down. The check runs after credentials verified, so a rejected
+	// non-root attempt is indistinguishable from any other failed login.
+	if !common.PasswordLoginEnabled && user.Role != common.RoleRootUser {
+		common.ApiErrorT(c, "Password login has been disabled by administrator")
 		return
 	}
 
@@ -299,32 +304,9 @@ func Register(c *gin.Context) {
 		return
 	}
 	// 生成默认令牌
-	if constant.GenerateDefaultToken {
-		key, err := common.GenerateKey()
-		if err != nil {
-			common.ApiErrorT(c, "Failed to generate default token")
-			common.SysLog(common.LogText("failed to generate token key: %s", err.Error()))
-			return
-		}
-		// 生成默认令牌
-		token := model.Token{
-			UserId:             insertedUser.Id, // 使用插入后的用户ID
-			Name:               i18n.T(c, i18n.MsgUserDefaultTokenName, map[string]any{"Username": cleanUser.Username}),
-			Key:                key,
-			CreatedTime:        common.GetTimestamp(),
-			AccessedTime:       common.GetTimestamp(),
-			ExpiredTime:        -1,     // 永不过期
-			RemainQuota:        500000, // 示例额度
-			UnlimitedQuota:     true,
-			ModelLimitsEnabled: false,
-		}
-		if setting.DefaultUseAutoGroup {
-			token.Group = "auto"
-		}
-		if err := token.Insert(); err != nil {
-			common.ApiErrorT(c, "Failed to create default token")
-			return
-		}
+	if err := issueDefaultAPIToken(c, &insertedUser); err != nil {
+		common.ApiErrorT(c, "Failed to create default token")
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -332,6 +314,34 @@ func Register(c *gin.Context) {
 		"message": "",
 	})
 	return
+}
+
+// issueDefaultAPIToken creates the starter API token every registration path
+// hands out. It is a no-op unless GENERATE_DEFAULT_TOKEN is enabled.
+func issueDefaultAPIToken(c *gin.Context, user *model.User) error {
+	if !constant.GenerateDefaultToken {
+		return nil
+	}
+	key, err := common.GenerateKey()
+	if err != nil {
+		common.SysLog(common.LogText("failed to generate token key: %s", err.Error()))
+		return err
+	}
+	token := model.Token{
+		UserId:             user.Id,
+		Name:               i18n.T(c, i18n.MsgUserDefaultTokenName, map[string]any{"Username": user.Username}),
+		Key:                key,
+		CreatedTime:        common.GetTimestamp(),
+		AccessedTime:       common.GetTimestamp(),
+		ExpiredTime:        -1,     // 永不过期
+		RemainQuota:        500000, // 示例额度
+		UnlimitedQuota:     true,
+		ModelLimitsEnabled: false,
+	}
+	if setting.DefaultUseAutoGroup {
+		token.Group = "auto"
+	}
+	return token.Insert()
 }
 
 func GetAllUsers(c *gin.Context) {
