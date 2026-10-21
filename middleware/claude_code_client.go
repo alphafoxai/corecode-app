@@ -1,0 +1,251 @@
+package middleware
+
+import (
+	"encoding/json"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/gin-gonic/gin"
+)
+
+// Claude Code client detection follows the rules claude-relay-service and
+// sub2api use for their "Claude Code only" switch: the claude-cli User-Agent,
+// and on /v1/messages a Claude Code system prompt, the X-App, anthropic-beta
+// and anthropic-version headers, and a Claude Code metadata.user_id. Unlike
+// them, a system block must start with a Claude Code sentence: their 0.5 Dice
+// similarity also accepts prompts such as "You are a helpful translation
+// assistant".
+
+var claudeCliUserAgentPattern = regexp.MustCompile(`(?i)^claude-cli/(\d+)\.(\d+)\.(\d+)`)
+
+// Sentences Claude Code starts a system block with: the main CLI, the Agent SDK
+// (also used by `claude -p`), the explore subagent, compaction, and the older
+// single-block CLI prompt.
+var claudeCodeSystemPromptPrefixes = []string{
+	"You are Claude Code, Anthropic's official CLI for Claude.",
+	"You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.",
+	"You are a Claude agent, built on Anthropic's Claude Agent SDK.",
+	"You are a file search specialist for Claude Code, Anthropic's official CLI for Claude.",
+	"You are a helpful AI assistant tasked with summarizing conversations.",
+	"You are an interactive CLI tool that helps users",
+}
+
+// The system block Claude Code prepends for billing attribution, for example
+// "x-anthropic-billing-header: cc_version=2.1.301.b14; cc_entrypoint=cli;".
+const (
+	claudeCodeBillingBlockPrefix = "x-anthropic-billing-header"
+	claudeCodeEntrypointField    = "cc_entrypoint="
+)
+
+// The auto-mode safety classifier request carries a long prompt of its own
+// instead of the Claude Code identity sentence.
+const (
+	claudeCodeSecurityMonitorPrefix = "You are a security monitor for autonomous AI coding agents."
+	claudeCodeSecurityMonitorMinLen = 10_000
+)
+
+var claudeCodeSecurityMonitorMarkers = []string{
+	"## Threat Model",
+	"## HARD BLOCK",
+	"## SOFT BLOCK",
+	"## Classification Process",
+	"## Output Format",
+	"<block>yes</block>",
+	"<block>no</block>",
+}
+
+// Claude Code before 2.1.78: user_<64 hex>_account_<uuid or empty>_session_<uuid>.
+// From 2.1.78 on it is JSON with device_id, account_uuid and session_id.
+var claudeCodeLegacyUserIDPattern = regexp.MustCompile(`^user_[a-fA-F0-9]{64}_account_[a-fA-F0-9-]*_session_[a-fA-F0-9-]{36}$`)
+
+type claudeCodeRequestProbe struct {
+	MaxTokens *int            `json:"max_tokens"`
+	System    json.RawMessage `json:"system"`
+	Metadata  struct {
+		UserID string `json:"user_id"`
+	} `json:"metadata"`
+}
+
+type claudeCodeSystemBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// enforceClaudeCodeOnlyGroup rejects a relay request whose group accepts Claude
+// Code only and that does not look like Claude Code. userGroup is the user's own
+// group, used to resolve the candidates of an "auto" token. It returns false
+// after aborting the request.
+func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
+	if isModelListRequest(c) {
+		return true
+	}
+	group := restrictedClaudeCodeGroup(c, userGroup)
+	if group == "" {
+		return true
+	}
+
+	version, failedCheck := detectClaudeCodeClient(c)
+	if failedCheck != "" {
+		logger.LogWarn(c.Request.Context(), "claude code only group %s: request rejected, %s check failed", group, failedCheck)
+		abortWithOpenAiMessage(c, http.StatusForbidden,
+			i18n.T(c, i18n.MsgAuthClaudeCodeOnly, map[string]any{"Group": group}), types.ErrorCodeAccessDenied)
+		return false
+	}
+
+	setting := operation_setting.GetClaudeCodeClientSetting()
+	if setting.MinVersion != "" && compareClaudeCodeVersions(version, setting.MinVersion) < 0 {
+		abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooLow,
+			map[string]any{"Group": group, "Version": version, "MinVersion": setting.MinVersion}), types.ErrorCodeAccessDenied)
+		return false
+	}
+	if setting.MaxVersion != "" && compareClaudeCodeVersions(version, setting.MaxVersion) > 0 {
+		abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooHigh,
+			map[string]any{"Group": group, "Version": version, "MaxVersion": setting.MaxVersion}), types.ErrorCodeAccessDenied)
+		return false
+	}
+	return true
+}
+
+// isModelListRequest reports a GET on /v1/models or /v1/models/:model. Model
+// lists are open to every client so tools such as CC Switch and Magpie can
+// fetch model names with the token; they cost nothing and relay no prompt.
+func isModelListRequest(c *gin.Context) bool {
+	path := c.Request.URL.Path
+	return c.Request.Method == http.MethodGet && (path == "/v1/models" || strings.HasPrefix(path, "/v1/models/"))
+}
+
+// restrictedClaudeCodeGroup returns the Claude Code only group the request would
+// use, or "". An "auto" token is restricted when any of its candidate groups is,
+// since the group is chosen later, during channel selection.
+func restrictedClaudeCodeGroup(c *gin.Context, userGroup string) string {
+	usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
+	if usingGroup != "auto" {
+		if operation_setting.IsClaudeCodeOnlyGroup(usingGroup) {
+			return usingGroup
+		}
+		return ""
+	}
+	for _, group := range service.GetRequestAutoGroups(c, userGroup) {
+		if operation_setting.IsClaudeCodeOnlyGroup(group) {
+			return group
+		}
+	}
+	return ""
+}
+
+// detectClaudeCodeClient returns the Claude Code version from the User-Agent,
+// or the name of the first check the request failed.
+func detectClaudeCodeClient(c *gin.Context) (version string, failedCheck string) {
+	match := claudeCliUserAgentPattern.FindStringSubmatch(c.GetHeader("User-Agent"))
+	if match == nil {
+		return "", "User-Agent"
+	}
+	version = match[1] + "." + match[2] + "." + match[3]
+
+	// Only a Messages request carries a prompt. Other paths (count_tokens) are
+	// judged by the User-Agent alone. Model lists never get here.
+	if !strings.HasSuffix(c.Request.URL.Path, "/messages") {
+		return version, ""
+	}
+
+	var probe claudeCodeRequestProbe
+	if err := common.UnmarshalBodyReusable(c, &probe); err != nil {
+		return version, "request body"
+	}
+	// Claude Code checks connectivity and context usage with max_tokens=1
+	// requests that have no system prompt; one output token is worth nothing
+	// to anyone else.
+	if probe.MaxTokens != nil && *probe.MaxTokens == 1 {
+		return version, ""
+	}
+	if !hasClaudeCodeSystemPrompt(probe.System) {
+		return version, "system prompt"
+	}
+	for _, header := range []string{"X-App", "anthropic-beta", "anthropic-version"} {
+		if strings.TrimSpace(c.GetHeader(header)) == "" {
+			return version, header + " header"
+		}
+	}
+	if !isClaudeCodeUserID(probe.Metadata.UserID) {
+		return version, "metadata.user_id"
+	}
+	return version, ""
+}
+
+func hasClaudeCodeSystemPrompt(raw json.RawMessage) bool {
+	var blocks []claudeCodeSystemBlock
+	if len(raw) == 0 || common.Unmarshal(raw, &blocks) != nil {
+		return false
+	}
+	for _, block := range blocks {
+		if block.Text == "" {
+			continue
+		}
+		if strings.HasPrefix(block.Text, claudeCodeBillingBlockPrefix) && strings.Contains(block.Text, claudeCodeEntrypointField) {
+			return true
+		}
+		if isClaudeCodeSecurityMonitorPrompt(block.Text) {
+			return true
+		}
+		normalized := strings.Join(strings.Fields(block.Text), " ")
+		for _, prefix := range claudeCodeSystemPromptPrefixes {
+			if strings.HasPrefix(normalized, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isClaudeCodeSecurityMonitorPrompt(text string) bool {
+	if len(text) < claudeCodeSecurityMonitorMinLen || !strings.HasPrefix(text, claudeCodeSecurityMonitorPrefix) {
+		return false
+	}
+	for _, marker := range claudeCodeSecurityMonitorMarkers {
+		if !strings.Contains(text, marker) {
+			return false
+		}
+	}
+	return true
+}
+
+func isClaudeCodeUserID(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "{") {
+		return claudeCodeLegacyUserIDPattern.MatchString(raw)
+	}
+	var userID struct {
+		DeviceID  string `json:"device_id"`
+		SessionID string `json:"session_id"`
+	}
+	if common.UnmarshalJsonStr(raw, &userID) != nil {
+		return false
+	}
+	return userID.DeviceID != "" && userID.SessionID != ""
+}
+
+// compareClaudeCodeVersions compares two validated x.y.z versions.
+func compareClaudeCodeVersions(a, b string) int {
+	partsA := strings.SplitN(a, ".", 3)
+	partsB := strings.SplitN(b, ".", 3)
+	for i := range 3 {
+		numberA, _ := strconv.Atoi(partsA[i])
+		numberB, _ := strconv.Atoi(partsB[i])
+		if numberA != numberB {
+			if numberA < numberB {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
+}
