@@ -3,9 +3,8 @@
 #
 # This repository is public (AGPL-3.0), and the org's self-hosted runner group
 # does not admit public repositories: a fork pull request would run arbitrary
-# code on a machine with production reach. So check and build stay on
-# GitHub-hosted runners, and only the deploy job — which runs no code from this
-# repository — uses the self-hosted pool.
+# code on a machine with production reach. Every job here therefore uses a
+# GitHub-hosted runner.
 name: ci
 
 on:
@@ -133,19 +132,17 @@ jobs:
           provenance: false
           sbom: false
 
-  # Production deploys from main only, after the image is published. It runs no
-  # code from this repository, which is what makes the self-hosted pool safe
-  # here, and the pool is inside the project's network so no long-lived SSH key
-  # has to exist.
-
-  # Production deploys from main only, after the image is published. The job runs
-  # no code from this repository, which is what makes the self-hosted pool safe
-  # here, and `environment: production` makes every rollout a deliberate act
-  # rather than a side effect of merging.
+  # Production deploys from main only, after the image is published.
+  #
+  # This repository is public, and the org's self-hosted runner group does not
+  # admit public repositories, so this job uses a hosted runner. The symptom of
+  # getting that wrong is not an error: the job queues forever with no runner
+  # assigned. `environment: production` still makes every rollout a deliberate
+  # act rather than a side effect of merging.
   deploy:
     needs: [publish]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, linux, x64, gcp-org, org-shared]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
     concurrency:
