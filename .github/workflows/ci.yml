@@ -137,28 +137,43 @@ jobs:
   # code from this repository, which is what makes the self-hosted pool safe
   # here, and the pool is inside the project's network so no long-lived SSH key
   # has to exist.
+
+  # Production deploys from main only, after the image is published. The job runs
+  # no code from this repository, which is what makes the self-hosted pool safe
+  # here, and `environment: production` makes every rollout a deliberate act
+  # rather than a side effect of merging.
   deploy:
     needs: [publish]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, linux, x64, gcp-org, org-shared]
     timeout-minutes: 20
+    environment: production
     concurrency:
       group: corecode-app-deploy
       cancel-in-progress: false
     steps:
-      # The runner's own metadata identity is not the CI service account, so the
-      # deploy job authenticates the same way every other job does.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The runner's metadata identity belongs to the machine, not to this
+      # repository, so the job authenticates the same way every other job does.
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
           service_account: derouter-ci@alphafox-506201.iam.gserviceaccount.com
 
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # The key exists only inside this step: written to RUNNER_TEMP with 0600,
+      # removed by the script's own trap, and never exported to another step.
       - name: Deploy to the relay
         env:
+          RELAY_SSH_KEY_FILE: ${{ runner.temp }}/relay_key
+          RELAY_SSH_KEY_SECRET: ${{ secrets.CORECODE_RELAY_SSH_KEY }}
           TAG: ${{ needs.publish.outputs.tag }}
         run: |
           set -eu
-          echo "deploying new-api $TAG"
-          gcloud compute ssh derouter-relay \
-            --project=alphafox-506201 --zone=us-east1-c --tunnel-through-iap \
-            --command "sudo sh /opt/derouter/set-image-tag.sh new-api $TAG"
+          umask 077
+          printf '%s\n' "$RELAY_SSH_KEY_SECRET" > "$RELAY_SSH_KEY_FILE"
+          RELAY_SSH_KEY="$RELAY_SSH_KEY_FILE" sh scripts/deploy-service.sh "$TAG" new-api
