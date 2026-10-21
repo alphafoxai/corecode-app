@@ -146,6 +146,13 @@ jobs:
       group: corecode-app-deploy
       cancel-in-progress: false
     steps:
+      # The runner's own metadata identity is not the CI service account, so the
+      # deploy job authenticates the same way every other job does.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
+          service_account: derouter-ci@alphafox-506201.iam.gserviceaccount.com
+
       - name: Deploy to the relay
         env:
           TAG: ${{ needs.publish.outputs.tag }}
