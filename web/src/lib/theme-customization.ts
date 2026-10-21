@@ -25,9 +25,10 @@ For commercial licensing, please contact support@quantumnous.com
 
 export const THEME_PRESETS = [
   {
+    // DeRouter fork: Default renders the CoreCode palette (styles/derouter-brand.css).
     value: 'default',
     name: 'Default',
-    swatches: ['oklch(0.72 0.18 250)', 'oklch(0.7 0.12 280)'],
+    swatches: ['#fcfcfb', '#c6613f'],
   },
   {
     // Inspired by Anthropic's official brand language: warm cream canvas
