@@ -1,3 +1,53 @@
+<!-- CoreCode addition. The rest of this file is the upstream new-api guide, kept
+because it records this codebase's real conventions. -->
+
+# corecode-app
+
+This repository is one component of the CoreCode set. Shared rules, the project map, and the
+deployment contract live in
+[`alphafoxai/corecode-infra`](https://github.com/alphafoxai/corecode-infra); read its
+`AGENTS.md` first. What follows is this component's own guide.
+
+## License
+
+AGPL-3.0 with the upstream Section 7(b) attribution terms in `NOTICE`. This deployment
+serves a modified version over the network, so **this repository stays public** and the
+customer footer keeps the attribution and source link. Removing either breaks the license
+the deployment relies on.
+
+## Where things are
+
+- `router/`, `controller/` — every HTTP route and its handler. `controller/user.go` owns
+  sign-in and registration.
+- `model/` — GORM models and the option table. `model/option.go` is where every setting is
+  read and written.
+- `relay/`, `relaykit/` — upstream protocol conversion and transport.
+- `web/` — the React console, built with Bun. `web/src/features/auth/` is the sign-in UI.
+
+## Local rules
+
+- **A setting is an option row, not an environment variable.** Configuration lives in the
+  `options` table so the dashboard and the API agree. `common/init.go` reads an environment
+  fallback only where the table cannot yet exist.
+- **Registration switches are operator decisions.** `RegisterEnabled` and
+  `PasswordRegisterEnabled` are never written by a deploy script; a deploy that resets them
+  silently changes what customers can do.
+- **Outbound mail goes through the SMTP options** that `corecode-infra`'s `init-relay.sh`
+  writes. Verification codes live in process memory and are capped, so a restart drops
+  pending codes.
+- **Customers use `/v1/*`, `/docs/` and the console.** `corecode-infra`'s Caddyfile decides
+  what else is reachable; this repository does not.
+- **`web/src/styles/` carries the CoreCode theme.** Light and dark only; the theme drawer
+  and presets were removed deliberately.
+
+## Deployment
+
+One image, one container, hosts `corecode.live` and `www.corecode.live`. The tag is pinned in
+`corecode-infra`; publishing an image here changes nothing in production until that pin
+moves.
+
+---
+
 # AGENTS.md — Project Conventions for new-api
 
 DO NOT send optional commentary
