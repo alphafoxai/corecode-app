@@ -64,7 +64,9 @@ export function SpendTrendPanel(props: {
         <Button
           variant='ghost'
           size='sm'
-          render={<Link to='/dashboard/$section' params={{ section: 'models' }} />}
+          render={
+            <Link to='/dashboard/$section' params={{ section: 'models' }} />
+          }
         >
           {t('Details')}
           <ArrowRight data-icon='inline-end' />
@@ -88,11 +90,14 @@ export function SpendTrendPanel(props: {
                   render={
                     <div
                       tabIndex={0}
-                      aria-label={t('{{date}}: {{amount}}, {{requests}} requests', {
-                        date: label,
-                        amount,
-                        requests,
-                      })}
+                      aria-label={t(
+                        '{{date}}: {{amount}}, {{requests}} requests',
+                        {
+                          date: label,
+                          amount,
+                          requests,
+                        }
+                      )}
                       className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-md outline-none focus-visible:ring-3'
                     />
                   }
@@ -121,7 +126,9 @@ export function SpendTrendPanel(props: {
               <span
                 className={cn(
                   'text-muted-foreground mt-1.5 truncate text-center text-[10px] tabular-nums',
-                  index % 2 === 1 && index !== lastIndex && 'invisible sm:visible',
+                  index % 2 === 1 &&
+                    index !== lastIndex &&
+                    'invisible sm:visible',
                   isToday && 'text-foreground font-medium'
                 )}
                 aria-hidden

@@ -55,26 +55,42 @@ describe('estimateClaudeCodeCost', () => {
   })
 
   test('bills context as plain input when the model has no cache prices', () => {
-    const plain = { ...sonnet, cache_ratio: undefined, create_cache_ratio: undefined }
+    const plain = {
+      ...sonnet,
+      cache_ratio: undefined,
+      create_cache_ratio: undefined,
+    }
     const estimate = estimateClaudeCodeCost(plain, DEFAULT_WORKLOAD)
 
     expect(estimate?.perDay).toBeCloseTo(estimate?.perDayWithoutCache ?? -1, 6)
   })
 
   test('clamps the hit rate to the 0–1 range', () => {
-    const all = estimateClaudeCodeCost(sonnet, { ...DEFAULT_WORKLOAD, cacheHitRate: 1 })
-    const over = estimateClaudeCodeCost(sonnet, { ...DEFAULT_WORKLOAD, cacheHitRate: 1.4 })
+    const all = estimateClaudeCodeCost(sonnet, {
+      ...DEFAULT_WORKLOAD,
+      cacheHitRate: 1,
+    })
+    const over = estimateClaudeCodeCost(sonnet, {
+      ...DEFAULT_WORKLOAD,
+      cacheHitRate: 1.4,
+    })
     expect(over?.perTurn).toBe(all?.perTurn)
   })
 
   test('uses the selected group ratio', () => {
-    const twoGroups = { ...sonnet, enable_groups: ['default', 'vip'], group_ratio: { default: 1.5, vip: 3 } }
+    const twoGroups = {
+      ...sonnet,
+      enable_groups: ['default', 'vip'],
+      group_ratio: { default: 1.5, vip: 3 },
+    }
     const cheap = estimateClaudeCodeCost(twoGroups, DEFAULT_WORKLOAD)
     const vip = estimateClaudeCodeCost(twoGroups, DEFAULT_WORKLOAD, 'vip')
     expect(vip?.perTurn).toBeCloseTo((cheap?.perTurn ?? 0) * 2, 9)
   })
 
   test('has no estimate for per-request models', () => {
-    expect(estimateClaudeCodeCost({ ...sonnet, quota_type: 1 }, DEFAULT_WORKLOAD)).toBeNull()
+    expect(
+      estimateClaudeCodeCost({ ...sonnet, quota_type: 1 }, DEFAULT_WORKLOAD)
+    ).toBeNull()
   })
 })

@@ -126,9 +126,7 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
   const { copyToClipboard } = useCopyToClipboard({ notify: false })
   const [target, setTarget] = useState<ClientSetupTarget>('settings')
   const [pickedKeyId, setPickedKeyId] = useState<number | null>(null)
-  const [busy, setBusy] = useState<'copy' | 'verify' | 'cc-switch' | null>(
-    null
-  )
+  const [busy, setBusy] = useState<'copy' | 'verify' | 'cc-switch' | null>(null)
   const [copied, setCopied] = useState<'copy' | 'verify' | null>(null)
 
   const modelsQuery = useQuery({
@@ -360,8 +358,13 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
           </Button>
         </div>
         <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
-          <TriangleAlert className='text-warning mt-px size-3.5 shrink-0' aria-hidden />
-          {t('Unset ANTHROPIC_API_KEY and run /logout first if you signed in to claude.ai.')}
+          <TriangleAlert
+            className='text-warning mt-px size-3.5 shrink-0'
+            aria-hidden
+          />
+          {t(
+            'Unset ANTHROPIC_API_KEY and run /logout first if you signed in to claude.ai.'
+          )}
         </p>
       </div>
     </div>

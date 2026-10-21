@@ -111,12 +111,18 @@ export function ClaudeCodeEstimator(props: {
   const savedShare =
     estimate.perDayWithoutCache > 0 ? saved / estimate.perDayWithoutCache : 0
   const percent = (value: number) =>
-    Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(value)
+    Intl.NumberFormat(locale, {
+      style: 'percent',
+      maximumFractionDigits: 0,
+    }).format(value)
 
   return (
     <section
       aria-labelledby={`${hitRateId}-title`}
-      className={cn('bg-card rounded-2xl border p-4 shadow-xs sm:p-5', props.className)}
+      className={cn(
+        'bg-card rounded-2xl border p-4 shadow-xs sm:p-5',
+        props.className
+      )}
     >
       <div className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex min-w-0 items-start gap-3'>
@@ -145,7 +151,11 @@ export function ClaudeCodeEstimator(props: {
             <SelectContent alignItemWithTrigger={false}>
               <SelectGroup>
                 {models.map((item) => (
-                  <SelectItem key={item.model_name} value={item.model_name} className='font-mono'>
+                  <SelectItem
+                    key={item.model_name}
+                    value={item.model_name}
+                    className='font-mono'
+                  >
                     {item.model_name}
                   </SelectItem>
                 ))}
@@ -182,7 +192,10 @@ export function ClaudeCodeEstimator(props: {
         />
         <div className='flex min-w-0 flex-col gap-1.5'>
           <div className='flex items-baseline justify-between gap-2'>
-            <Label htmlFor={hitRateId} className='text-muted-foreground text-xs font-normal'>
+            <Label
+              htmlFor={hitRateId}
+              className='text-muted-foreground text-xs font-normal'
+            >
               {t('Cache hit rate')}
             </Label>
             <span className='font-mono text-xs tabular-nums'>
@@ -210,7 +223,10 @@ export function ClaudeCodeEstimator(props: {
           { label: t('Per day'), value: estimate.perDay },
           { label: t('Per 30 days'), value: estimate.perDay * DAYS_PER_MONTH },
         ].map((item) => (
-          <div key={item.label} className='bg-muted/40 min-w-0 px-3 py-3 sm:px-4'>
+          <div
+            key={item.label}
+            className='bg-muted/40 min-w-0 px-3 py-3 sm:px-4'
+          >
             <dt className='text-muted-foreground text-xs'>{item.label}</dt>
             <dd className='mt-1 truncate text-lg font-semibold tabular-nums sm:text-xl'>
               {formatBillingCurrencyFromUSD(item.value, MONEY)}
@@ -224,7 +240,10 @@ export function ClaudeCodeEstimator(props: {
           {t(
             'Without the cache this would be {{amount}} a day. The cache saves {{share}}.',
             {
-              amount: formatBillingCurrencyFromUSD(estimate.perDayWithoutCache, MONEY),
+              amount: formatBillingCurrencyFromUSD(
+                estimate.perDayWithoutCache,
+                MONEY
+              ),
               share: percent(savedShare),
             }
           )}

@@ -79,7 +79,9 @@ it('recomputes when the customer changes the workload', async () => {
 
 it('offers a model picker only when there is more than one model', () => {
   const { rerender } = render(<ClaudeCodeEstimator models={[sonnet]} />)
-  expect(screen.queryByRole('combobox', { name: 'Model' })).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('combobox', { name: 'Model' })
+  ).not.toBeInTheDocument()
 
   rerender(
     <ClaudeCodeEstimator

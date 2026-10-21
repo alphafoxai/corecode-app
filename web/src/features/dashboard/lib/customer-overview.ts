@@ -119,7 +119,7 @@ export function estimateRunwayDays(
 ): number | null {
   const active = daily.filter((item) => item.quota > 0)
   if (balance <= 0 || active.length === 0) return null
-  const average = active.reduce((sum, item) => sum + item.quota, 0) / active.length
+  const average =
+    active.reduce((sum, item) => sum + item.quota, 0) / active.length
   return average > 0 ? balance / average : null
 }
-

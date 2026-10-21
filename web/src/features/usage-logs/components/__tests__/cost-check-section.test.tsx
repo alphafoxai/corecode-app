@@ -41,9 +41,13 @@ describe('CostCheckSection', () => {
     render(<CostCheckSection check={check({})} />)
 
     const rows = screen.getAllByRole('row')
-    expect(
-      rows.map((row) => row.querySelector('th')?.textContent)
-    ).toEqual(['Item', 'Input', 'Output', 'Expected at listed prices', 'Charged'])
+    expect(rows.map((row) => row.querySelector('th')?.textContent)).toEqual([
+      'Item',
+      'Input',
+      'Output',
+      'Expected at listed prices',
+      'Charged',
+    ])
     expect(screen.getByRole('row', { name: /Input/ })).toHaveTextContent(
       '1,758'
     )
@@ -52,9 +56,9 @@ describe('CostCheckSection', () => {
   it('confirms a charge that matches and names the group ratio', () => {
     render(<CostCheckSection check={check({})} />)
 
-    expect(
-      screen.getByText(/^Matches the listed prices/)
-    ).toHaveTextContent('1.5x group ratio')
+    expect(screen.getByText(/^Matches the listed prices/)).toHaveTextContent(
+      '1.5x group ratio'
+    )
   })
 
   it('explains a charge that the lines do not add up to', () => {
@@ -62,9 +66,7 @@ describe('CostCheckSection', () => {
       <CostCheckSection check={check({ actual: 46449, status: 'adjusted' })} />
     )
 
-    expect(
-      screen.getByText(/^Differs by/)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Differs by/)).toBeInTheDocument()
     expect(
       screen.queryByText(/^Matches the listed prices/)
     ).not.toBeInTheDocument()

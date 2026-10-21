@@ -35,7 +35,10 @@ import type {
 
 const WEEK_DAYS = 7
 
-const CACHE_GRADE_STYLES: Record<CacheGrade, { className: string; labelKey: string }> = {
+const CACHE_GRADE_STYLES: Record<
+  CacheGrade,
+  { className: string; labelKey: string }
+> = {
   good: {
     className: 'bg-success/12 text-success',
     labelKey: 'Cache grade: good',

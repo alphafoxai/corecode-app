@@ -66,7 +66,11 @@ const opus: LogOtherData = {
 
 describe('buildCostCheck', () => {
   test('rebuilds an Anthropic charge line by line and matches the logged quota', () => {
-    const other = { ...opus, cache_tokens: 40_000, cache_creation_tokens: 2_000 }
+    const other = {
+      ...opus,
+      cache_tokens: 40_000,
+      cache_creation_tokens: 2_000,
+    }
     // (100 + 40000×0.05 + 2000×1.25 + 500×5) × 2 × 1.5 = 21300
     const check = buildCostCheck(
       log({ prompt_tokens: 100, completion_tokens: 500, quota: 21_300 }),
@@ -137,7 +141,12 @@ describe('buildCostCheck', () => {
   })
 
   test('marks a tool-call surcharge as adjusted even when the totals agree', () => {
-    const other = { ...opus, web_search: true, web_search_call_count: 1, web_search_price: 0.01 }
+    const other = {
+      ...opus,
+      web_search: true,
+      web_search_call_count: 1,
+      web_search_price: 0.01,
+    }
     expect(
       buildCostCheck(log({ prompt_tokens: 10, quota: 30 }), other)?.status
     ).toBe('adjusted')
@@ -230,4 +239,3 @@ describe('getCacheGrade', () => {
     expect(getCacheGrade(rate)).toBe(grade)
   })
 })
-

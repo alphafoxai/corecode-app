@@ -99,7 +99,8 @@ export function getInputCacheTokens(
   if (!other) return { cacheRead: 0, totalInput: prompt }
   const cacheRead = other.cache_tokens || 0
   const split =
-    (other.cache_creation_tokens_5m || 0) + (other.cache_creation_tokens_1h || 0)
+    (other.cache_creation_tokens_5m || 0) +
+    (other.cache_creation_tokens_1h || 0)
   const cacheWrite = split > 0 ? split : other.cache_creation_tokens || 0
   const totalInput = isAnthropicUsage(other)
     ? prompt + cacheRead + cacheWrite
@@ -139,8 +140,16 @@ export function buildCostCheck(
     parts.push(['cache-read', cacheRead, cacheRatio])
     const unsplit = Math.max(cacheWrite - cacheWrite5m - cacheWrite1h, 0)
     parts.push(['cache-write', unsplit, cacheWriteRatio])
-    parts.push(['cache-write-5m', cacheWrite5m, other.cache_creation_ratio_5m ?? 0])
-    parts.push(['cache-write-1h', cacheWrite1h, other.cache_creation_ratio_1h ?? 0])
+    parts.push([
+      'cache-write-5m',
+      cacheWrite5m,
+      other.cache_creation_ratio_5m ?? 0,
+    ])
+    parts.push([
+      'cache-write-1h',
+      cacheWrite1h,
+      other.cache_creation_ratio_1h ?? 0,
+    ])
   } else {
     const base = Math.max(prompt - cacheRead - cacheWrite, 0)
     parts.push(['input', base, 1])
@@ -150,7 +159,9 @@ export function buildCostCheck(
   parts.push(['output', completion, completionRatio])
 
   const lines: CostLine[] = parts
-    .filter(([kind, tokens]) => tokens > 0 || kind === 'input' || kind === 'output')
+    .filter(
+      ([kind, tokens]) => tokens > 0 || kind === 'input' || kind === 'output'
+    )
     .map(([kind, tokens, kindRatio]) => ({
       kind,
       tokens,

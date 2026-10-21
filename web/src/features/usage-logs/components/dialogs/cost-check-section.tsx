@@ -75,7 +75,9 @@ export function CostCheckSection(props: { check: CostCheck }) {
               <th scope='row' className='text-left font-sans font-normal'>
                 {t(LINE_LABELS[line.kind])}
               </th>
-              <td className='text-right'>{line.tokens.toLocaleString(locale)}</td>
+              <td className='text-right'>
+                {line.tokens.toLocaleString(locale)}
+              </td>
               <td className='text-muted-foreground text-right'>
                 {formatBillingCurrencyFromUSD(line.unitPriceUSD, PRICE_OPTIONS)}
               </td>
@@ -122,12 +124,18 @@ export function CostCheckSection(props: { check: CostCheck }) {
         )}
         <span>
           {matched
-            ? t('Matches the listed prices. Unit prices include the {{ratio}}x group ratio.', {
-                ratio: groupRatio,
-              })
-            : t('Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.', {
-                amount: formatLogQuota(difference),
-              })}
+            ? t(
+                'Matches the listed prices. Unit prices include the {{ratio}}x group ratio.',
+                {
+                  ratio: groupRatio,
+                }
+              )
+            : t(
+                'Differs by {{amount}}: the charge includes items this breakdown does not list, such as tool calls.',
+                {
+                  amount: formatLogQuota(difference),
+                }
+              )}
         </span>
       </p>
     </DetailSection>

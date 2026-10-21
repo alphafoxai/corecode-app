@@ -131,7 +131,11 @@ export function CachedPriceCell(props: {
   // CoreCode fork: list the cache write price too; Claude Code pays it
   // whenever a session's context grows.
   const entries = [
-    { type: 'cache' as const, label: t('Cache Read'), ratio: model.cache_ratio },
+    {
+      type: 'cache' as const,
+      label: t('Cache Read'),
+      ratio: model.cache_ratio,
+    },
     {
       type: 'create_cache' as const,
       label: t('Cache Write'),

@@ -23,7 +23,11 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
 import { toIntlLocale } from '@/i18n/languages'
-import { formatLogQuota, formatTimestampRelative, formatTokens } from '@/lib/format'
+import {
+  formatLogQuota,
+  formatTimestampRelative,
+  formatTokens,
+} from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { summarizeRecentLogs } from '../../lib/customer-overview'
@@ -60,7 +64,9 @@ export function RecentRequestsPanel(props: {
         <Button
           variant='ghost'
           size='sm'
-          render={<Link to='/usage-logs/$section' params={{ section: 'common' }} />}
+          render={
+            <Link to='/usage-logs/$section' params={{ section: 'common' }} />
+          }
         >
           {t('View all')}
           <ArrowRight data-icon='inline-end' />

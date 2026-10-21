@@ -69,6 +69,7 @@ import { cn } from '@/lib/utils'
 
 import { AuditDetailFields } from '../../audit/components/audit-detail-fields'
 import type { UsageLog } from '../../data/schema'
+import { buildCostCheck } from '../../lib/cost-check'
 import {
   parseLogOther,
   getParamOverrideActionLabel,
@@ -84,7 +85,6 @@ import {
   renderAuditContent,
   renderLogContent,
 } from '../../lib/format'
-import { buildCostCheck } from '../../lib/cost-check'
 import { buildQuotaAuditOperation } from '../../lib/quota-audit-operation'
 import {
   getLogTypeConfig,

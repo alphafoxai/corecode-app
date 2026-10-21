@@ -41,9 +41,12 @@ describe('getAnthropicBaseUrl', () => {
     ['https://corecode.live/v1', 'https://corecode.live'],
     ['https://corecode.live/v1/', 'https://corecode.live'],
     ['  https://corecode.live  ', 'https://corecode.live'],
-  ])('reduces %j to the root address Claude Code expects', (input, expected) => {
-    expect(getAnthropicBaseUrl(input, 'https://origin.test')).toBe(expected)
-  })
+  ])(
+    'reduces %j to the root address Claude Code expects',
+    (input, expected) => {
+      expect(getAnthropicBaseUrl(input, 'https://origin.test')).toBe(expected)
+    }
+  )
 
   test('falls back to the page origin when no server address is set', () => {
     expect(getAnthropicBaseUrl('', 'https://origin.test')).toBe(

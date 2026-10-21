@@ -30,18 +30,25 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatNumber, formatQuota } from '@/lib/format'
 import { toIntlLocale } from '@/i18n/languages'
+import { formatNumber, formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-import { estimateRunwayDays, type DailySpend } from '../../lib/customer-overview'
+import {
+  estimateRunwayDays,
+  type DailySpend,
+} from '../../lib/customer-overview'
 
 /** Days of spend the runway estimate averages over. */
 const RUNWAY_WINDOW_DAYS = 7
 const LOW_RUNWAY_DAYS = 3
 
-const QUICK_LINKS: { to: '/pricing' | '/wallet' | '/security'; labelKey: string; icon: LucideIcon }[] = [
+const QUICK_LINKS: {
+  to: '/pricing' | '/wallet' | '/security'
+  labelKey: string
+  icon: LucideIcon
+}[] = [
   { to: '/pricing', labelKey: 'Model pricing', icon: Tags },
   { to: '/wallet', labelKey: 'Redeem a code', icon: Gift },
   { to: '/security', labelKey: 'Security & Access', icon: ShieldCheck },
@@ -64,7 +71,10 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
   const used = Number(user?.used_quota ?? 0)
   const requests = Number(user?.request_count ?? 0)
   const today = props.daily.at(-1)?.quota ?? 0
-  const runway = estimateRunwayDays(balance, props.daily.slice(-RUNWAY_WINDOW_DAYS))
+  const runway = estimateRunwayDays(
+    balance,
+    props.daily.slice(-RUNWAY_WINDOW_DAYS)
+  )
 
   let health: BalanceHealth = 'healthy'
   if (balance <= 0) health = 'empty'
@@ -114,7 +124,12 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
           <Wallet data-icon='inline-start' />
           {t('Add credits')}
         </Button>
-        <Button variant='ghost' render={<Link to='/usage-logs/$section' params={{ section: 'common' }} />}>
+        <Button
+          variant='ghost'
+          render={
+            <Link to='/usage-logs/$section' params={{ section: 'common' }} />
+          }
+        >
           {t('Usage Logs')}
           <ArrowRight data-icon='inline-end' />
         </Button>
@@ -143,11 +158,15 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
         </ul>
       </nav>
 
-      <dl className='mt-auto grid grid-cols-3 gap-3 border-t pt-4 [&_dd]:mt-1 [&_dd]:text-sm [&_dd]:font-medium [&_dd]:tabular-nums [&_dt]:text-muted-foreground [&_dt]:text-xs'>
+      <dl className='[&_dt]:text-muted-foreground mt-auto grid grid-cols-3 gap-3 border-t pt-4 [&_dd]:mt-1 [&_dd]:text-sm [&_dd]:font-medium [&_dd]:tabular-nums [&_dt]:text-xs'>
         <div className='min-w-0'>
           <dt>{t('Today')}</dt>
           <dd className='truncate'>
-            {props.loading ? <Skeleton className='h-5 w-14' /> : formatQuota(today)}
+            {props.loading ? (
+              <Skeleton className='h-5 w-14' />
+            ) : (
+              formatQuota(today)
+            )}
           </dd>
         </div>
         <div className='min-w-0'>

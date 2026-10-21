@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Link } from '@tanstack/react-router'
 /**
  * CoreCode fork: the overview is built for a Claude Code customer. It leads
  * with the balance and how to connect, then shows spend, cache hit rate and
@@ -23,7 +24,6 @@ For commercial licensing, please contact support@quantumnous.com
  * filled them, so an empty deployment never shows placeholder cards.
  */
 import { BookOpen, KeyRound } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
