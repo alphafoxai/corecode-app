@@ -177,3 +177,24 @@ For commercial licensing, please contact support@quantumnous.com
 h1 {
   letter-spacing: -0.02em;
 }
+
+/* Motion: Claude's swift ease-out (fast start, long settle) and a short base
+ * duration, so hovers and toggles feel immediate instead of floaty. Applies to
+ * every `transition-*` utility that does not set its own timing. */
+@theme {
+  --default-transition-duration: 160ms;
+  --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-swift: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Light text on a dark canvas blooms under subpixel antialiasing; grayscale
+ * antialiasing keeps strokes as thin as they are in light mode. */
+.dark body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: color-mix(in oklab, var(--primary) 24%, transparent);
+}

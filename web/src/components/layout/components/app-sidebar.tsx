@@ -24,6 +24,7 @@ import { useSidebarView } from '@/hooks/use-sidebar-view'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
 import { NavGroup } from './nav-group'
+import { SidebarBalance } from './sidebar-balance'
 import { SidebarViewHeader } from './sidebar-view-header'
 
 /**
@@ -71,6 +72,7 @@ export function AppSidebar() {
         </AnimatePresence>
       </SidebarContent>
 
+      <SidebarBalance />
       <SidebarRail />
     </Sidebar>
   )
