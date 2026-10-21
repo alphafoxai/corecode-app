@@ -85,6 +85,9 @@ type claudeCodeSystemBlock struct {
 // group, used to resolve the candidates of an "auto" token. It returns false
 // after aborting the request.
 func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
+	if isModelListRequest(c) {
+		return true
+	}
 	group := restrictedClaudeCodeGroup(c, userGroup)
 	if group == "" {
 		return true
@@ -110,6 +113,14 @@ func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
 		return false
 	}
 	return true
+}
+
+// isModelListRequest reports a GET on /v1/models or /v1/models/:model. Model
+// lists are open to every client so tools such as CC Switch and Magpie can
+// fetch model names with the token; they cost nothing and relay no prompt.
+func isModelListRequest(c *gin.Context) bool {
+	path := c.Request.URL.Path
+	return c.Request.Method == http.MethodGet && (path == "/v1/models" || strings.HasPrefix(path, "/v1/models/"))
 }
 
 // restrictedClaudeCodeGroup returns the Claude Code only group the request would
@@ -140,8 +151,8 @@ func detectClaudeCodeClient(c *gin.Context) (version string, failedCheck string)
 	}
 	version = match[1] + "." + match[2] + "." + match[3]
 
-	// Only a Messages request carries a prompt. Other paths (model lists,
-	// count_tokens) are judged by the User-Agent alone.
+	// Only a Messages request carries a prompt. Other paths (count_tokens) are
+	// judged by the User-Agent alone. Model lists never get here.
 	if !strings.HasSuffix(c.Request.URL.Path, "/messages") {
 		return version, ""
 	}

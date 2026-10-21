@@ -56,7 +56,12 @@ func runClaudeCodeGate(t *testing.T, group string, autoGroups []string, path str
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	// A request without a body is a GET, as model lists are.
+	method := http.MethodPost
+	if body == "" {
+		method = http.MethodGet
+	}
+	c.Request = httptest.NewRequest(method, path, strings.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set("Accept-Language", "en")
 	for name, value := range headers {
@@ -126,7 +131,10 @@ func TestClaudeCodeOnlyGroupGate(t *testing.T) {
 		{"model list from Claude Code", "cc", nil, "/v1/models", claudeCodeCLIHeaders, "", true},
 		{"group without the restriction", "default", nil, "/v1/messages", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, true},
 		{"same body from another client", "cc", nil, "/v1/messages", withHeader("User-Agent", "Anthropic/Python 0.70.0"), claudeCodeCLIBody, false},
-		{"model list from another client", "cc", nil, "/v1/models", map[string]string{"User-Agent": "curl/8.7.1"}, "", false},
+		{"model list from another client", "cc", nil, "/v1/models", map[string]string{"User-Agent": "curl/8.7.1"}, "", true},
+		{"single model from another client", "cc", nil, "/v1/models/claude-sonnet-5-5", map[string]string{"User-Agent": "curl/8.7.1"}, "", true},
+		{"auto token listing models from another client", "auto", []string{"default", "cc"}, "/v1/models", map[string]string{"User-Agent": "curl/8.7.1"}, "", true},
+		{"Gemini model path from another client", "cc", nil, "/v1beta/models/claude-sonnet-5-5:generateContent", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, false},
 		{"Claude Code User-Agent with a foreign prompt", "cc", nil, "/v1/messages", claudeCodeCLIHeaders, foreignPrompt, false},
 		{"system prompt as a plain string", "cc", nil, "/v1/messages", claudeCodeCLIHeaders, stringSystem, false},
 		{"missing X-App", "cc", nil, "/v1/messages", withHeader("X-App", ""), claudeCodeCLIBody, false},
