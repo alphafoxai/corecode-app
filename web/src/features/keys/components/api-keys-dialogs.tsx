@@ -16,12 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useTranslation } from 'react-i18next'
+
+import { Dialog } from '@/components/dialog'
+
 import { ApiKeysDeleteDialog } from './api-keys-delete-dialog'
 import { ApiKeysMutateDrawer } from './api-keys-mutate-drawer'
 import { useApiKeys } from './api-keys-provider'
+import { ClientSetupGuide } from './client-setup-guide'
 import { CCSwitchDialog } from './dialogs/cc-switch-dialog'
 
 export function ApiKeysDialogs() {
+  const { t } = useTranslation()
   const { open, setOpen, currentRow, resolvedKey } = useApiKeys()
 
   return (
@@ -37,6 +43,16 @@ export function ApiKeysDialogs() {
         onOpenChange={(isOpen) => !isOpen && setOpen(null)}
         tokenKey={resolvedKey}
       />
+      <Dialog
+        open={open === 'setup' && currentRow !== null}
+        onOpenChange={(isOpen) => !isOpen && setOpen(null)}
+        title={t('Connect Claude Code')}
+        description={currentRow?.name}
+        contentClassName='sm:max-w-2xl'
+        contentHeight='auto'
+      >
+        <ClientSetupGuide keys={currentRow ? [currentRow] : []} />
+      </Dialog>
     </>
   )
 }
