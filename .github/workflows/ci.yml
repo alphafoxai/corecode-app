@@ -56,6 +56,8 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,14 +91,58 @@ jobs:
             --gcs-source-staging-dir "gs://${PROJECT}_us-east1_cloudbuild/source"
           echo "published $IMAGE:$tag"
 
-      - name: Report the pin to move
+      - name: Record the tag
+        id: tag
+        run: echo "tag=${{ steps.version.outputs.version }}-$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
+
+  # Production deploys from main only, and only after the image is published.
+  # This is the last step of the component's own pipeline: the relay pulls the
+  # tag this run produced and restarts this one container.
+  deploy:
+    needs: [publish]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: corecode-app-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
+          service_account: derouter-ci@alphafox-506201.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Open IAP tunnel
         run: |
           set -eu
-          tag="${{ steps.version.outputs.version }}-$(git rev-parse --short=8 HEAD)"
-          echo "### Published" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Pin this in corecode-infra \`docker-compose.yml\`:" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "new-api:$tag" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          gcloud compute start-iap-tunnel derouter-relay 22 \
+            --local-host-port=localhost:2222 \
+            --project=alphafox-506201 --zone=us-east1-c &
+          i=0
+          while [ "$i" -lt 30 ]; do
+            if nc -z 127.0.0.1 2222; then exit 0; fi
+            i=$((i + 1)); sleep 1
+          done
+          echo "IAP tunnel did not open" >&2; exit 1
+
+      - name: Deploy to production
+        env:
+          RELAY_SSH_KEY: ${{ runner.temp }}/relay_key
+          KEY: ${{ secrets.DEROUTE_RELAY_SSH_KEY }}
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          set -eu
+          umask 077
+          printf '%s\n' "$KEY" > "$RELAY_SSH_KEY"
+          ssh -i "$RELAY_SSH_KEY" -p 2222 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o HostKeyAlias=derouter-relay \
+            -o UserKnownHostsFile="$GITHUB_WORKSPACE/relay_known_hosts" \
+            runner@127.0.0.1 \
+            "sudo sh /opt/derouter/set-image-tag.sh new-api $TAG"
