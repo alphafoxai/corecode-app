@@ -31,6 +31,7 @@ import {
   PricingToolbar,
   ModelCardGrid,
   ModelDetailsDrawer,
+  ClaudeCodeEstimator,
 } from './components'
 import { EXCLUDED_GROUPS, VIEW_MODES } from './constants'
 import { useFilters } from './hooks/use-filters'
@@ -165,10 +166,11 @@ export function Pricing() {
           aria-hidden
           className='pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]'
           style={{
+            // CoreCode fork: warm brand tints instead of upstream's blue.
             background: [
-              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 60% 50% at 20% 20%, color-mix(in oklab, var(--primary) 70%, transparent) 0%, transparent 70%)',
+              'radial-gradient(ellipse 50% 40% at 80% 15%, color-mix(in oklab, var(--chart-2) 55%, transparent) 0%, transparent 70%)',
+              'radial-gradient(ellipse 40% 35% at 50% 70%, color-mix(in oklab, var(--chart-3) 35%, transparent) 0%, transparent 70%)',
             ].join(', '),
             maskImage:
               'linear-gradient(to bottom, black 40%, transparent 100%)',
@@ -257,6 +259,11 @@ export function Pricing() {
               />
 
               {renderPricingContent()}
+
+              <ClaudeCodeEstimator
+                models={filteredModels}
+                selectedGroup={groupFilter}
+              />
             </main>
           </div>
 

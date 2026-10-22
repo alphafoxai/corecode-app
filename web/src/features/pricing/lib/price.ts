@@ -139,6 +139,24 @@ function applyRechargeRate(
 }
 
 /**
+ * USD per million tokens of one price type at the group the viewer would
+ * pay (the selected group, else the cheapest available). NaN when the model
+ * has no such price.
+ */
+export function getTokenPricePerMillion(
+  model: PricingModel,
+  type: PriceType,
+  selectedGroup?: string
+): number {
+  if (model.quota_type === QUOTA_TYPE_VALUES.REQUEST) return Number.NaN
+  return calculateTokenPrice(
+    model,
+    type,
+    getDisplayGroupRatio(model, selectedGroup)
+  )
+}
+
+/**
  * Format token-based price for display
  */
 export function formatPrice(

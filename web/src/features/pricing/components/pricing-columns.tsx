@@ -98,11 +98,11 @@ export function usePricingColumns(
     // Cached price column (Vercel AI Gateway style)
     {
       id: 'cached_price',
-      header: t('Cached'),
+      header: t('Cache'),
       cell: ({ row }) => (
         <CachedPriceCell model={row.original} options={options} />
       ),
-      size: 110,
+      size: 130,
       enableSorting: false,
     },
 

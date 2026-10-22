@@ -22,6 +22,7 @@ import {
   Wrench01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { CircleCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { StatusBadge } from '@/components/status-badge'
@@ -41,6 +42,31 @@ interface LogCostDisplayProps {
   quota: number
   other: LogOtherData | null
   showBillingSource?: boolean
+  /** The charge equals what the listed prices give for this usage. */
+  verified?: boolean
+}
+
+function VerifiedMarker() {
+  const { t } = useTranslation()
+  const label = t('Matches the listed prices')
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            className='text-success inline-flex cursor-help'
+            role='img'
+            aria-label={label}
+            tabIndex={0}
+          >
+            <CircleCheck className='size-3.5' aria-hidden />
+          </span>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 function ToolSurchargeMarker() {
@@ -135,6 +161,7 @@ export function LogCostDisplay(props: LogCostDisplayProps) {
           <span className='whitespace-nowrap'>{formatLogQuota(quota)}</span>
         </StatusBadge>
         {showToolSurcharge ? <ToolSurchargeMarker /> : null}
+        {props.verified ? <VerifiedMarker /> : null}
       </div>
     </TooltipProvider>
   )

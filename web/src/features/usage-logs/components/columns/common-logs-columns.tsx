@@ -56,6 +56,12 @@ import { useSystemConfigStore } from '@/stores/system-config-store'
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
 import type { UsageLog } from '../../data/schema'
 import {
+  buildCostCheck,
+  getCacheGrade,
+  getInputCacheTokens,
+  type CacheGrade,
+} from '../../lib/cost-check'
+import {
   formatModelName,
   decodeBillingExprB64,
   getTieredBillingSummary,
@@ -78,6 +84,12 @@ import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
 import { TimingMetricsCell, StreamTpsCell } from '../timing-metrics-cell'
 import { useUsageLogsContext } from '../usage-logs-provider'
+
+const CACHE_GRADE_CLASS_NAMES: Record<CacheGrade, string> = {
+  good: 'bg-success/12 text-success',
+  fair: 'bg-warning/12 text-warning',
+  poor: 'bg-muted text-muted-foreground',
+}
 
 interface DetailSegment {
   text: string
@@ -739,11 +751,25 @@ export function useCommonLogsColumns(
             ? cacheWrite5m + cacheWrite1h
             : other?.cache_creation_tokens || 0
 
+          const { cacheRead, totalInput } = getInputCacheTokens(log, other)
+          const cacheHitRate = totalInput > 0 ? cacheRead / totalInput : 0
+
           return (
             <div className='flex flex-col gap-0.5'>
-              <span className='font-mono text-xs font-medium tabular-nums'>
+              <span className='flex items-center gap-1.5 font-mono text-xs font-medium tabular-nums'>
                 {promptTokens.toLocaleString()} /{' '}
                 {completionTokens.toLocaleString()}
+                {cacheRead > 0 && (
+                  <span
+                    className={cn(
+                      'rounded px-1 font-sans text-[10px] font-medium',
+                      CACHE_GRADE_CLASS_NAMES[getCacheGrade(cacheHitRate)]
+                    )}
+                    title={t('Cache hit rate')}
+                  >
+                    {Math.round(cacheHitRate * 100)}%
+                  </span>
+                )}
               </span>
               {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
                 <div className='flex items-center gap-1 text-[11px]'>
@@ -777,6 +803,7 @@ export function useCommonLogsColumns(
               quota={quota}
               other={other}
               showBillingSource={showBillingSource}
+              verified={buildCostCheck(log, other)?.status === 'match'}
             />
           )
         },

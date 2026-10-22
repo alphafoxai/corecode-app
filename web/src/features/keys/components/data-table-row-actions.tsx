@@ -27,6 +27,7 @@ import {
   Copy,
   Link,
   Loader2,
+  TerminalSquare,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -174,6 +175,26 @@ export function DataTableRowActions<TData>({
 
   return (
     <div className='-ml-1.5 flex items-center gap-1'>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant='ghost'
+              size='icon-sm'
+              onClick={() => {
+                setCurrentRow(apiKey)
+                setOpen('setup')
+              }}
+              disabled={!isEnabled}
+              aria-label={t('Connect Claude Code')}
+            />
+          }
+        >
+          <TerminalSquare />
+        </TooltipTrigger>
+        <TooltipContent>{t('Connect Claude Code')}</TooltipContent>
+      </Tooltip>
+
       <Tooltip>
         <TooltipTrigger
           render={

@@ -124,25 +124,51 @@ export function CachedPriceCell(props: {
 
   const isTokenBased = isTokenBasedModel(model)
 
-  if (!isTokenBased || model.cache_ratio == null) {
+  if (!isTokenBased) {
     return <span className='text-muted-foreground/30 text-xs'>—</span>
   }
 
-  const cachedPrice = stripTrailingZeros(
-    formatPrice(
-      model,
-      'cache',
-      tokenUnit,
-      showRechargePrice,
-      priceRate,
-      usdExchangeRate,
-      selectedGroup
-    )
-  )
+  // CoreCode fork: list the cache write price too; Claude Code pays it
+  // whenever a session's context grows.
+  const entries = [
+    {
+      type: 'cache' as const,
+      label: t('Cache Read'),
+      ratio: model.cache_ratio,
+    },
+    {
+      type: 'create_cache' as const,
+      label: t('Cache Write'),
+      ratio: model.create_cache_ratio,
+    },
+  ].filter((entry) => entry.ratio != null)
+
+  if (!entries.length) {
+    return <span className='text-muted-foreground/30 text-xs'>—</span>
+  }
 
   return (
     <div className='max-w-full min-w-0'>
-      <span className='font-mono text-sm tabular-nums'>{cachedPrice}</span>
+      {entries.map((entry) => (
+        <div key={entry.type} className='flex flex-wrap items-baseline gap-x-1'>
+          {entries.length > 1 && (
+            <span className='text-muted-foreground text-xs'>{entry.label}</span>
+          )}
+          <span className='font-mono text-sm tabular-nums'>
+            {stripTrailingZeros(
+              formatPrice(
+                model,
+                entry.type,
+                tokenUnit,
+                showRechargePrice,
+                priceRate,
+                usdExchangeRate,
+                selectedGroup
+              )
+            )}
+          </span>
+        </div>
+      ))}
       <div className='text-muted-foreground/50 text-[10px]'>
         / {tokenUnitLabel}
       </div>

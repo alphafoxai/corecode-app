@@ -192,6 +192,8 @@ export interface LogOtherData {
   cache_creation_tokens_5m?: number
   cache_creation_tokens_1h?: number
   claude?: boolean
+  /** `anthropic` when input tokens exclude the cached part. */
+  usage_semantic?: string
   model_ratio?: number
   completion_ratio?: number
   model_price?: number

@@ -222,8 +222,13 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
     const prices: { type: PriceType; label: string }[] = [
       { type: 'input', label: t('Input') },
       { type: 'output', label: t('Output') },
+      // CoreCode fork: Claude Code bills cache reads and writes on most
+      // turns, so both are listed rather than reads alone.
       ...(props.model.cache_ratio != null
-        ? [{ type: 'cache' as const, label: t('Cached') }]
+        ? [{ type: 'cache' as const, label: t('Cache Read') }]
+        : []),
+      ...(props.model.create_cache_ratio != null
+        ? [{ type: 'create_cache' as const, label: t('Cache Write') }]
         : []),
     ]
     priceSummary = prices.map((price) => (
@@ -304,9 +309,11 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
       </CardHeader>
       <CardContent className='flex flex-1 flex-col gap-3'>
         <div className='flex min-w-0 flex-col gap-1.5'>
-          <p className='text-muted-foreground line-clamp-2 text-[13px] leading-5 break-words'>
-            {props.model.description || t('No description available.')}
-          </p>
+          {props.model.description && (
+            <p className='text-muted-foreground line-clamp-2 text-[13px] leading-5 break-words'>
+              {props.model.description}
+            </p>
+          )}
           {tags.length > 0 && (
             <div
               role='group'
@@ -340,7 +347,14 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                 ` · ${t('Not configured for some providers')}`}
             </span>
           )}
-          <div className='grid grid-cols-[repeat(auto-fit,minmax(88px,1fr))] gap-x-3 gap-y-2'>
+          <div
+            className={cn(
+              'grid gap-x-3 gap-y-2',
+              isTokenBased && !dynamicSummary
+                ? 'grid-cols-2'
+                : 'grid-cols-[repeat(auto-fit,minmax(88px,1fr))]'
+            )}
+          >
             {priceSummary}
           </div>
         </div>

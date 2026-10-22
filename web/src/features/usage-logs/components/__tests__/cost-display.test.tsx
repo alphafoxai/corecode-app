@@ -115,7 +115,9 @@ describe('log cost display', () => {
 
     expect(screen.getByText('$0.025')).toBeVisible()
     expect(screen.getByRole('img', { name: 'Subscription' })).toBeVisible()
-    expect(screen.queryByRole('img', { name: 'Wallet' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: 'Wallet' })
+    ).not.toBeInTheDocument()
   })
 
   test('keeps legacy cost visible without inventing a funding source', () => {
@@ -229,5 +231,22 @@ describe('log cost display', () => {
     expect(
       screen.getByRole('img', { name: 'Includes tool-call surcharge' })
     ).toHaveAttribute('data-tool-surcharge-indicator', 'true')
+  })
+
+  test('marks a charge verified against the listed prices only when asked', () => {
+    const { rerender } = renderCost({
+      quota: 5000,
+      other: null,
+      verified: true,
+    })
+
+    expect(
+      screen.getByRole('img', { name: 'Matches the listed prices' })
+    ).toHaveAttribute('tabindex', '0')
+
+    rerender(<LogCostDisplay quota={5000} other={null} />)
+    expect(
+      screen.queryByRole('img', { name: 'Matches the listed prices' })
+    ).not.toBeInTheDocument()
   })
 })
