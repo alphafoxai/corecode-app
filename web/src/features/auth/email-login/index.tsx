@@ -44,20 +44,23 @@ export function EmailLoginConfirm({ token, redirect }: EmailLoginConfirmProps) {
   const navigate = useNavigate()
   const { handleLoginResult } = useAuthRedirect()
   const [error, setError] = useState('')
+  // The router listens to history writes, so the rewrite below drops `token`
+  // from the search params while the request is still in flight. The view
+  // keys off the token it claimed on mount, not the live prop.
+  const [linkToken] = useState(token)
   const consumed = useRef(false)
 
   useEffect(() => {
-    if (!token || consumed.current) return
+    if (!linkToken || consumed.current) return
     consumed.current = true
 
-    // The token lives in the address bar only until this effect claims it.
-    // Rewriting the URL is not navigation, so the router keeps rendering this
-    // view while a reload or a shared screen no longer exposes a live link.
+    // The token lives in the address bar only until this effect claims it, so
+    // a reload or a shared screen no longer exposes a live link.
     window.history.replaceState(null, '', window.location.pathname)
 
     async function consume() {
       try {
-        const res = await signInWithMagicLink(token as string)
+        const res = await signInWithMagicLink(linkToken as string)
         if (res?.success) {
           await handleLoginResult(res.data, redirect)
           return
@@ -73,9 +76,9 @@ export function EmailLoginConfirm({ token, redirect }: EmailLoginConfirmProps) {
       }
     }
     void consume()
-  }, [handleLoginResult, redirect, t, token])
+  }, [handleLoginResult, linkToken, redirect, t])
 
-  if (!token || error) {
+  if (!linkToken || error) {
     return (
       <AuthLayout>
         <div className='w-full space-y-6'>
