@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -53,15 +55,20 @@ func setClaudeCodeClientSetting(t *testing.T, value operation_setting.ClaudeCode
 
 func runClaudeCodeGate(t *testing.T, group string, autoGroups []string, path string, headers map[string]string, body string) (*httptest.ResponseRecorder, bool) {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
 	// A request without a body is a GET, as model lists are.
 	method := http.MethodPost
 	if body == "" {
 		method = http.MethodGet
 	}
-	c.Request = httptest.NewRequest(method, path, strings.NewReader(body))
+	return runClaudeCodeGateWithBody(t, group, autoGroups, method, path, headers, strings.NewReader(body))
+}
+
+func runClaudeCodeGateWithBody(t *testing.T, group string, autoGroups []string, method, path string, headers map[string]string, body io.Reader) (*httptest.ResponseRecorder, bool) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(method, path, body)
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set("Accept-Language", "en")
 	for name, value := range headers {
@@ -153,6 +160,47 @@ func TestClaudeCodeOnlyGroupGate(t *testing.T) {
 			assert.Equal(t, http.StatusForbidden, recorder.Code)
 			assert.Contains(t, recorder.Body.String(), "Group cc only accepts requests from Claude Code")
 			assert.Contains(t, recorder.Body.String(), `"code":"access_denied"`)
+		})
+	}
+}
+
+// A body the gate cannot read or parse was never judged, so it is refused the
+// way Distribute refuses it (400, or 413 past MAX_REQUEST_BODY_MB) instead of
+// as a foreign client. The User-Agent check still runs first.
+func TestClaudeCodeOnlyGroupUnreadableBody(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	setClaudeCodeClientSetting(t, operation_setting.ClaudeCodeClientSetting{Groups: []string{"cc"}})
+	originalMaxMB := constant.MaxRequestBodyMB
+	constant.MaxRequestBodyMB = 1
+	t.Cleanup(func() { constant.MaxRequestBodyMB = originalMaxMB })
+
+	abortedUpload := func() io.Reader {
+		return io.MultiReader(strings.NewReader(claudeCodeCLIBody[:200]), iotest.ErrReader(io.ErrUnexpectedEOF))
+	}
+	oversized := `{"model":"claude-sonnet-5-5","padding":"` + strings.Repeat("x", 1<<20) + `"}`
+
+	tests := []struct {
+		name    string
+		headers map[string]string
+		body    io.Reader
+		status  int
+		message string
+	}{
+		{"aborted upload from Claude Code", claudeCodeCLIHeaders, abortedUpload(), http.StatusBadRequest, "Invalid request: unexpected EOF"},
+		{"oversized body from Claude Code", claudeCodeCLIHeaders, strings.NewReader(oversized), http.StatusRequestEntityTooLarge, "Invalid request: request body exceeds 1 MB"},
+		{"malformed JSON from Claude Code", claudeCodeCLIHeaders, strings.NewReader(`{"model":"claude-sonnet-5-5",`), http.StatusBadRequest, "Invalid request: "},
+		{"aborted upload from another client", withHeader("User-Agent", "curl/8.7.1"), abortedUpload(), http.StatusForbidden, "Group cc only accepts requests from Claude Code"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder, allowed := runClaudeCodeGateWithBody(t, "cc", nil, http.MethodPost, "/v1/messages", test.headers, test.body)
+			require.False(t, allowed)
+			assert.Equal(t, test.status, recorder.Code)
+			assert.Contains(t, recorder.Body.String(), test.message)
+			if test.status != http.StatusForbidden {
+				assert.NotContains(t, recorder.Body.String(), "only accepts requests from Claude Code")
+				assert.NotContains(t, recorder.Body.String(), `"code":"access_denied"`)
+			}
 		})
 	}
 }
