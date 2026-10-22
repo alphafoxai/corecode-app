@@ -109,7 +109,7 @@ export function ApiKeysMutateDrawer({
   const { t } = useTranslation()
   const isUpdate = !!currentRow
   const currentRowId = currentRow?.id
-  const { triggerRefresh } = useApiKeys()
+  const { triggerRefresh, setCurrentRow, setOpen } = useApiKeys()
   const { status, loading: statusLoading } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -305,6 +305,7 @@ export function ApiKeysMutateDrawer({
         // Create mode - handle batch creation
         const count = data.tokenCount || 1
         let successCount = 0
+        let createdId: number | undefined
 
         for (let i = 0; i < count; i++) {
           const result = await createApiKey({
@@ -316,6 +317,7 @@ export function ApiKeysMutateDrawer({
           })
           if (result.success) {
             successCount++
+            createdId ??= result.data?.id
           } else {
             handleServerError(result, t(ERROR_MESSAGES.CREATE_FAILED))
             break
@@ -328,8 +330,17 @@ export function ApiKeysMutateDrawer({
               count: successCount,
             })
           )
-          onOpenChange(false)
           triggerRefresh()
+          // CoreCode fork: one new key goes straight to its setup guide, so
+          // the next step after creating it is copying the config.
+          const created =
+            count === 1 && createdId ? await getApiKey(createdId) : null
+          if (created?.success && created.data) {
+            setCurrentRow(created.data)
+            setOpen('setup')
+          } else {
+            onOpenChange(false)
+          }
         }
       }
     } catch (error) {
