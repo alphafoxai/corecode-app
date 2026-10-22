@@ -8,9 +8,9 @@ Status: implemented
 monorepo's `services/new-api` submodule without its history, so this repository
 shared no commit with `QuantumNous/new-api`. A merge from upstream had no base:
 git either refused it or, with `--allow-unrelated-histories`, treated every file
-as a two-sided addition. GitHub does not mark the repository as a fork either,
-and an existing repository cannot be turned into one, so the "Sync fork" path
-was never available.
+as a two-sided addition. GitHub did not mark the repository as a fork either,
+and an existing repository cannot be turned into one, so GitHub could not show
+how far behind upstream it was.
 
 The submodule pointed at `alphafoxai/new-api@db76827` on its `derouter` branch.
 That commit's tree is byte-identical to `1897f73a5`, and it sits six CoreCode
@@ -37,6 +37,24 @@ commits (N1–N5 and the theme) above upstream `633b4c5b1`, which is
 - **Upstream tags stay local.** `git push` without `--tags` sends only the
   branch. The upstream tags are reachable through the merged history and are
   not republished under this repository.
+- **This repository is the GitHub fork.** The original `corecode-app` was
+  renamed `corecode-app-pre-fork` and archived. Its `main` was pushed as a fast
+  forward to `alphafoxai/new-api`, the fork of `QuantumNous/new-api` that
+  already existed, which was then renamed `corecode-app`. GitHub now reports the
+  commits ahead of and behind upstream `main`. Issues and pull requests
+  `corecode-app-pre-fork` #1–#8 stay in the archived repository; the fork's own
+  earlier branches stay here.
+- **The fork keeps the deploy identity by name.** The workload identity
+  provider admits `assertion.repository` values, which follow the repository
+  name, so `alphafoxai/corecode-app` authenticates as before. GitHub does not
+  return secret values, so `CORECODE_RELAY_SSH_KEY` here is a key of its own,
+  `corecode-app-ci-20261022`, added to the relay `runner` account beside the key
+  `corecode-provider` and `corecode-engine` use.
+- **A pull request targets this repository explicitly.** In a fork, the web
+  "Compare & pull request" button and `gh pr create` default the base to
+  `QuantumNous/new-api`. Check that the base reads `alphafoxai/corecode-app`
+  before creating one. Do not use "Sync fork": it follows upstream `main`
+  rather than a tag and offers to discard the commits here.
 - **`gh` is pinned to this repository.** With a remote named `upstream`, the
   GitHub CLI resolves `upstream` as the base repository, so `gh pr create` and
   `gh run list` act on `QuantumNous/new-api`. `gh repo set-default
@@ -51,9 +69,12 @@ commits (N1–N5 and the theme) above upstream `633b4c5b1`, which is
 - **Cherry-pick selected upstream commits.** It needs no ancestry, but each sync
   becomes a manual selection, and fixes that build on skipped commits stop
   applying cleanly once upstream moves a few releases ahead.
-- **Return to developing in `alphafoxai/new-api`.** That repository is the
-  GitHub fork, but it is no longer what deploys, and keeping two trees means
-  every change lands twice.
+- **Keep the unforked repository and its history connection only.** Syncing
+  works without the fork relationship, but GitHub then cannot show the distance
+  from upstream, which is the reason to keep the fork.
+- **Fork upstream again and cherry-pick the CoreCode commits.** Cherry-picks get
+  new commit ids, and the image tags that production records end in the commit
+  id, so every running and past tag would stop pointing at its source.
 
 ## Consequences
 
@@ -73,8 +94,11 @@ commits (N1–N5 and the theme) above upstream `633b4c5b1`, which is
   a conflict. The resolution numbers them 17, 18 and 19.
   Read every Lua `ARGV` list and every positional argument list a sync touches,
   not only the conflicted hunks.
-- `alphafoxai/new-api` is redundant after the first sync. Archiving it is the
-  maintainer's call.
+- Dependabot's open pull requests (`corecode-app-pre-fork` #1–#5) stayed in the
+  archived repository. Vulnerability alerts were off on the fork and are now on,
+  matching the archived repository. Whether Dependabot version updates open pull
+  requests here is unverified; if none appear, enable them under Insights →
+  Dependency graph → Dependabot.
 
 ## Verification
 
@@ -86,3 +110,13 @@ and `bun run typecheck` pass. `go test ./...` passes except
 `TestAdaptorMasksDialedHostsInDialFailure` in `relay/channel/advancedcustom`,
 which fails the same way on an unmodified `v1.0.0-rc.46` checkout on the
 same machine and is outside the packages CI tests.
+
+For the repository move: `alphafoxai/new-api`'s `main` (`09109ec31`) is an
+ancestor of `903750457`, so the push was a fast forward with no force. After
+the renames, `gh api repos/alphafoxai/corecode-app` reports `fork: true` with
+parent `QuantumNous/new-api`, and the compare view reads 0 behind and 29 ahead
+of upstream `main`. A `workflow_dispatch` run of `ci.yml` on the fork passed
+`check` and `publish`, which authenticates to GCP and pushes to Artifact
+Registry. `deploy` runs only on push. Its key was checked by running
+`scripts/deploy-service.sh` with that key and the tag production runs; it
+printed "already runs …; nothing to restart" and restarted nothing.
