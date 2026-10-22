@@ -24,6 +24,7 @@ import {
   buildCostCheck,
   getCacheGrade,
   getInputCacheTokens,
+  isCostlyCacheMiss,
 } from '../cost-check'
 
 function log(fields: Partial<UsageLog>): UsageLog {
@@ -237,5 +238,30 @@ describe('getCacheGrade', () => {
     [0, 'poor'],
   ] as const)('grades %d as %s', (rate, grade) => {
     expect(getCacheGrade(rate)).toBe(grade)
+  })
+})
+
+describe('isCostlyCacheMiss', () => {
+  test.each([
+    ['286K context, nothing cached', 286_000, 0, true],
+    ['60K context, 10% cached', 54_000, 6_000, true],
+    ['60K context, 30% cached', 42_000, 18_000, false],
+    ['40K context, nothing cached', 40_000, 0, false],
+  ])('%s → %s', (_name, written, read, expected) => {
+    expect(
+      isCostlyCacheMiss(log({ prompt_tokens: 10 }), {
+        claude: true,
+        cache_creation_tokens: written,
+        cache_tokens: read,
+      })
+    ).toBe(expected)
+  })
+
+  test('ignores logs that are not consumption', () => {
+    expect(
+      isCostlyCacheMiss(log({ type: 5, prompt_tokens: 100_000 }), {
+        claude: true,
+      })
+    ).toBe(false)
   })
 })

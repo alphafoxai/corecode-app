@@ -30,18 +30,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { useBalanceStatus } from '@/features/dashboard/hooks/use-balance-status'
+import { useDailySpend } from '@/features/dashboard/hooks/use-customer-overview'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function SidebarBalance() {
-  const { t } = useTranslation()
   const user = useAuthStore((state) => state.auth.user)
   if (!user) return null
+  return <SidebarBalanceButton balance={Number(user.quota ?? 0)} />
+}
 
-  const balance = Number(user.quota ?? 0)
-  const amount = formatQuota(balance)
-  const label = `${t('Balance')} ${amount}`
+/** Warns before the balance runs out, not only once it has. */
+function SidebarBalanceButton(props: { balance: number }) {
+  const { t } = useTranslation()
+  const spend = useDailySpend()
+  const status = useBalanceStatus(props.balance, spend.daily)
+  const amount = formatQuota(props.balance)
+  const warn = status.health !== 'healthy'
+  const label = warn
+    ? `${t('Balance')} ${amount}, ${status.label}`
+    : `${t('Balance')} ${amount}`
 
   return (
     <SidebarFooter className='border-sidebar-border/70 border-t'>
@@ -56,19 +66,27 @@ export function SidebarBalance() {
             <span
               className={cn(
                 'bg-sidebar-accent flex size-8 shrink-0 items-center justify-center rounded-lg',
-                balance <= 0 && 'bg-destructive/10 text-destructive'
+                status.health === 'low' && 'bg-warning/15 text-warning',
+                status.health === 'empty' &&
+                  'bg-destructive/10 text-destructive'
               )}
             >
               <Wallet className='size-4' aria-hidden />
             </span>
             <span className='flex min-w-0 flex-col leading-tight'>
-              <span className='text-sidebar-foreground/60 text-xs'>
-                {t('Balance')}
+              <span
+                className={cn(
+                  'text-sidebar-foreground/60 text-xs',
+                  status.health === 'low' && 'text-warning',
+                  status.health === 'empty' && 'text-destructive'
+                )}
+              >
+                {warn ? status.label : t('Balance')}
               </span>
               <span
                 className={cn(
                   'truncate text-sm font-semibold tabular-nums',
-                  balance <= 0 && 'text-destructive'
+                  status.health === 'empty' && 'text-destructive'
                 )}
               >
                 {amount}

@@ -59,6 +59,7 @@ import {
   buildCostCheck,
   getCacheGrade,
   getInputCacheTokens,
+  isCostlyCacheMiss,
   type CacheGrade,
 } from '../../lib/cost-check'
 import {
@@ -753,13 +754,24 @@ export function useCommonLogsColumns(
 
           const { cacheRead, totalInput } = getInputCacheTokens(log, other)
           const cacheHitRate = totalInput > 0 ? cacheRead / totalInput : 0
+          const costlyMiss = isCostlyCacheMiss(log, other)
 
           return (
             <div className='flex flex-col gap-0.5'>
               <span className='flex items-center gap-1.5 font-mono text-xs font-medium tabular-nums'>
                 {promptTokens.toLocaleString()} /{' '}
                 {completionTokens.toLocaleString()}
-                {cacheRead > 0 && (
+                {costlyMiss && (
+                  <span
+                    className='bg-warning/15 text-warning rounded px-1 font-sans text-[10px] font-medium'
+                    title={t(
+                      'Long context, almost no cache hit: billed as a fresh cache write'
+                    )}
+                  >
+                    {t('Cache miss')} {Math.round(cacheHitRate * 100)}%
+                  </span>
+                )}
+                {!costlyMiss && cacheRead > 0 && (
                   <span
                     className={cn(
                       'rounded px-1 font-sans text-[10px] font-medium',

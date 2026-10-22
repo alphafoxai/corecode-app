@@ -24,6 +24,7 @@ import type { UsageLog } from '@/features/usage-logs/data/schema'
 import {
   bucketDailySpend,
   estimateRunwayDays,
+  getDailyCacheHitRate,
   summarizeRecentLogs,
 } from '../customer-overview'
 
@@ -106,6 +107,8 @@ describe('summarizeRecentLogs', () => {
       requests: 0,
       cacheHitRate: null,
       avgFirstTokenMs: null,
+      costlyMisses: 0,
+      costlyMissQuota: 0,
     })
   })
 
@@ -159,7 +162,13 @@ describe('bucketDailySpend', () => {
 
 describe('estimateRunwayDays', () => {
   const days = (...quotas: number[]) =>
-    quotas.map((quota, index) => ({ day: index, quota, requests: 0 }))
+    quotas.map((quota, index) => ({
+      day: index,
+      quota,
+      requests: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }))
 
   test('divides the balance by the average of days that had spend', () => {
     expect(estimateRunwayDays(100, days(0, 10, 30, 0))).toBe(5)
@@ -168,5 +177,67 @@ describe('estimateRunwayDays', () => {
   test('has no estimate without spend or without balance', () => {
     expect(estimateRunwayDays(100, days(0, 0))).toBeNull()
     expect(estimateRunwayDays(0, days(10))).toBeNull()
+  })
+})
+
+describe('cache figures', () => {
+  test('counts long requests that missed the cache and what they cost', () => {
+    const summary = summarizeRecentLogs([
+      log({
+        quota: 500,
+        prompt_tokens: 5,
+        other: { claude: true, cache_creation_tokens: 286_000 },
+      }),
+      log({
+        quota: 20,
+        prompt_tokens: 5,
+        other: {
+          claude: true,
+          cache_tokens: 90_000,
+          cache_creation_tokens: 1_000,
+        },
+      }),
+    ])
+    expect(summary.costlyMisses).toBe(1)
+    expect(summary.costlyMissQuota).toBe(500)
+  })
+
+  test('daily hit rate is null on a day without cache data', () => {
+    const day = {
+      day: 0,
+      quota: 10,
+      requests: 1,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }
+    expect(getDailyCacheHitRate(day)).toBeNull()
+    expect(
+      getDailyCacheHitRate({
+        ...day,
+        cacheReadTokens: 900,
+        cacheWriteTokens: 100,
+      })
+    ).toBeCloseTo(0.9)
+  })
+
+  test('buckets cache reads and writes by day', () => {
+    const now = Date.UTC(2026, 9, 21, 15) / 1000
+    const daily = bucketDailySpend(
+      [
+        {
+          created_at: now - 3600,
+          quota: 1,
+          count: 1,
+          cache_read_tokens: 800,
+          cache_creation_tokens: 200,
+        } as QuotaDataItem,
+      ],
+      1,
+      now
+    )
+    expect(daily[0]).toMatchObject({
+      cacheReadTokens: 800,
+      cacheWriteTokens: 200,
+    })
   })
 })
