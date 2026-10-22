@@ -33,6 +33,8 @@ function toolbarProps(): PricingToolbarProps {
     totalCount: 2,
     sortBy: 'name',
     tokenUnit: 'M',
+    priceRate: 7.3,
+    usdExchangeRate: 7.3,
     showRechargePrice: false,
     viewMode: 'card',
     quotaTypeFilter: 'all',

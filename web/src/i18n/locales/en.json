@@ -7442,6 +7442,20 @@
     "Last 7 days": "Last 7 days",
     "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.",
     "Online payment is not open yet. Redeem a code to add credits.": "Online payment is not open yet. Redeem a code to add credits.",
-    "Redemptions, payments and top-ups by the operator.": "Redemptions, payments and top-ups by the operator."
+    "Redemptions, payments and top-ups by the operator.": "Redemptions, payments and top-ups by the operator.",
+    "How billing works": "How billing works",
+    "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.": "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.",
+    "Formula": "Formula",
+    "Exchange-rate factor": "Exchange-rate factor",
+    "Recharge price ÷ exchange rate": "Recharge price ÷ exchange rate",
+    "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.": "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.",
+    "× ratio": "× ratio",
+    "Prices on the model cards are official prices multiplied by the group ratio.": "Prices on the model cards are official prices multiplied by the group ratio.",
+    "Combined factor": "Combined factor",
+    "Exchange-rate factor × group ratio": "Exchange-rate factor × group ratio",
+    "What you pay relative to the official price.": "What you pay relative to the official price.",
+    "{{tenths}} of official price": "{{percent}} of official price",
+    "{{ratio}}× official price": "{{ratio}}× official price",
+    "Same as official price": "Same as official price"
   }
 }

@@ -257,7 +257,7 @@ describe('model cards', () => {
     expect(within(idle).getByText('—t/s')).toBeVisible()
   })
 
-  it('keeps group, endpoint and tag overflow counts with their own metadata', () => {
+  it('keeps group and tag overflow counts with their own metadata, and hides endpoints', () => {
     const groups = ['default-with-a-long-group-name', 'premium', 'internal']
     const endpoints = ['openai-response', 'openai', 'claude', 'gemini', 'jina']
     const tags = [
@@ -280,20 +280,14 @@ describe('model cards', () => {
     )
 
     const groupField = screen.getByText('Groups').parentElement
-    const endpointField = screen.getByText('Endpoints').parentElement
-    if (!groupField || !endpointField) {
-      throw new Error('Expected labeled group and endpoint fields')
-    }
+    if (!groupField) throw new Error('Expected a labeled group field')
+    expect(screen.queryByText('Endpoints')).not.toBeInTheDocument()
     const tagField = screen.getByRole('group', { name: 'Tags' })
     expect(within(groupField).getByText(groups[0])).toBeVisible()
     expect(within(groupField).getByText('+2')).toHaveAttribute(
       'title',
       groups.slice(1).join(', ')
     )
-    expect(
-      within(endpointField).getByText('openai-response, openai')
-    ).toHaveAttribute('title', endpoints.join(', '))
-    expect(within(endpointField).getByText('+3')).toBeVisible()
     expect(
       within(tagField).getByText('video-generation, high-resolution')
     ).toHaveAttribute('title', tags.join(', '))

@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils'
 
 import { getSortLabels, type SortOption, type ViewMode } from '../constants'
 import type { PricingModel, PricingVendor, TokenUnit } from '../types'
+import { BillingExplainer } from './billing-explainer'
 import { PricingSidebar } from './pricing-sidebar'
 
 export interface PricingToolbarProps {
@@ -56,6 +57,8 @@ export interface PricingToolbarProps {
   onSortChange: (value: string) => void
   tokenUnit: TokenUnit
   onTokenUnitChange: (value: TokenUnit) => void
+  priceRate: number
+  usdExchangeRate: number
   showRechargePrice: boolean
   onRechargePriceChange: (value: boolean) => void
   viewMode: ViewMode
@@ -120,6 +123,12 @@ export function PricingToolbar(props: PricingToolbarProps) {
         </div>
 
         <div className='flex min-w-0 flex-wrap items-center gap-2'>
+          <BillingExplainer
+            models={props.models}
+            priceRate={props.priceRate}
+            usdExchangeRate={props.usdExchangeRate}
+            selectedGroup={props.groupFilter}
+          />
           <ToggleGroup
             value={[props.showRechargePrice ? 'recharge' : 'standard']}
             onValueChange={(values) => {

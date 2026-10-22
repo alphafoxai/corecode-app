@@ -7442,6 +7442,20 @@
     "Last 7 days": "7 derniers jours",
     "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Le paiement en ligne et les codes ne sont pas encore ouverts. Envoyez-nous l’e-mail du compte et le montant souhaité.",
     "Online payment is not open yet. Redeem a code to add credits.": "Le paiement en ligne n’est pas encore ouvert. Utilisez un code pour ajouter des crédits.",
-    "Redemptions, payments and top-ups by the operator.": "Codes, paiements et ajouts par l’opérateur."
+    "Redemptions, payments and top-ups by the operator.": "Codes, paiements et ajouts par l’opérateur.",
+    "How billing works": "Comment fonctionne la facturation",
+    "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.": "Ce que vous payez par rapport au prix officiel est le facteur de change multiplié par le ratio du groupe. À droite, la même formule appliquée à un modèle.",
+    "Formula": "Formule",
+    "Exchange-rate factor": "Facteur de change",
+    "Recharge price ÷ exchange rate": "Prix de recharge ÷ taux de change",
+    "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.": "¥{{price}} rechargés donnent 1 $ de crédit ; le taux de référence est 1 $ = ¥{{rate}}.",
+    "× ratio": "× ratio",
+    "Prices on the model cards are official prices multiplied by the group ratio.": "Les prix des fiches modèles sont les prix officiels multipliés par le ratio du groupe.",
+    "Combined factor": "Facteur global",
+    "Exchange-rate factor × group ratio": "Facteur de change × ratio du groupe",
+    "What you pay relative to the official price.": "Ce que vous payez par rapport au prix officiel.",
+    "{{tenths}} of official price": "{{percent}} du prix officiel",
+    "{{ratio}}× official price": "{{ratio}}× le prix officiel",
+    "Same as official price": "Identique au prix officiel"
   }
 }

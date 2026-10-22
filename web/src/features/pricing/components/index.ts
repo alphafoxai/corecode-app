@@ -30,3 +30,4 @@ export {
 } from './model-details'
 export { PricingTable } from './pricing-table'
 export { ClaudeCodeEstimator } from './claude-code-estimator'
+export { BillingExplainer } from './billing-explainer'

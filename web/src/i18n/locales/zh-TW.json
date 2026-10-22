@@ -7442,6 +7442,20 @@
     "Last 7 days": "近 7 天",
     "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "線上支付和兌換碼暫未開放。請把帳戶信箱和需要的金額發給我們。",
     "Online payment is not open yet. Redeem a code to add credits.": "線上支付暫未開放，可以用兌換碼儲值。",
-    "Redemptions, payments and top-ups by the operator.": "兌換碼、支付和人工儲值。"
+    "Redemptions, payments and top-ups by the operator.": "兌換碼、支付和人工儲值。",
+    "How billing works": "計費說明",
+    "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.": "你實際支付相對官方價的比例 = 匯率係數 × 分組倍率。右側用同一公式帶入一個模型示例。",
+    "Formula": "公式構成",
+    "Exchange-rate factor": "匯率係數",
+    "Recharge price ÷ exchange rate": "儲值價 ÷ 匯率",
+    "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.": "儲值 ¥{{price}} 獲得 $1 額度；參考匯率 $1 = ¥{{rate}}。",
+    "× ratio": "× 倍率",
+    "Prices on the model cards are official prices multiplied by the group ratio.": "模型卡片上的各項單價，是官方價按分組倍率換算後的價格。",
+    "Combined factor": "綜合折扣",
+    "Exchange-rate factor × group ratio": "匯率係數 × 分組倍率",
+    "What you pay relative to the official price.": "相對廠商官方報價，你實際支付的比例。",
+    "{{tenths}} of official price": "{{tenths}}折",
+    "{{ratio}}× official price": "官方價 ×{{ratio}}",
+    "Same as official price": "與官方價相同"
   }
 }

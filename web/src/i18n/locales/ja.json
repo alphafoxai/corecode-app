@@ -7442,6 +7442,20 @@
     "Last 7 days": "過去7日",
     "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "オンライン決済と引き換えコードはまだ利用できません。アカウントのメールアドレスと必要な金額をお知らせください。",
     "Online payment is not open yet. Redeem a code to add credits.": "オンライン決済はまだ利用できません。引き換えコードでチャージできます。",
-    "Redemptions, payments and top-ups by the operator.": "引き換えコード、決済、運営による追加。"
+    "Redemptions, payments and top-ups by the operator.": "引き換えコード、決済、運営による追加。",
+    "How billing works": "料金の仕組み",
+    "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.": "公式価格に対する実際の支払い比率は、為替係数 × グループ倍率です。右側では同じ式を1つのモデルに当てはめています。",
+    "Formula": "計算式",
+    "Exchange-rate factor": "為替係数",
+    "Recharge price ÷ exchange rate": "チャージ価格 ÷ 為替レート",
+    "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.": "¥{{price}} のチャージで $1 分のクレジット。参考レートは $1 = ¥{{rate}} です。",
+    "× ratio": "× 倍率",
+    "Prices on the model cards are official prices multiplied by the group ratio.": "モデルカードの単価は、公式価格にグループ倍率を掛けたものです。",
+    "Combined factor": "総合係数",
+    "Exchange-rate factor × group ratio": "為替係数 × グループ倍率",
+    "What you pay relative to the official price.": "公式価格に対する実際の支払い比率です。",
+    "{{tenths}} of official price": "公式価格の{{percent}}",
+    "{{ratio}}× official price": "公式価格の {{ratio}} 倍",
+    "Same as official price": "公式価格と同じ"
   }
 }
