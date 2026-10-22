@@ -93,7 +93,16 @@ func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
 		return true
 	}
 
-	version, failedCheck := detectClaudeCodeClient(c)
+	version, failedCheck, bodyErr := detectClaudeCodeClient(c)
+	if bodyErr != nil {
+		// An aborted upload, an oversized body or malformed JSON says nothing
+		// about the client. Answer as Distribute would, so the request is still
+		// refused but not reported as a foreign client.
+		logger.LogWarn(c.Request.Context(), "claude code only group %s: request body unreadable: %v", group, bodyErr)
+		abortWithOpenAiMessage(c, invalidRequestStatus(bodyErr),
+			i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": bodyErr.Error()}))
+		return false
+	}
 	if failedCheck != "" {
 		logger.LogWarn(c.Request.Context(), "claude code only group %s: request rejected, %s check failed", group, failedCheck)
 		abortWithOpenAiMessage(c, http.StatusForbidden,
@@ -143,42 +152,43 @@ func restrictedClaudeCodeGroup(c *gin.Context, userGroup string) string {
 }
 
 // detectClaudeCodeClient returns the Claude Code version from the User-Agent,
-// or the name of the first check the request failed.
-func detectClaudeCodeClient(c *gin.Context) (version string, failedCheck string) {
+// or the name of the first check the request failed. bodyErr is set instead
+// when a Messages body cannot be read or parsed, so it was never judged.
+func detectClaudeCodeClient(c *gin.Context) (version string, failedCheck string, bodyErr error) {
 	match := claudeCliUserAgentPattern.FindStringSubmatch(c.GetHeader("User-Agent"))
 	if match == nil {
-		return "", "User-Agent"
+		return "", "User-Agent", nil
 	}
 	version = match[1] + "." + match[2] + "." + match[3]
 
 	// Only a Messages request carries a prompt. Other paths (count_tokens) are
 	// judged by the User-Agent alone. Model lists never get here.
 	if !strings.HasSuffix(c.Request.URL.Path, "/messages") {
-		return version, ""
+		return version, "", nil
 	}
 
 	var probe claudeCodeRequestProbe
 	if err := common.UnmarshalBodyReusable(c, &probe); err != nil {
-		return version, "request body"
+		return version, "", err
 	}
 	// Claude Code checks connectivity and context usage with max_tokens=1
 	// requests that have no system prompt; one output token is worth nothing
 	// to anyone else.
 	if probe.MaxTokens != nil && *probe.MaxTokens == 1 {
-		return version, ""
+		return version, "", nil
 	}
 	if !hasClaudeCodeSystemPrompt(probe.System) {
-		return version, "system prompt"
+		return version, "system prompt", nil
 	}
 	for _, header := range []string{"X-App", "anthropic-beta", "anthropic-version"} {
 		if strings.TrimSpace(c.GetHeader(header)) == "" {
-			return version, header + " header"
+			return version, header + " header", nil
 		}
 	}
 	if !isClaudeCodeUserID(probe.Metadata.UserID) {
-		return version, "metadata.user_id"
+		return version, "metadata.user_id", nil
 	}
-	return version, ""
+	return version, "", nil
 }
 
 func hasClaudeCodeSystemPrompt(raw json.RawMessage) bool {
