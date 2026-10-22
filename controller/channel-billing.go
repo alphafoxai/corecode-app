@@ -475,6 +475,37 @@ func updateChannelSub2APIBalance(channel *model.Channel) (float64, error) {
 	return *balance, nil
 }
 
+// updateChannelAnthropicPoolBalance reads the remaining quota of a gpt-load subscription
+// pool behind an Anthropic channel. Anthropic itself has no balance endpoint, so a channel
+// on the official host keeps the unsupported answer instead of calling one.
+func updateChannelAnthropicPoolBalance(channel *model.Channel) (float64, error) {
+	baseURL := strings.TrimRight(channel.GetBaseURL(), "/")
+	if baseURL == "" || baseURL == strings.TrimRight(constant.GetChannelBaseURL(constant.ChannelTypeAnthropic), "/") {
+		return 0, common.NewMessage("Not implemented yet")
+	}
+	body, err := GetResponseBody("GET", baseURL+"/v1/pool/balance", channel, GetAuthHeader(channel.Key))
+	if err != nil {
+		return 0, fmt.Errorf("upstream does not report a pool balance: %w", err)
+	}
+	var pool struct {
+		IsActive *bool    `json:"is_active"`
+		Balance  *float64 `json:"balance"`
+	}
+	if err := common.Unmarshal(body, &pool); err != nil {
+		return 0, err
+	}
+	if pool.IsActive == nil || !*pool.IsActive {
+		return 0, errors.New("pool balance key is not active")
+	}
+	// The pool answers with an error rather than zero when it cannot estimate, so a
+	// missing value is never stored as an empty balance that could disable the channel.
+	if pool.Balance == nil || math.IsNaN(*pool.Balance) || math.IsInf(*pool.Balance, 0) || *pool.Balance < 0 {
+		return 0, errors.New("pool balance response has no valid balance")
+	}
+	channel.UpdateBalance(*pool.Balance)
+	return *pool.Balance, nil
+}
+
 // updateChannelNewAPIBalance reads the upstream key's remaining quota. When the
 // upstream also returns its owner's quota, the smaller of the two is what the
 // key can still spend. Quota converts to USD with the upstream's quota_per_unit.
@@ -663,6 +694,8 @@ func updateStandardChannelBalance(channel *model.Channel) (float64, error) {
 		return updateChannelSub2APIBalance(channel)
 	case constant.ChannelTypeNewAPI:
 		return updateChannelNewAPIBalance(channel)
+	case constant.ChannelTypeAnthropic:
+		return updateChannelAnthropicPoolBalance(channel)
 	default:
 		return 0, common.NewMessage("Not implemented yet")
 	}
