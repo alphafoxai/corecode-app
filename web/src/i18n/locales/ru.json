@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "Базовый уровень; длинный контекст дороже",
     "Official {{price}}": "Офиц. {{price}}",
     "Save {{percent}}": "−{{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Официальные и групповые цены в юанях рядом друг с другом."
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Официальные и групповые цены в юанях рядом друг с другом.",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "Из последних {{count}} запросов. Длинный контекст без попадания в кэш записывается заново по полной цене. Обычные причины: новая сессия, смена модели посреди сессии или пауза дольше 5 минут (время жизни кэша).",
+    "By API key": "По API-ключам",
+    "By model": "По моделям",
+    "Cache hit rate, last 14 days": "Попадания в кэш за 14 дней",
+    "Cache miss": "Промах кэша",
+    "Chart metric": "Показатель графика",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Когда баланс закончится, запросы Claude Code будут получать 403. Пополните баланс, чтобы сессии не прерывались.",
+    "Daily cache hit rate": "Попадания в кэш по дням",
+    "Long context, almost no cache hit: billed as a fresh cache write": "Длинный контекст почти без попаданий в кэш: оплачен как новая запись в кэш",
+    "No cache data in this period yet": "За этот период данных о кэше пока нет",
+    "No spend in this range.": "За этот период расходов нет.",
+    "Show logs for {{name}}": "Показать журнал для {{name}}",
+    "Spend": "Расходы",
+    "Spend by key": "Расходы по ключам",
+    "Spend in this range: {{amount}}": "Расходы за период: {{amount}}",
+    "Your balance has run out": "Баланс закончился",
+    "Your balance runs out in about {{days}} days": "Баланс закончится примерно через {{days}} дн.",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} длинных запросов не попали в кэш, списано {{amount}}",
+    "{{date}}: no cache data": "{{date}}: нет данных о кэше",
+    "{{date}}: {{rate}} cache hit": "{{date}}: {{rate}} попаданий в кэш",
+    "{{rate}} of cached context was reused": "{{rate}} закэшированного контекста использовано повторно"
   }
 }

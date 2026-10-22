@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "Mức cơ bản; ngữ cảnh dài đắt hơn",
     "Official {{price}}": "Chính thức {{price}}",
     "Save {{percent}}": "Tiết kiệm {{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Giá chính thức và giá nhóm bằng CNY, đặt cạnh nhau."
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Giá chính thức và giá nhóm bằng CNY, đặt cạnh nhau.",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "Trong {{count}} yêu cầu gần nhất. Ngữ cảnh dài không trúng cache sẽ bị ghi lại với giá đầy đủ. Nguyên nhân thường gặp: phiên mới, đổi mô hình giữa phiên, hoặc dừng quá 5 phút (thời hạn cache).",
+    "By API key": "Theo khóa API",
+    "By model": "Theo mô hình",
+    "Cache hit rate, last 14 days": "Tỷ lệ trúng cache 14 ngày qua",
+    "Cache miss": "Trượt cache",
+    "Chart metric": "Chỉ số biểu đồ",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Khi hết số dư, yêu cầu Claude Code sẽ lỗi 403. Hãy nạp thêm để phiên không bị gián đoạn.",
+    "Daily cache hit rate": "Tỷ lệ trúng cache theo ngày",
+    "Long context, almost no cache hit: billed as a fresh cache write": "Ngữ cảnh dài gần như không trúng cache: tính như ghi cache mới",
+    "No cache data in this period yet": "Chưa có dữ liệu cache trong khoảng này",
+    "No spend in this range.": "Không có chi tiêu trong khoảng này.",
+    "Show logs for {{name}}": "Xem nhật ký của {{name}}",
+    "Spend": "Chi tiêu",
+    "Spend by key": "Chi tiêu theo khóa",
+    "Spend in this range: {{amount}}": "Chi tiêu trong khoảng: {{amount}}",
+    "Your balance has run out": "Số dư đã hết",
+    "Your balance runs out in about {{days}} days": "Số dư sẽ hết sau khoảng {{days}} ngày",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} yêu cầu dài trượt cache, tổng cộng {{amount}}",
+    "{{date}}: no cache data": "{{date}}: không có dữ liệu cache",
+    "{{date}}: {{rate}} cache hit": "{{date}}: trúng cache {{rate}}",
+    "{{rate}} of cached context was reused": "{{rate}} ngữ cảnh đã cache được dùng lại"
   }
 }

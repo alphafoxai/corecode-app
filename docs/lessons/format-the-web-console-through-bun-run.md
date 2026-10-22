@@ -41,9 +41,13 @@ The mistaken assumption was that a script finishing without output had run.
 
 - Run `bun run format` (or `bun run format:check`) from `web/`, and read the exit
   code and the "Finished in … on N files" line.
-- Then revert formatting on every file outside the change, for example by
-  checking out each modified path that is not in
-  `git diff --name-only origin/main...HEAD`.
+- Then revert formatting on every file outside the change by listing the files
+  the change touched explicitly. Do not filter with an anchored regex group:
+  `^web/src/(i18n/locales/|…)$` matches only the bare directory, so every
+  locale file is reverted.
+- Before committing, confirm that a new string is present in
+  `web/src/i18n/locales/zh.json`. A dropped translation passes typecheck,
+  lint and tests and shows up only as English in production.
 
 ## Prevention
 
@@ -58,4 +62,5 @@ The commit "Format the files this branch added" on
 
 ## Escalation
 
-First recorded event.
+Recurred on 2026-10-22: the revert step dropped the locale files three times,
+and one change (PR #9) shipped its new strings in English only.

@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "Palier de base ; les contextes longs coûtent plus",
     "Official {{price}}": "Officiel {{price}}",
     "Save {{percent}}": "−{{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Prix officiels et prix de groupe en CNY, côte à côte."
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Prix officiels et prix de groupe en CNY, côte à côte.",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "Parmi les {{count}} dernières requêtes. Un long contexte qui manque le cache est réécrit au plein tarif. Causes habituelles : nouvelle session, changement de modèle en cours de session, ou pause de plus de 5 minutes (durée du cache).",
+    "By API key": "Par clé API",
+    "By model": "Par modèle",
+    "Cache hit rate, last 14 days": "Taux de cache, 14 derniers jours",
+    "Cache miss": "Cache manqué",
+    "Chart metric": "Mesure du graphique",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Les requêtes Claude Code échouent en 403 une fois le solde épuisé. Ajoutez des crédits pour ne pas interrompre vos sessions.",
+    "Daily cache hit rate": "Taux de cache quotidien",
+    "Long context, almost no cache hit: billed as a fresh cache write": "Long contexte presque sans cache : facturé comme une nouvelle écriture de cache",
+    "No cache data in this period yet": "Pas encore de données de cache sur cette période",
+    "No spend in this range.": "Aucune dépense sur cette période.",
+    "Show logs for {{name}}": "Voir les journaux de {{name}}",
+    "Spend": "Dépenses",
+    "Spend by key": "Dépenses par clé",
+    "Spend in this range: {{amount}}": "Dépenses sur la période : {{amount}}",
+    "Your balance has run out": "Votre solde est épuisé",
+    "Your balance runs out in about {{days}} days": "Votre solde sera épuisé dans environ {{days}} jours",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} longues requêtes ont manqué le cache, {{amount}} facturés au total",
+    "{{date}}: no cache data": "{{date}} : pas de données de cache",
+    "{{date}}: {{rate}} cache hit": "{{date}} : {{rate}} de cache",
+    "{{rate}} of cached context was reused": "{{rate}} du contexte en cache a été réutilisé"
   }
 }

@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "基本ティア。長いコンテキストは高くなります",
     "Official {{price}}": "公式 {{price}}",
     "Save {{percent}}": "{{percent}} お得",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "公式価格とグループ価格を人民元で並べて表示します。"
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "公式価格とグループ価格を人民元で並べて表示します。",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "直近 {{count}} 件のリクエストのうちです。長いコンテキストがキャッシュに当たらないと、全額でキャッシュに書き直されます。主な原因：新しいセッション、セッション途中のモデル切り替え、5 分のキャッシュ有効期間を超える中断。",
+    "By API key": "API キー別",
+    "By model": "モデル別",
+    "Cache hit rate, last 14 days": "キャッシュヒット率（過去14日）",
+    "Cache miss": "キャッシュミス",
+    "Chart metric": "グラフの指標",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "残高がなくなると Claude Code のリクエストは 403 で失敗します。セッションを止めないようチャージしてください。",
+    "Daily cache hit rate": "日別キャッシュヒット率",
+    "Long context, almost no cache hit: billed as a fresh cache write": "長いコンテキストでほぼキャッシュヒットなし：新規キャッシュ書き込みとして課金",
+    "No cache data in this period yet": "この期間のキャッシュデータはまだありません",
+    "No spend in this range.": "この期間の利用額はありません。",
+    "Show logs for {{name}}": "{{name}} のログを表示",
+    "Spend": "利用額",
+    "Spend by key": "利用額の内訳",
+    "Spend in this range: {{amount}}": "この期間の利用額：{{amount}}",
+    "Your balance has run out": "残高がなくなりました",
+    "Your balance runs out in about {{days}} days": "残高は約 {{days}} 日でなくなります",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 件の長いリクエストがキャッシュミス、合計 {{amount}}",
+    "{{date}}: no cache data": "{{date}}：キャッシュデータなし",
+    "{{date}}: {{rate}} cache hit": "{{date}}：キャッシュヒット {{rate}}",
+    "{{rate}} of cached context was reused": "キャッシュしたコンテキストの {{rate}} が再利用されました"
   }
 }
