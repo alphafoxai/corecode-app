@@ -7459,6 +7459,8 @@
     "Same as official price": "Identique au prix officiel",
     "This context is billed at the {{tier}} tier.": "Ce contexte est facturé au palier {{tier}}.",
     "Base tier shown. Longer contexts cost more; see details.": "Prix du palier de base. Les contextes plus longs coûtent plus cher ; voir le détail.",
-    "{{input}} in / {{output}} out": "{{input}} en entrée / {{output}} en sortie"
+    "{{input}} in / {{output}} out": "{{input}} en entrée / {{output}} en sortie",
+    "≈{{tenths}} of official price": "≈{{percent}} du prix officiel",
+    "Compared with the official price": "Par rapport au prix officiel"
   }
 }

@@ -41,6 +41,7 @@ import { isTokenBasedModel } from '../lib/model-helpers'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import { taskPriceLabel, taskUsageUnitLabel } from '../lib/task-price-display'
 import type { PricingModel, PriceType, TokenUnit } from '../types'
+import { DiscountBadge } from './discount-badge'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelPerfBadge, type ModelPerfBadgeData } from './model-perf-badge'
 
@@ -310,6 +311,13 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
             </p>
           )}
         </div>
+        <DiscountBadge
+          model={props.model}
+          priceRate={priceRate}
+          usdExchangeRate={usdExchangeRate}
+          selectedGroup={props.selectedGroup}
+          className='mt-0.5'
+        />
         <CopyButton
           value={props.model.model_name}
           tooltip={t('Copy model name')}

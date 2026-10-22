@@ -22,9 +22,13 @@ to the provider's official price.
   `features/pricing/lib/billing-discount.ts` holds the arithmetic. The result
   reads as "X折" (Chinese) or a percentage below 1, "官方价 ×N" above 1, and
   parity when it rounds to 1.
-- **Every number is live configuration.** Production today has `Price` =
-  `USDExchangeRate` = 7.3 and one 1.5× group, so the dialog shows 1.5× the
-  official price. Lowering `Price` in the admin panel changes the dialog with
+- **Each card and the detail header carry a discount badge** ("≈2.2折"),
+  computed by the same function at the group the card prices use. The dialog
+  alone was not enough: customers open a model's details, see USD list prices
+  and no discount. The badge renders only for a discount, never a markup.
+- **Every number is live configuration.** When this shipped, production had `Price` =
+  `USDExchangeRate` = 7.3 and one 1.5× group, so the dialog showed 1.5× the
+  official price; the operator then set `Price` to 1. Lowering `Price` in the admin panel changes the dialog with
   no code change.
 - **`USDExchangeRate` stays a hand-edited option.** It feeds only displayed
   figures; what a customer pays is set by `Price`. A drift of a percent or two

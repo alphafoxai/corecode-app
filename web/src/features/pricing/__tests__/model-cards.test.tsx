@@ -299,6 +299,32 @@ describe('model cards', () => {
     ).toBeVisible()
   })
 
+  it('badges the discount against the official price, never a markup', () => {
+    const model = pricingModel({
+      enable_groups: ['claude'],
+      group_ratio: { claude: 1.5 },
+    })
+    const { rerender } = render(
+      <ModelCard
+        model={model}
+        priceRate={1}
+        usdExchangeRate={6.8}
+        onClick={vi.fn()}
+      />
+    )
+    expect(screen.getByText('≈2.2 of official price')).toBeVisible()
+
+    rerender(
+      <ModelCard
+        model={model}
+        priceRate={7.3}
+        usdExchangeRate={7.3}
+        onClick={vi.fn()}
+      />
+    )
+    expect(screen.queryByText(/of official price/)).not.toBeInTheDocument()
+  })
+
   it('omits metadata fields when the model has no groups, endpoints or tags', () => {
     render(
       <ModelCard

@@ -7459,6 +7459,8 @@
     "Same as official price": "與官方價相同",
     "This context is billed at the {{tier}} tier.": "該上下文長度按「{{tier}}」檔計費。",
     "Base tier shown. Longer contexts cost more; see details.": "顯示的是基礎檔價格，上下文更長時價格更高，詳見詳情。",
-    "{{input}} in / {{output}} out": "輸入 {{input}} / 輸出 {{output}}"
+    "{{input}} in / {{output}} out": "輸入 {{input}} / 輸出 {{output}}",
+    "≈{{tenths}} of official price": "≈{{tenths}}折",
+    "Compared with the official price": "相對廠商官方價"
   }
 }

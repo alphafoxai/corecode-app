@@ -101,6 +101,7 @@ import type {
   TokenUnit,
 } from '../types'
 import { ClaudeCodeEstimator } from './claude-code-estimator'
+import { DiscountBadge } from './discount-badge'
 import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelDetailsApi } from './model-details-api'
@@ -586,7 +587,11 @@ function ModelBackendDetailsSection(props: { model: PricingModel }) {
 // Model header (always visible above the detail sections)
 // ----------------------------------------------------------------------------
 
-function ModelHeader(props: { model: PricingModel }) {
+function ModelHeader(props: {
+  model: PricingModel
+  priceRate: number
+  usdExchangeRate: number
+}) {
   const { t } = useTranslation()
   const model = props.model
   const modelIconKey = model.icon || model.vendor_icon
@@ -615,6 +620,11 @@ function ModelHeader(props: { model: PricingModel }) {
         )}
         <span className='text-muted-foreground/30'>·</span>
         <ModelBillingModeBadge model={model} />
+        <DiscountBadge
+          model={model}
+          priceRate={props.priceRate}
+          usdExchangeRate={props.usdExchangeRate}
+        />
       </div>
       {description && (
         <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>
@@ -1480,7 +1490,11 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
 
   return (
     <div className='@container/details space-y-4'>
-      <ModelHeader model={props.model} />
+      <ModelHeader
+        model={props.model}
+        priceRate={props.priceRate}
+        usdExchangeRate={props.usdExchangeRate}
+      />
 
       <Tabs defaultValue='overview' className='gap-4'>
         <TabsList className='bg-muted/60 grid w-full grid-cols-3 gap-1 rounded-lg p-1 group-data-horizontal/tabs:h-auto'>

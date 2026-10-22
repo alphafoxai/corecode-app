@@ -7459,6 +7459,8 @@
     "Same as official price": "Bằng giá chính thức",
     "This context is billed at the {{tier}} tier.": "Ngữ cảnh này tính phí theo bậc {{tier}}.",
     "Base tier shown. Longer contexts cost more; see details.": "Đang hiển thị giá bậc cơ bản. Ngữ cảnh dài hơn sẽ đắt hơn; xem chi tiết.",
-    "{{input}} in / {{output}} out": "{{input}} vào / {{output}} ra"
+    "{{input}} in / {{output}} out": "{{input}} vào / {{output}} ra",
+    "≈{{tenths}} of official price": "≈{{percent}} giá gốc",
+    "Compared with the official price": "So với giá chính thức"
   }
 }
