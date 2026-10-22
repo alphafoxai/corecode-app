@@ -68,7 +68,7 @@ export function PanelWrapper(props: PanelWrapperProps) {
   const resolvedEmptyMessage = props.emptyMessage ?? t('No data available')
   const height = props.height ?? 'h-64'
   const frameClassName = cn(
-    'overflow-hidden rounded-2xl border bg-card shadow-xs',
+    'flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs',
     props.className
   )
 
@@ -107,7 +107,8 @@ export function PanelWrapper(props: PanelWrapperProps) {
         description={props.description}
         actions={props.headerActions}
       />
-      <div className={cn('p-4 sm:p-5', props.contentClassName)}>
+      {/* flex-1: a panel stretched to its grid row fills it with content. */}
+      <div className={cn('flex-1 p-4 sm:p-5', props.contentClassName)}>
         {props.children}
       </div>
     </div>

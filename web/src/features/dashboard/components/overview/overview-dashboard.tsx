@@ -133,13 +133,13 @@ export function OverviewDashboard() {
           </CardStaggerItem>
 
           <div className='grid grid-cols-1 gap-4 xl:grid-cols-2'>
-            <CardStaggerItem>
+            <CardStaggerItem className='h-full'>
               <SpendTrendPanel
                 daily={overview.daily}
                 loading={overview.trendLoading}
               />
             </CardStaggerItem>
-            <CardStaggerItem>
+            <CardStaggerItem className='h-full'>
               <RecentRequestsPanel
                 logs={overview.recentLogs}
                 loading={overview.logsLoading}

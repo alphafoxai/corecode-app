@@ -93,6 +93,29 @@ it('offers a model picker only when there is more than one model', () => {
   )
 })
 
+it('names the tier a context-priced model bills the workload at', async () => {
+  const user = userEvent.setup()
+  render(
+    <ClaudeCodeEstimator
+      models={[
+        {
+          ...sonnet,
+          billing_mode: 'tiered_expr',
+          billing_expr:
+            'len <= 100000 ? tier("standard", p * 0.1 + c * 0.5 + cr * 0.01 + cc * 0.125) : tier("long_context", p * 0.5 + c * 2.5 + cr * 0.05 + cc * 0.625)',
+        },
+      ]}
+    />
+  )
+  expect(screen.getByText(/billed at the standard tier/)).toBeVisible()
+
+  const context = screen.getByLabelText('Context per turn (tokens)')
+  await user.clear(context)
+  await user.type(context, '150000')
+
+  expect(screen.getByText(/billed at the long_context tier/)).toBeVisible()
+})
+
 it('renders nothing for a model priced per request', () => {
   const { container } = render(
     <ClaudeCodeEstimator models={[{ ...sonnet, quota_type: 1 }]} />

@@ -7456,6 +7456,9 @@
     "What you pay relative to the official price.": "What you pay relative to the official price.",
     "{{tenths}} of official price": "{{percent}} of official price",
     "{{ratio}}× official price": "{{ratio}}× official price",
-    "Same as official price": "Same as official price"
+    "Same as official price": "Same as official price",
+    "This context is billed at the {{tier}} tier.": "This context is billed at the {{tier}} tier.",
+    "Base tier shown. Longer contexts cost more; see details.": "Base tier shown. Longer contexts cost more; see details.",
+    "{{input}} in / {{output}} out": "{{input}} in / {{output}} out"
   }
 }

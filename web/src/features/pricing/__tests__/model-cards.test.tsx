@@ -337,6 +337,29 @@ describe('model cards', () => {
     }
   )
 
+  it('shows base-tier cache prices and a tier hint for a context-priced model', () => {
+    render(
+      <ModelCard
+        model={pricingModel({
+          billing_mode: 'tiered_expr',
+          billing_expr:
+            'len <= 100000 ? tier("standard", p * 0.1 + c * 0.5 + cr * 0.01 + cc * 0.125) : tier("long_context", p * 0.5 + c * 2.5 + cr * 0.05 + cc * 0.625)',
+        })}
+        onClick={vi.fn()}
+        selectedGroup='default'
+      />
+    )
+
+    expect(screen.getByText('Cache Write').parentElement).toHaveTextContent(
+      /\$0.125\s*\/\s*1M/
+    )
+    expect(
+      screen.getByText(
+        'Base tier shown. Longer contexts cost more; see details.'
+      )
+    ).toBeVisible()
+  })
+
   it('lists the cache write price next to the cache read price', () => {
     render(
       <ModelCard
