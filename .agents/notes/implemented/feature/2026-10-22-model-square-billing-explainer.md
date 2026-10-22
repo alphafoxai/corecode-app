@@ -28,7 +28,8 @@ to the provider's official price.
   and no discount. The badge renders only for a discount, never a markup.
 - **Every number is live configuration.** When this shipped, production had `Price` =
   `USDExchangeRate` = 7.3 and one 1.5× group, so the dialog showed 1.5× the
-  official price; the operator then set `Price` to 1. Lowering `Price` in the admin panel changes the dialog with
+  official price; the operator then set `Price` to 1. Lowering `Price` in
+  the admin panel changes the dialog with
   no code change.
 - **`USDExchangeRate` stays a hand-edited option.** It feeds only displayed
   figures; what a customer pays is set by `Price`. A drift of a percent or two
