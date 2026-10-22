@@ -66,6 +66,7 @@ afterAll(() => {
 })
 
 let client: QueryClient
+let missedLog: ReturnType<typeof consumeLog> | null
 let status: Record<string, unknown>
 
 const consumeLog = (id: number, other: object) => ({
@@ -92,6 +93,7 @@ beforeEach(() => {
     request_count: 2,
   })
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  missedLog = null
   status = {
     announcements_enabled: true,
     announcements: [],
@@ -107,6 +109,7 @@ beforeEach(() => {
       const items = [
         consumeLog(1, { claude: true, cache_tokens: 900, frt: 1200 }),
         consumeLog(2, { claude: true, cache_tokens: 900, frt: 1800 }),
+        ...(missedLog ? [missedLog] : []),
       ]
       return { data: { success: true, data: { items, total: 2 } } }
     }
@@ -185,5 +188,30 @@ describe('customer overview', () => {
 
     // 100 uncached + 900 cached input tokens, 50 output
     expect(await screen.findAllByText(/1\.0K in \/ 50 out/)).toHaveLength(2)
+  })
+
+  it('warns about a long request that missed the cache', async () => {
+    missedLog = consumeLog(3, { claude: true, cache_creation_tokens: 286_000 })
+    await renderOverview()
+
+    expect(
+      await screen.findByText(/long requests missed the cache/)
+    ).toBeVisible()
+  })
+
+  it('warns when the balance is empty and links to the wallet', async () => {
+    useAuthStore.getState().auth.setUser({
+      id: 1,
+      username: 'customer',
+      role: 1,
+      quota: 0,
+      used_quota: 1_000,
+      request_count: 2,
+    })
+    await renderOverview()
+
+    const title = await screen.findByText('Your balance has run out')
+    expect(title).toBeVisible()
+    expect(screen.queryByText(/long requests missed the cache/)).toBeNull()
   })
 })

@@ -108,6 +108,29 @@ export function getInputCacheTokens(
   return { cacheRead, totalInput }
 }
 
+/** A context this long costs real money to rewrite from scratch. */
+export const COSTLY_MISS_MIN_INPUT = 50_000
+/** Below this share of cached input, the request effectively started over. */
+export const COSTLY_MISS_MAX_HIT_RATE = 0.2
+
+/**
+ * A long request that read almost nothing from the cache. In Claude Code
+ * this usually means a new session, a model switch mid-session, or a pause
+ * longer than the cache lifetime, and the whole context was billed as a
+ * fresh cache write.
+ */
+export function isCostlyCacheMiss(
+  log: Pick<UsageLog, 'prompt_tokens' | 'type'>,
+  other: LogOtherData | null
+): boolean {
+  if (log.type !== 2) return false
+  const { cacheRead, totalInput } = getInputCacheTokens(log, other)
+  return (
+    totalInput >= COSTLY_MISS_MIN_INPUT &&
+    cacheRead / totalInput < COSTLY_MISS_MAX_HIT_RATE
+  )
+}
+
 export function buildCostCheck(
   log: UsageLog,
   other: LogOtherData | null
