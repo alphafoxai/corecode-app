@@ -7461,6 +7461,19 @@
     "Base tier shown. Longer contexts cost more; see details.": "基本料金帯を表示しています。コンテキストが長いと高くなります。詳細をご覧ください。",
     "{{input}} in / {{output}} out": "入力 {{input}} / 出力 {{output}}",
     "≈{{tenths}} of official price": "公式の≈{{percent}}",
-    "Compared with the official price": "公式価格との比較"
+    "Compared with the official price": "公式価格との比較",
+    "Official prices are converted at $1 = ¥{{rate}}": "公式価格は $1 = ¥{{rate}} で換算",
+    "¥{{price}} recharged buys $1 of credit": "¥{{price}} のチャージで $1 分",
+    "Price list": "価格一覧",
+    "Pick a group to see what each model costs in CNY.": "グループを選ぶと各モデルの人民元価格が表示されます。",
+    "Group price": "グループ価格",
+    "Official price": "公式価格",
+    "{{ratio}}x ratio": "{{ratio}}x 倍率",
+    "About {{discount}}": "約{{discount}}",
+    "Savings": "節約率",
+    "Base tier; longer contexts cost more": "基本ティア。長いコンテキストは高くなります",
+    "Official {{price}}": "公式 {{price}}",
+    "Save {{percent}}": "{{percent}} お得",
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "公式価格とグループ価格を人民元で並べて表示します。"
   }
 }

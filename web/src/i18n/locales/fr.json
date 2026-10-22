@@ -7461,6 +7461,19 @@
     "Base tier shown. Longer contexts cost more; see details.": "Prix du palier de base. Les contextes plus longs coûtent plus cher ; voir le détail.",
     "{{input}} in / {{output}} out": "{{input}} en entrée / {{output}} en sortie",
     "≈{{tenths}} of official price": "≈{{percent}} du prix officiel",
-    "Compared with the official price": "Par rapport au prix officiel"
+    "Compared with the official price": "Par rapport au prix officiel",
+    "Official prices are converted at $1 = ¥{{rate}}": "Prix officiels convertis à 1 $ = ¥{{rate}}",
+    "¥{{price}} recharged buys $1 of credit": "¥{{price}} rechargés = 1 $ de crédit",
+    "Price list": "Liste des prix",
+    "Pick a group to see what each model costs in CNY.": "Choisissez un groupe pour voir le prix de chaque modèle en CNY.",
+    "Group price": "Prix du groupe",
+    "Official price": "Prix officiel",
+    "{{ratio}}x ratio": "ratio {{ratio}}x",
+    "About {{discount}}": "Environ {{discount}}",
+    "Savings": "Économie",
+    "Base tier; longer contexts cost more": "Palier de base ; les contextes longs coûtent plus",
+    "Official {{price}}": "Officiel {{price}}",
+    "Save {{percent}}": "−{{percent}}",
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Prix officiels et prix de groupe en CNY, côte à côte."
   }
 }
