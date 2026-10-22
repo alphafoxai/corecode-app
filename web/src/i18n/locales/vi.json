@@ -7461,6 +7461,19 @@
     "Base tier shown. Longer contexts cost more; see details.": "Đang hiển thị giá bậc cơ bản. Ngữ cảnh dài hơn sẽ đắt hơn; xem chi tiết.",
     "{{input}} in / {{output}} out": "{{input}} vào / {{output}} ra",
     "≈{{tenths}} of official price": "≈{{percent}} giá gốc",
-    "Compared with the official price": "So với giá chính thức"
+    "Compared with the official price": "So với giá chính thức",
+    "Official prices are converted at $1 = ¥{{rate}}": "Giá chính thức quy đổi theo $1 = ¥{{rate}}",
+    "¥{{price}} recharged buys $1 of credit": "Nạp ¥{{price}} được $1 hạn mức",
+    "Price list": "Bảng giá",
+    "Pick a group to see what each model costs in CNY.": "Chọn nhóm để xem giá từng mô hình bằng CNY.",
+    "Group price": "Giá nhóm",
+    "Official price": "Giá chính thức",
+    "{{ratio}}x ratio": "hệ số {{ratio}}x",
+    "About {{discount}}": "Khoảng {{discount}}",
+    "Savings": "Tiết kiệm",
+    "Base tier; longer contexts cost more": "Mức cơ bản; ngữ cảnh dài đắt hơn",
+    "Official {{price}}": "Chính thức {{price}}",
+    "Save {{percent}}": "Tiết kiệm {{percent}}",
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Giá chính thức và giá nhóm bằng CNY, đặt cạnh nhau."
   }
 }

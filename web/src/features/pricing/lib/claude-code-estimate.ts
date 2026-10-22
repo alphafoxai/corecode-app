@@ -64,11 +64,12 @@ const MILLION = 1_000_000
 
 /**
  * USD for one turn under a model's billing expression, with the group ratio.
+ * Exported for the price board, which reads base unit prices the same way.
  * Request rules after `|||` depend on a real request and are left out. A token
  * the expression does not price on its own is billed as plain input, as the
  * gateway does.
  */
-function expressionTurnCost(
+export function expressionTurnCost(
   model: PricingModel,
   tokens: Partial<Record<TokenVariable, number>>,
   groupRatio: number

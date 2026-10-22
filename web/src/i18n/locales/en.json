@@ -7461,6 +7461,19 @@
     "Base tier shown. Longer contexts cost more; see details.": "Base tier shown. Longer contexts cost more; see details.",
     "{{input}} in / {{output}} out": "{{input}} in / {{output}} out",
     "≈{{tenths}} of official price": "≈{{percent}} of official",
-    "Compared with the official price": "Compared with the official price"
+    "Compared with the official price": "Compared with the official price",
+    "Official prices are converted at $1 = ¥{{rate}}": "Official prices are converted at $1 = ¥{{rate}}",
+    "¥{{price}} recharged buys $1 of credit": "¥{{price}} recharged buys $1 of credit",
+    "Price list": "Price list",
+    "Pick a group to see what each model costs in CNY.": "Pick a group to see what each model costs in CNY.",
+    "Group price": "Group price",
+    "Official price": "Official price",
+    "{{ratio}}x ratio": "{{ratio}}x ratio",
+    "About {{discount}}": "About {{discount}}",
+    "Savings": "Savings",
+    "Base tier; longer contexts cost more": "Base tier; longer contexts cost more",
+    "Official {{price}}": "Official {{price}}",
+    "Save {{percent}}": "Save {{percent}}",
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Official and group prices in CNY, side by side, so the cost is easy to compare."
   }
 }

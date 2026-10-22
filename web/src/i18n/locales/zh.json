@@ -7461,6 +7461,19 @@
     "Base tier shown. Longer contexts cost more; see details.": "显示的是基础档价格，上下文更长时价格更高，详见详情。",
     "{{input}} in / {{output}} out": "输入 {{input}} / 输出 {{output}}",
     "≈{{tenths}} of official price": "≈{{tenths}}折",
-    "Compared with the official price": "相对厂商官方价"
+    "Compared with the official price": "相对厂商官方价",
+    "Official prices are converted at $1 = ¥{{rate}}": "官方价格按 $1 = ¥{{rate}} 折算",
+    "¥{{price}} recharged buys $1 of credit": "充值 ¥{{price}} 得 $1 额度",
+    "Price list": "价格列表",
+    "Pick a group to see what each model costs in CNY.": "选择分组后，直接查看每个模型的人民币价格。",
+    "Group price": "分组价格",
+    "Official price": "官方价格",
+    "{{ratio}}x ratio": "{{ratio}}x 倍率",
+    "About {{discount}}": "相当于约{{discount}}",
+    "Savings": "节省幅度",
+    "Base tier; longer contexts cost more": "基础档价格，长上下文更贵",
+    "Official {{price}}": "官方价格 {{price}}",
+    "Save {{percent}}": "省 {{percent}}",
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "以人民币展示官方价格和分组价格，方便直接比较成本。"
   }
 }
