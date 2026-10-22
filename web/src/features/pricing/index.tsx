@@ -234,6 +234,8 @@ export function Pricing() {
                 onSortChange={setSortBy}
                 tokenUnit={tokenUnit}
                 onTokenUnitChange={setTokenUnit}
+                priceRate={priceRate}
+                usdExchangeRate={usdExchangeRate}
                 showRechargePrice={showRechargePrice}
                 onRechargePriceChange={setShowRechargePrice}
                 viewMode={viewMode}

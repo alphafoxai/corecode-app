@@ -7442,6 +7442,20 @@
     "Last 7 days": "За 7 дней",
     "Online payment and redemption codes are not open yet. Contact us with your account email and the amount you need.": "Онлайн-оплата и коды пока недоступны. Напишите нам email аккаунта и нужную сумму.",
     "Online payment is not open yet. Redeem a code to add credits.": "Онлайн-оплата пока недоступна. Пополните баланс кодом.",
-    "Redemptions, payments and top-ups by the operator.": "Коды, платежи и пополнения оператором."
+    "Redemptions, payments and top-ups by the operator.": "Коды, платежи и пополнения оператором.",
+    "How billing works": "Как работает оплата",
+    "What you pay relative to the official price is the exchange-rate factor times the group ratio. The right side works one model through the same formula.": "Ваша цена относительно официальной — это курсовой коэффициент, умноженный на множитель группы. Справа та же формула на примере одной модели.",
+    "Formula": "Формула",
+    "Exchange-rate factor": "Курсовой коэффициент",
+    "Recharge price ÷ exchange rate": "Цена пополнения ÷ курс",
+    "¥{{price}} recharged buys $1 of credit; the reference rate is $1 = ¥{{rate}}.": "Пополнение на ¥{{price}} даёт $1 кредита; справочный курс $1 = ¥{{rate}}.",
+    "× ratio": "× множитель",
+    "Prices on the model cards are official prices multiplied by the group ratio.": "Цены на карточках моделей — это официальные цены, умноженные на множитель группы.",
+    "Combined factor": "Итоговый коэффициент",
+    "Exchange-rate factor × group ratio": "Курсовой коэффициент × множитель группы",
+    "What you pay relative to the official price.": "Сколько вы платите относительно официальной цены.",
+    "{{tenths}} of official price": "{{percent}} от официальной цены",
+    "{{ratio}}× official price": "{{ratio}}× официальной цены",
+    "Same as official price": "Как официальная цена"
   }
 }
