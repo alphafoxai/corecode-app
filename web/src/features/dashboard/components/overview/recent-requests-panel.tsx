@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
+import { getInputCacheTokens } from '@/features/usage-logs/lib/cost-check'
+import { parseLogOther } from '@/features/usage-logs/lib/format'
 import { toIntlLocale } from '@/i18n/languages'
 import {
   formatLogQuota,
@@ -59,6 +61,7 @@ export function RecentRequestsPanel(props: {
       empty={!props.loading && visible.length === 0}
       emptyMessage={t('Requests from Claude Code show up here within seconds.')}
       height='h-52'
+      className='h-full'
       contentClassName='p-0'
       headerActions={
         <Button
@@ -76,6 +79,12 @@ export function RecentRequestsPanel(props: {
       <ul className='divide-border/70 divide-y'>
         {visible.map((log) => {
           const cache = summarizeRecentLogs([log]).cacheHitRate
+          // Anthropic input excludes the cache, so a cached turn would read
+          // "2 / 1.2K"; show the whole context the request sent.
+          const { totalInput } = getInputCacheTokens(
+            log,
+            parseLogOther(log.other)
+          )
           return (
             <li
               key={log.id}
@@ -98,7 +107,10 @@ export function RecentRequestsPanel(props: {
                 {[
                   formatTimestampRelative(log.created_at, 'seconds', locale),
                   log.token_name,
-                  `${formatTokens(log.prompt_tokens)} / ${formatTokens(log.completion_tokens)}`,
+                  t('{{input}} in / {{output}} out', {
+                    input: formatTokens(totalInput),
+                    output: formatTokens(log.completion_tokens),
+                  }),
                 ]
                   .filter(Boolean)
                   .join(' · ')}

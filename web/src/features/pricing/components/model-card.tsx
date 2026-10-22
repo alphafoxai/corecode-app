@@ -107,9 +107,15 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   )
   let priceSummary: ReactNode
   if (dynamicSummary) {
+    // CoreCode fork: cache writes are listed with reads, as for ratio models.
     const cacheReadEntries = dynamicSummary.secondaryEntries.filter(
-      (entry) => entry.field === 'cacheReadPrice' && entry.unit === 'token'
+      (entry) =>
+        (entry.field === 'cacheReadPrice' ||
+          entry.field === 'cacheCreatePrice') &&
+        entry.unit === 'token'
     )
+    const hasContextTiers =
+      !dynamicSummary.isTaskUsage && dynamicSummary.tierCount > 1
     if (dynamicSummary.isSpecialExpression) {
       priceSummary = (
         <div className='col-span-full min-w-0'>
@@ -175,6 +181,11 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                 </div>
               )
             })}
+          {hasContextTiers && !dynamicSummary.isTimePricing && (
+            <span className='text-muted-foreground col-span-full text-xs'>
+              {t('Base tier shown. Longer contexts cost more; see details.')}
+            </span>
+          )}
           {dynamicSummary.isTimePricing && (
             <span className='text-muted-foreground col-span-full text-xs'>
               {t('Current period price')}
@@ -349,7 +360,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           <div
             className={cn(
               'grid gap-x-3 gap-y-2',
-              isTokenBased && !dynamicSummary
+              isTokenBased && !dynamicSummary?.isTaskUsage
                 ? 'grid-cols-2'
                 : 'grid-cols-[repeat(auto-fit,minmax(88px,1fr))]'
             )}

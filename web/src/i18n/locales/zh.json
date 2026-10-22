@@ -7456,6 +7456,9 @@
     "What you pay relative to the official price.": "相对厂商官方报价，你实际支付的比例。",
     "{{tenths}} of official price": "{{tenths}}折",
     "{{ratio}}× official price": "官方价 ×{{ratio}}",
-    "Same as official price": "与官方价相同"
+    "Same as official price": "与官方价相同",
+    "This context is billed at the {{tier}} tier.": "该上下文长度按「{{tier}}」档计费。",
+    "Base tier shown. Longer contexts cost more; see details.": "显示的是基础档价格，上下文更长时价格更高，详见详情。",
+    "{{input}} in / {{output}} out": "输入 {{input}} / 输出 {{output}}"
   }
 }

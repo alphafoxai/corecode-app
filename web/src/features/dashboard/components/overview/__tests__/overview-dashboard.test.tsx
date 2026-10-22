@@ -179,4 +179,11 @@ describe('customer overview', () => {
     expect(await screen.findByText('FAQ')).toBeInTheDocument()
     expect(screen.queryByText('Announcements')).not.toBeInTheDocument()
   })
+
+  it('lists recent requests with their whole context, cache included', async () => {
+    await renderOverview()
+
+    // 100 uncached + 900 cached input tokens, 50 output
+    expect(await screen.findAllByText(/1\.0K in \/ 50 out/)).toHaveLength(2)
+  })
 })

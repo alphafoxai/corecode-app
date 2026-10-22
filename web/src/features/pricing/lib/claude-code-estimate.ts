@@ -25,6 +25,12 @@ For commercial licensing, please contact support@quantumnous.com
  * is billed at the cache write price. Output is billed as output.
  */
 import type { PricingModel } from '../types'
+import { splitBillingExprAndRequestRules } from './billing-expr'
+import { compileBillingExpression } from './billing-expression/parser'
+import { evaluateBillingExpression } from './billing-expression/runtime'
+import type { TokenVariable } from './billing-expression/types'
+import { isDynamicPricingModel, isTaskUsagePricingModel } from './dynamic-price'
+import { getDisplayGroupRatio } from './model-helpers'
 import { getTokenPricePerMillion } from './price'
 
 export interface ClaudeCodeWorkload {
@@ -43,6 +49,8 @@ export interface ClaudeCodeEstimate {
   perDay: number
   /** The same workload with every context token billed as plain input. */
   perDayWithoutCache: number
+  /** The tier a context-priced model bills this workload at. */
+  tier?: string
 }
 
 export const DEFAULT_WORKLOAD: ClaudeCodeWorkload = {
@@ -54,11 +62,80 @@ export const DEFAULT_WORKLOAD: ClaudeCodeWorkload = {
 
 const MILLION = 1_000_000
 
+/**
+ * USD for one turn under a model's billing expression, with the group ratio.
+ * Request rules after `|||` depend on a real request and are left out. A token
+ * the expression does not price on its own is billed as plain input, as the
+ * gateway does.
+ */
+function expressionTurnCost(
+  model: PricingModel,
+  tokens: Partial<Record<TokenVariable, number>>,
+  groupRatio: number
+): { usd: number; tier: string } | null {
+  const { billingExpr } = splitBillingExprAndRequestRules(
+    model.billing_expr || ''
+  )
+  const compiled = compileBillingExpression(billingExpr)
+  if (compiled.status !== 'ready') return null
+  // The runtime needs a value for every variable the expression reads.
+  const normalized: Partial<Record<TokenVariable, number>> = {
+    p: 0,
+    c: 0,
+    len: 0,
+    cr: 0,
+    cc: 0,
+    cc1h: 0,
+    ...tokens,
+  }
+  for (const variable of ['cr', 'cc', 'cc1h'] as const) {
+    if (!compiled.variables.has(variable) && normalized[variable]) {
+      normalized.p = (normalized.p ?? 0) + normalized[variable]
+      normalized[variable] = 0
+    }
+  }
+  const result = evaluateBillingExpression(compiled, { tokens: normalized })
+  if (result.status !== 'success' || result.billingUnit !== 'token') return null
+  return {
+    usd: (result.cost / MILLION) * groupRatio,
+    tier: result.matchedTier ?? '',
+  }
+}
+
 export function estimateClaudeCodeCost(
   model: PricingModel,
   workload: ClaudeCodeWorkload,
   selectedGroup?: string
 ): ClaudeCodeEstimate | null {
+  const hitRate = Math.min(Math.max(workload.cacheHitRate, 0), 1)
+  const hit = workload.contextTokens * hitRate
+  const miss = workload.contextTokens - hit
+
+  // A context-priced model: run its expression, so a long context lands in
+  // the tier the gateway would bill it at.
+  if (
+    isDynamicPricingModel(model) &&
+    !isTaskUsagePricingModel(model) &&
+    !model.billing_plugin_variants?.length
+  ) {
+    const groupRatio = getDisplayGroupRatio(model, selectedGroup)
+    const len = workload.contextTokens
+    const c = workload.outputTokens
+    const cached = expressionTurnCost(
+      model,
+      { p: 0, cr: hit, cc: miss, c, len },
+      groupRatio
+    )
+    const plain = expressionTurnCost(model, { p: len, c, len }, groupRatio)
+    if (!cached || !plain) return null
+    return {
+      perTurn: cached.usd,
+      perDay: cached.usd * workload.turnsPerDay,
+      perDayWithoutCache: plain.usd * workload.turnsPerDay,
+      tier: cached.tier,
+    }
+  }
+
   const input = getTokenPricePerMillion(model, 'input', selectedGroup)
   const output = getTokenPricePerMillion(model, 'output', selectedGroup)
   if (!Number.isFinite(input) || !Number.isFinite(output)) return null
@@ -70,10 +147,6 @@ export function estimateClaudeCodeCost(
     'create_cache',
     selectedGroup
   )
-  const hitRate = Math.min(Math.max(workload.cacheHitRate, 0), 1)
-  const hit = workload.contextTokens * hitRate
-  const miss = workload.contextTokens - hit
-
   const contextCost =
     hit * (Number.isFinite(cacheRead) ? cacheRead : input) +
     miss * (Number.isFinite(cacheWrite) ? cacheWrite : input)

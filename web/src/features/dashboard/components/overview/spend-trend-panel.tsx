@@ -60,6 +60,8 @@ export function SpendTrendPanel(props: {
       empty={!props.loading && max === 0}
       emptyMessage={t('Your daily spend shows here after the first request.')}
       height='h-52'
+      className='h-full'
+      contentClassName='flex flex-col'
       headerActions={
         <Button
           variant='ghost'
@@ -74,7 +76,7 @@ export function SpendTrendPanel(props: {
       }
     >
       <ol
-        className='flex h-52 items-end gap-1.5 px-1'
+        className='flex min-h-52 flex-1 items-end gap-1.5 px-1'
         aria-label={t('Daily spend')}
       >
         {props.daily.map((day, index) => {

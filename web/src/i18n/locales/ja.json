@@ -7456,6 +7456,9 @@
     "What you pay relative to the official price.": "公式価格に対する実際の支払い比率です。",
     "{{tenths}} of official price": "公式価格の{{percent}}",
     "{{ratio}}× official price": "公式価格の {{ratio}} 倍",
-    "Same as official price": "公式価格と同じ"
+    "Same as official price": "公式価格と同じ",
+    "This context is billed at the {{tier}} tier.": "このコンテキスト長は「{{tier}}」の料金帯で課金されます。",
+    "Base tier shown. Longer contexts cost more; see details.": "基本料金帯を表示しています。コンテキストが長いと高くなります。詳細をご覧ください。",
+    "{{input}} in / {{output}} out": "入力 {{input}} / 出力 {{output}}"
   }
 }

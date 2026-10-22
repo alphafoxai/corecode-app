@@ -7456,6 +7456,9 @@
     "What you pay relative to the official price.": "Сколько вы платите относительно официальной цены.",
     "{{tenths}} of official price": "{{percent}} от официальной цены",
     "{{ratio}}× official price": "{{ratio}}× официальной цены",
-    "Same as official price": "Как официальная цена"
+    "Same as official price": "Как официальная цена",
+    "This context is billed at the {{tier}} tier.": "Такой контекст тарифицируется по уровню {{tier}}.",
+    "Base tier shown. Longer contexts cost more; see details.": "Показаны базовые цены. Длинный контекст стоит дороже — см. подробности.",
+    "{{input}} in / {{output}} out": "{{input}} вход / {{output}} выход"
   }
 }

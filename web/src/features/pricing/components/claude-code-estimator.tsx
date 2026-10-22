@@ -235,8 +235,16 @@ export function ClaudeCodeEstimator(props: {
         ))}
       </dl>
 
+      {estimate.tier && (
+        <p className='text-muted-foreground mt-3 text-sm'>
+          {t('This context is billed at the {{tier}} tier.', {
+            tier: estimate.tier,
+          })}
+        </p>
+      )}
+
       {saved > 0 && (
-        <p className='text-muted-foreground mt-3 text-sm' aria-live='polite'>
+        <p className='text-muted-foreground mt-1.5 text-sm' aria-live='polite'>
           {t(
             'Without the cache this would be {{amount}} a day. The cache saves {{share}}.',
             {

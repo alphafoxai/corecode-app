@@ -93,4 +93,47 @@ describe('estimateClaudeCodeCost', () => {
       estimateClaudeCodeCost({ ...sonnet, quota_type: 1 }, DEFAULT_WORKLOAD)
     ).toBeNull()
   })
+
+  describe('a model priced by context tier', () => {
+    // claude-haiku-5-5 as corecode-infra writes it, in a 1.5× group.
+    const haiku: PricingModel = {
+      ...sonnet,
+      model_name: 'claude-haiku-5-5',
+      billing_mode: 'tiered_expr',
+      billing_expr:
+        'len <= 100000 ? tier("standard", p * 0.1 + c * 0.5 + cr * 0.01 + cc * 0.125 + cc1h * 0.2) : tier("long_context", p * 0.5 + c * 2.5 + cr * 0.05 + cc * 0.625 + cc1h * 1)',
+    }
+
+    test('prices a short context at the base tier', () => {
+      const estimate = estimateClaudeCodeCost(haiku, DEFAULT_WORKLOAD)
+
+      // (54k × 0.01 + 6k × 0.125 + 1.5k × 0.5) × 1.5
+      expect(estimate?.perTurn).toBeCloseTo(0.00306, 9)
+      expect(estimate?.tier).toBe('standard')
+    })
+
+    test('prices a context over 100K at five times the base', () => {
+      const estimate = estimateClaudeCodeCost(haiku, {
+        ...DEFAULT_WORKLOAD,
+        contextTokens: 150_000,
+      })
+
+      // (135k × 0.05 + 15k × 0.625 + 1.5k × 2.5) × 1.5
+      expect(estimate?.perTurn).toBeCloseTo(0.029812, 6)
+      expect(estimate?.tier).toBe('long_context')
+    })
+
+    test('bills an unpriced cache kind as plain input', () => {
+      const flat = {
+        ...haiku,
+        billing_expr: 'tier("base", p * 1 + c * 5)',
+      }
+      const estimate = estimateClaudeCodeCost(flat, DEFAULT_WORKLOAD)
+
+      expect(estimate?.perDay).toBeCloseTo(
+        estimate?.perDayWithoutCache ?? -1,
+        9
+      )
+    })
+  })
 })
