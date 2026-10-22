@@ -24,6 +24,7 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useSearch,
 } from '@tanstack/react-router'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -96,6 +97,13 @@ function renderInRouter(
       </QueryClientProvider>
     ),
   }
+}
+
+// Reads the token from the router the way the real route does, so a rewrite of
+// the address reaches the component as a changed prop.
+function LiveSearchHarness() {
+  const { token } = useSearch({ strict: false }) as { token?: string }
+  return <EmailLoginConfirm token={token} />
 }
 
 function SignInHarness() {
@@ -259,6 +267,29 @@ describe('EmailLoginConfirm', () => {
     await waitFor(() =>
       expect(window.location.search).not.toContain('live-token')
     )
+  })
+
+  it('keeps signing in after the router drops the token from the address', async () => {
+    let respond!: (value: unknown) => void
+    vi.spyOn(api, 'post').mockReturnValue(
+      new Promise((resolve) => {
+        respond = resolve
+      }) as never
+    )
+
+    const { router } = renderInRouter(LiveSearchHarness, '/?token=live-token')
+    expect(await screen.findByText('Signing you in…')).toBeInTheDocument()
+
+    // The browser history reports the URL rewrite to the router; the memory
+    // history here does not, so the test makes the same change directly.
+    await router.navigate({ to: '/', search: {}, replace: true })
+    expect(
+      screen.queryByText('This sign-in link is invalid or has expired.')
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Signing you in…')).toBeInTheDocument()
+
+    respond({ data: { success: true, data: bundle } })
+    expect(await screen.findByText('Dashboard destination')).toBeInTheDocument()
   })
 
   it('offers a new link when the token was already spent', async () => {
