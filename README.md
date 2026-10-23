@@ -270,9 +270,9 @@ Deployment must observe `draining: true` and `active: 0` before stopping the ins
 If waiting times out or is canceled, leave the process running and resume using a fresh
 control request. Terminal shutdown retains `SHUTDOWN_TIMEOUT_SECONDS` (default 120).
 The runtime image label `live.corecode.deployment-drain="1"` identifies this capability;
-running and candidate images must support it. Legacy images without the endpoint require
-an explicitly planned maintenance bootstrap, not a destructive fallback. The rollout
-procedure belongs to the [CoreCode infra runbook](https://github.com/alphafoxai/corecode-infra/blob/main/README.md).
+candidate images must support it. Infra owns the separately verified legacy bootstrap:
+gracefully finish proxy responses before the first compatible upgrade, without forced kills.
+See the [CoreCode infra runbook](https://github.com/alphafoxai/corecode-infra/blob/main/README.md).
 
 <a id="development"></a>
 
