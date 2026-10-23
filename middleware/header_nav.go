@@ -118,6 +118,12 @@ func HeaderNavModuleAuth(module string) gin.HandlerFunc {
 			return
 		}
 
+		// Rankings expose usage across every customer, so only administrators read them.
+		if module == "rankings" {
+			AdminAuth()(c)
+			return
+		}
+
 		if access.RequireAuth {
 			UserAuth()(c)
 			return
