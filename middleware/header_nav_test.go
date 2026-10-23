@@ -190,6 +190,53 @@ func TestHeaderNavModuleAuthRequiresLoginForRankings(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
+func TestRankingsRequireAdministrator(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		options    string
+		role       int
+		anonymous  bool
+		wantStatus int
+	}{
+		{name: "anonymous", anonymous: true, wantStatus: http.StatusUnauthorized},
+		{name: "ordinary user", role: common.RoleCommonUser, wantStatus: http.StatusForbidden},
+		{name: "ordinary user with login required", options: `{"rankings":{"enabled":true,"requireAuth":true}}`, role: common.RoleCommonUser, wantStatus: http.StatusForbidden},
+		{name: "administrator", role: common.RoleAdminUser, wantStatus: http.StatusOK},
+		{name: "root", role: common.RoleRootUser, wantStatus: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupDashboardAuthMiddlewareTest(t)
+			gin.SetMode(gin.TestMode)
+			withHeaderNavModules(t, tc.options)
+
+			handled := false
+			router := gin.New()
+			router.GET("/api/rankings", HeaderNavModuleAuth("rankings"), func(c *gin.Context) {
+				handled = true
+				assert.Equal(t, tc.role, c.GetInt("role"))
+				c.JSON(http.StatusOK, gin.H{"success": true})
+			})
+
+			token := ""
+			if !tc.anonymous {
+				user := model.User{
+					Username: "rankings-reader", Password: "unused-password-hash", Role: tc.role,
+					Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1,
+				}
+				require.NoError(t, model.DB.Create(&user).Error)
+				bundle, err := service.CreateLoginSession(user.Id, "password", "127.0.0.1", "header-nav-test")
+				require.NoError(t, err)
+				token = bundle.AccessToken
+			}
+
+			response := middlewareBearerRequest(router, "/api/rankings", token)
+
+			assert.Equal(t, tc.wantStatus, response.Code)
+			assert.Equal(t, tc.wantStatus == http.StatusOK, handled)
+		})
+	}
+}
+
 func TestHeaderNavModuleAuthRejectsLegacyDisabledModule(t *testing.T) {
 	raw := `{"rankings":false}`
 	withHeaderNavModules(t, raw)
