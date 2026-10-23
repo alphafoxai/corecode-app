@@ -475,6 +475,15 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		}
 	}
 
+	// An address the provider confirmed proves what the emailed sign-in link
+	// proves, and that link already opens the one account holding the address.
+	if oauthUser.EmailVerified {
+		linked, err := linkAccountByVerifiedEmail(c, provider, oauthUser)
+		if err != nil || linked != nil {
+			return linked, nil, err
+		}
+	}
+
 	// User doesn't exist, create new user if registration is enabled
 	if !common.RegisterEnabled {
 		return nil, nil, &OAuthRegistrationDisabledError{}
@@ -576,6 +585,55 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	return user, nil, nil
+}
+
+// linkAccountByVerifiedEmail binds the provider identity to the one account that
+// holds the confirmed address and returns that account. It returns nil when no
+// account holds the address, so the caller registers a new one.
+func linkAccountByVerifiedEmail(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser) (*model.User, error) {
+	user, err := model.GetUniqueUserByEmail(oauthUser.Email)
+	if errors.Is(err, model.ErrEmailNotFound) {
+		return nil, nil
+	}
+	if errors.Is(err, model.ErrEmailAmbiguous) {
+		return nil, &OAuthEmailAlreadyTakenError{}
+	}
+	if err != nil {
+		return nil, err
+	}
+	// A disabled account is returned unlinked, and the caller refuses it.
+	if user.Status != common.UserStatusEnabled {
+		return user, nil
+	}
+	// The binding would be written before the second factor is checked, so an
+	// account that has one links from its settings after a full sign-in.
+	state, err := model.GetUserVerificationState(user.Id)
+	if err != nil {
+		return nil, err
+	}
+	if state.HasTwoFA || state.HasPasskey {
+		return nil, &OAuthLegacyBindingNotConfirmedError{}
+	}
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		return model.LinkUnboundIdentityWithTx(tx, user.Id, provider.ProviderUserIDColumn(), oauthUser.ProviderUserID)
+	})
+	if errors.Is(err, model.ErrAccountBindingChanged) {
+		// The account is already bound to a different identity of this provider.
+		return nil, &OAuthEmailAlreadyTakenError{}
+	}
+	if err != nil {
+		return nil, err
+	}
+	provider.SetProviderUserID(user, oauthUser.ProviderUserID)
+	notificationFailed := service.NotifyAccountSecurityChange(service.AccountMailLanguage(c, user.Id), user.Email, i18n.MsgSecurityEventLoginLinked, map[string]any{"Provider": provider.GetName()}) != nil
+	params := map[string]any{
+		"provider": provider.GetName(), "provider_user_id": oauthUser.ProviderUserID,
+		"verified_email_matched": true, "notification_failed": notificationFailed, "success": true,
+	}
+	model.RecordOperationAuditLog(user.Id, user.Role, auditContentEN("user.binding_bind", params), c.ClientIP(), "user.binding_bind", params, nil, &model.AuditRequestInfo{
+		Method: c.Request.Method, Route: c.FullPath(), Path: c.FullPath(), Status: c.Writer.Status(), Success: true,
+	}, c)
+	return user, nil
 }
 
 // recordLegacyGitHubBindingAudit records the outcome of a legacy GitHub binding
