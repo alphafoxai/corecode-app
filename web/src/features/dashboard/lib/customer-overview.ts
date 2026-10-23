@@ -22,7 +22,10 @@ For commercial licensing, please contact support@quantumnous.com
  */
 import type { QuotaDataItem } from '@/features/dashboard/types'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
-import { getInputCacheTokens } from '@/features/usage-logs/lib/cost-check'
+import {
+  getInputCacheTokens,
+  isCostlyCacheMiss,
+} from '@/features/usage-logs/lib/cost-check'
 import { parseLogOther } from '@/features/usage-logs/lib/format'
 
 const LOG_TYPE_CONSUME = 2
@@ -33,6 +36,9 @@ export interface RecentUsageSummary {
   cacheHitRate: number | null
   /** Mean time to first token in milliseconds; null when none recorded. */
   avgFirstTokenMs: number | null
+  /** Long requests that missed the cache, and what they were charged. */
+  costlyMisses: number
+  costlyMissQuota: number
 }
 
 /** Cache hit rate and first-token time over a set of request logs. */
@@ -42,6 +48,8 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
   let totalInput = 0
   let firstTokenTotal = 0
   let firstTokenCount = 0
+  let costlyMisses = 0
+  let costlyMissQuota = 0
 
   for (const log of logs) {
     if (log.type !== LOG_TYPE_CONSUME) continue
@@ -50,6 +58,10 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
     const tokens = getInputCacheTokens(log, other)
     cacheRead += tokens.cacheRead
     totalInput += tokens.totalInput
+    if (isCostlyCacheMiss(log, other)) {
+      costlyMisses++
+      costlyMissQuota += log.quota || 0
+    }
 
     if (other?.frt && other.frt > 0) {
       firstTokenTotal += other.frt
@@ -62,6 +74,8 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
     cacheHitRate: totalInput > 0 ? cacheRead / totalInput : null,
     avgFirstTokenMs:
       firstTokenCount > 0 ? firstTokenTotal / firstTokenCount : null,
+    costlyMisses,
+    costlyMissQuota,
   }
 }
 
@@ -70,6 +84,19 @@ export interface DailySpend {
   day: number
   quota: number
   requests: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+}
+
+/**
+ * Cache reads over cache reads plus writes for one day. Claude Code sends
+ * almost no uncached input, so this tracks the request-level hit rate. Null
+ * when the day has no cache data, including days before quota_data recorded
+ * it.
+ */
+export function getDailyCacheHitRate(day: DailySpend): number | null {
+  const total = day.cacheReadTokens + day.cacheWriteTokens
+  return total > 0 ? day.cacheReadTokens / total : null
 }
 
 function startOfLocalDay(unixSeconds: number): number {
@@ -95,7 +122,13 @@ export function bucketDailySpend(
     const date = new Date(today * 1000)
     date.setDate(date.getDate() - offset)
     const day = Math.floor(date.getTime() / 1000)
-    const bucket = { day, quota: 0, requests: 0 }
+    const bucket = {
+      day,
+      quota: 0,
+      requests: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }
     buckets.push(bucket)
     index.set(day, bucket)
   }
@@ -105,6 +138,11 @@ export function bucketDailySpend(
     if (!bucket) continue
     bucket.quota += Number(row.quota) || 0
     bucket.requests += Number(row.count) || 0
+    bucket.cacheReadTokens += Math.max(0, Number(row.cache_read_tokens) || 0)
+    bucket.cacheWriteTokens += Math.max(
+      0,
+      Number(row.cache_creation_tokens) || 0
+    )
   }
   return buckets
 }

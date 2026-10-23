@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "基礎檔價格，長上下文更貴",
     "Official {{price}}": "官方價格 {{price}}",
     "Save {{percent}}": "省 {{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "以人民幣展示官方價格和分組價格，方便直接比較成本。"
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "以人民幣展示官方價格和分組價格，方便直接比較成本。",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "統計範圍為最近 {{count}} 次請求。長上下文沒命中快取時，會按全價重新寫入快取。常見原因：新開工作階段、中途切換模型、停頓超過 5 分鐘導致快取過期。",
+    "By API key": "按 API 金鑰",
+    "By model": "按模型",
+    "Cache hit rate, last 14 days": "近 14 天快取命中率",
+    "Cache miss": "未命中",
+    "Chart metric": "圖表指標",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "餘額用完後 Claude Code 請求會回傳 403。及時儲值，避免工作階段中斷。",
+    "Daily cache hit rate": "每日快取命中率",
+    "Long context, almost no cache hit: billed as a fresh cache write": "長上下文幾乎沒命中快取：按重新寫入快取計費",
+    "No cache data in this period yet": "這段時間還沒有快取資料",
+    "No spend in this range.": "這段時間沒有消費。",
+    "Show logs for {{name}}": "查看 {{name}} 的日誌",
+    "Spend": "消費",
+    "Spend by key": "消費分布",
+    "Spend in this range: {{amount}}": "所選時間段消費 {{amount}}",
+    "Your balance has run out": "餘額已用完",
+    "Your balance runs out in about {{days}} days": "餘額預計約 {{days}} 天後用完",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 次長上下文請求沒命中快取，共扣費 {{amount}}",
+    "{{date}}: no cache data": "{{date}}：無快取資料",
+    "{{date}}: {{rate}} cache hit": "{{date}}：快取命中 {{rate}}",
+    "{{rate}} of cached context was reused": "已快取的上下文有 {{rate}} 被重用"
   }
 }

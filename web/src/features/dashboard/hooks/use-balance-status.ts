@@ -27,7 +27,7 @@ import { estimateRunwayDays, type DailySpend } from '../lib/customer-overview'
 const RUNWAY_WINDOW_DAYS = 7
 const LOW_RUNWAY_DAYS = 3
 
-type BalanceHealth = 'healthy' | 'low' | 'empty'
+export type BalanceHealth = 'healthy' | 'low' | 'empty'
 
 const HEALTH: Record<
   BalanceHealth,
@@ -62,6 +62,8 @@ export function useBalanceStatus(balance: number, daily: DailySpend[]) {
   }
 
   return {
+    health,
+    runwayDays: runway,
     dotClassName: HEALTH[health].dotClassName,
     label: t(HEALTH[health].labelKey),
     runwayText,

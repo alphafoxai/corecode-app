@@ -22,7 +22,10 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
-import { getInputCacheTokens } from '@/features/usage-logs/lib/cost-check'
+import {
+  getInputCacheTokens,
+  isCostlyCacheMiss,
+} from '@/features/usage-logs/lib/cost-check'
 import { parseLogOther } from '@/features/usage-logs/lib/format'
 import { toIntlLocale } from '@/i18n/languages'
 import {
@@ -81,10 +84,9 @@ export function RecentRequestsPanel(props: {
           const cache = summarizeRecentLogs([log]).cacheHitRate
           // Anthropic input excludes the cache, so a cached turn would read
           // "2 / 1.2K"; show the whole context the request sent.
-          const { totalInput } = getInputCacheTokens(
-            log,
-            parseLogOther(log.other)
-          )
+          const other = parseLogOther(log.other)
+          const { totalInput } = getInputCacheTokens(log, other)
+          const missed = isCostlyCacheMiss(log, other)
           return (
             <li
               key={log.id}
@@ -115,7 +117,19 @@ export function RecentRequestsPanel(props: {
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              <span className='text-muted-foreground text-right text-xs tabular-nums'>
+              <span
+                className={cn(
+                  'text-muted-foreground text-right text-xs tabular-nums',
+                  missed && 'text-warning font-medium'
+                )}
+                title={
+                  missed
+                    ? t(
+                        'Long context, almost no cache hit: billed as a fresh cache write'
+                      )
+                    : undefined
+                }
+              >
                 {cache === null
                   ? ''
                   : t('Cache {{rate}}', {

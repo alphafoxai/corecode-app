@@ -23,20 +23,37 @@ For commercial licensing, please contact support@quantumnous.com
  */
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  getCacheGrade,
+  type CacheGrade,
+} from '@/features/usage-logs/lib/cost-check'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber, formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import type { DailySpend } from '../../lib/customer-overview'
+import {
+  getDailyCacheHitRate,
+  type DailySpend,
+} from '../../lib/customer-overview'
 import { PanelWrapper } from '../ui/panel-wrapper'
+
+type TrendMetric = 'spend' | 'cache'
+
+const CACHE_BAR_CLASS_NAMES: Record<CacheGrade, string> = {
+  good: 'bg-success/70 group-hover/bar:bg-success',
+  fair: 'bg-warning/70 group-hover/bar:bg-warning',
+  poor: 'bg-destructive/60 group-hover/bar:bg-destructive',
+}
 
 export function SpendTrendPanel(props: {
   daily: DailySpend[]
@@ -44,18 +61,43 @@ export function SpendTrendPanel(props: {
 }) {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  const [metric, setMetric] = useState<TrendMetric>('spend')
   const max = Math.max(0, ...props.daily.map((day) => day.quota))
   const total = props.daily.reduce((sum, day) => sum + day.quota, 0)
+  const cacheRead = props.daily.reduce(
+    (sum, day) => sum + day.cacheReadTokens,
+    0
+  )
+  const cacheAll =
+    cacheRead + props.daily.reduce((sum, day) => sum + day.cacheWriteTokens, 0)
+  const percent = (value: number) =>
+    Intl.NumberFormat(locale, {
+      style: 'percent',
+      maximumFractionDigits: 0,
+    }).format(value)
   const dayFormat = new Intl.DateTimeFormat(locale, {
     month: 'numeric',
     day: 'numeric',
   })
   const lastIndex = props.daily.length - 1
+  const showCache = metric === 'cache'
+
+  let description = t('{{amount}} in total', { amount: formatQuota(total) })
+  if (showCache) {
+    description =
+      cacheAll > 0
+        ? t('{{rate}} of cached context was reused', {
+            rate: percent(cacheRead / cacheAll),
+          })
+        : t('No cache data in this period yet')
+  }
 
   return (
     <PanelWrapper
-      title={t('Spend, last 14 days')}
-      description={t('{{amount}} in total', { amount: formatQuota(total) })}
+      title={
+        showCache ? t('Cache hit rate, last 14 days') : t('Spend, last 14 days')
+      }
+      description={description}
       loading={props.loading}
       empty={!props.loading && max === 0}
       emptyMessage={t('Your daily spend shows here after the first request.')}
@@ -63,28 +105,69 @@ export function SpendTrendPanel(props: {
       className='h-full'
       contentClassName='flex flex-col'
       headerActions={
-        <Button
-          variant='ghost'
-          size='sm'
-          render={
-            <Link to='/dashboard/$section' params={{ section: 'models' }} />
-          }
-        >
-          {t('Details')}
-          <ArrowRight data-icon='inline-end' />
-        </Button>
+        <div className='flex items-center gap-1'>
+          <Tabs
+            value={metric}
+            onValueChange={(value) => setMetric(value as TrendMetric)}
+          >
+            <TabsList aria-label={t('Chart metric')}>
+              <TabsTrigger value='spend' className='px-2 text-xs'>
+                {t('Spend')}
+              </TabsTrigger>
+              <TabsTrigger value='cache' className='px-2 text-xs'>
+                {t('Cache')}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            aria-label={t('Details')}
+            render={
+              <Link to='/dashboard/$section' params={{ section: 'models' }} />
+            }
+          >
+            <ArrowRight />
+          </Button>
+        </div>
       }
     >
       <ol
         className='flex min-h-52 flex-1 items-end gap-1.5 px-1'
-        aria-label={t('Daily spend')}
+        aria-label={showCache ? t('Daily cache hit rate') : t('Daily spend')}
       >
         {props.daily.map((day, index) => {
           const label = dayFormat.format(new Date(day.day * 1000))
           const amount = formatQuota(day.quota)
           const requests = formatNumber(day.requests, locale)
-          const height = max > 0 ? (day.quota / max) * 100 : 0
+          const hitRate = getDailyCacheHitRate(day)
           const isToday = index === lastIndex
+          let height = max > 0 ? (day.quota / max) * 100 : 0
+          let barClassName = cn(
+            isToday
+              ? 'bg-primary'
+              : 'bg-primary/30 group-hover/bar:bg-primary/55',
+            day.quota > 0 ? 'min-h-1' : 'bg-border min-h-px'
+          )
+          let barLabel = t('{{date}}: {{amount}}, {{requests}} requests', {
+            date: label,
+            amount,
+            requests,
+          })
+          if (showCache) {
+            height = hitRate === null ? 0 : hitRate * 100
+            barClassName =
+              hitRate === null
+                ? 'bg-border min-h-px'
+                : cn('min-h-1', CACHE_BAR_CLASS_NAMES[getCacheGrade(hitRate)])
+            barLabel =
+              hitRate === null
+                ? t('{{date}}: no cache data', { date: label })
+                : t('{{date}}: {{rate}} cache hit', {
+                    date: label,
+                    rate: percent(hitRate),
+                  })
+          }
           return (
             <li key={day.day} className='flex h-full min-w-0 flex-1 flex-col'>
               <Tooltip>
@@ -92,14 +175,7 @@ export function SpendTrendPanel(props: {
                   render={
                     <div
                       tabIndex={0}
-                      aria-label={t(
-                        '{{date}}: {{amount}}, {{requests}} requests',
-                        {
-                          date: label,
-                          amount,
-                          requests,
-                        }
-                      )}
+                      aria-label={barLabel}
                       className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-md outline-none focus-visible:ring-3'
                     />
                   }
@@ -107,10 +183,7 @@ export function SpendTrendPanel(props: {
                   <span
                     className={cn(
                       'w-full rounded-t-[5px] rounded-b-[2px] transition-[height,background-color] duration-300 ease-out',
-                      isToday
-                        ? 'bg-primary'
-                        : 'bg-primary/30 group-hover/bar:bg-primary/55',
-                      day.quota > 0 ? 'min-h-1' : 'bg-border min-h-px'
+                      barClassName
                     )}
                     style={{ height: `${height}%` }}
                   />
@@ -122,6 +195,11 @@ export function SpendTrendPanel(props: {
                     <span className='opacity-70'>
                       {t('{{value}} requests', { value: requests })}
                     </span>
+                    {hitRate !== null && (
+                      <span className='opacity-70'>
+                        {t('Cache {{rate}}', { rate: percent(hitRate) })}
+                      </span>
+                    )}
                   </div>
                 </TooltipContent>
               </Tooltip>

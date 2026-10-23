@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "基础档价格，长上下文更贵",
     "Official {{price}}": "官方价格 {{price}}",
     "Save {{percent}}": "省 {{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "以人民币展示官方价格和分组价格，方便直接比较成本。"
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "以人民币展示官方价格和分组价格，方便直接比较成本。",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "统计范围为最近 {{count}} 次请求。长上下文没命中缓存时，会按全价重新写入缓存。常见原因：新开会话、会话中途切换模型、停顿超过 5 分钟导致缓存过期。",
+    "By API key": "按 API 密钥",
+    "By model": "按模型",
+    "Cache hit rate, last 14 days": "近 14 天缓存命中率",
+    "Cache miss": "未命中",
+    "Chart metric": "图表指标",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "余额用完后 Claude Code 请求会返回 403。及时充值，避免会话中断。",
+    "Daily cache hit rate": "每日缓存命中率",
+    "Long context, almost no cache hit: billed as a fresh cache write": "长上下文几乎没命中缓存：按重新写入缓存计费",
+    "No cache data in this period yet": "这段时间还没有缓存数据",
+    "No spend in this range.": "这段时间没有消费。",
+    "Show logs for {{name}}": "查看 {{name}} 的日志",
+    "Spend": "消费",
+    "Spend by key": "消费分布",
+    "Spend in this range: {{amount}}": "所选时间段消费 {{amount}}",
+    "Your balance has run out": "余额已用完",
+    "Your balance runs out in about {{days}} days": "余额预计约 {{days}} 天后用完",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 次长上下文请求没命中缓存，共扣费 {{amount}}",
+    "{{date}}: no cache data": "{{date}}：无缓存数据",
+    "{{date}}: {{rate}} cache hit": "{{date}}：缓存命中 {{rate}}",
+    "{{rate}} of cached context was reused": "已缓存的上下文有 {{rate}} 被复用"
   }
 }

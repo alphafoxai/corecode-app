@@ -38,6 +38,7 @@ import { ROLE } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { useBalanceStatus } from '../../hooks/use-balance-status'
 import { useCustomerOverview } from '../../hooks/use-customer-overview'
 import {
   useAnnouncements,
@@ -47,6 +48,7 @@ import {
 import { AnnouncementsPanel } from './announcements-panel'
 import { BalanceCard } from './balance-card'
 import { FAQPanel } from './faq-panel'
+import { OverviewAlerts } from './overview-alerts'
 import { PerformanceHealthPanel } from './performance-health-panel'
 import { RecentRequestsPanel } from './recent-requests-panel'
 import { SpendTrendPanel } from './spend-trend-panel'
@@ -59,6 +61,10 @@ export function OverviewDashboard() {
   const isAdmin = Boolean(user?.role && user.role >= ROLE.ADMIN)
   const { status } = useStatus()
   const overview = useCustomerOverview()
+  const balanceStatus = useBalanceStatus(
+    Number(user?.quota ?? 0),
+    overview.daily
+  )
   const visibility = useDashboardContentVisibility()
   const announcements = useAnnouncements()
   const faq = useFAQ()
@@ -90,6 +96,11 @@ export function OverviewDashboard() {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <CardStaggerContainer className='flex min-w-0 flex-col gap-4'>
+          <OverviewAlerts
+            balanceHealth={balanceStatus.health}
+            runwayDays={balanceStatus.runwayDays}
+            recent={overview.recent}
+          />
           <div className='grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]'>
             <CardStaggerItem>
               <BalanceCard

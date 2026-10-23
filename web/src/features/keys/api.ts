@@ -69,10 +69,11 @@ export async function getTokenAutoGroups(): Promise<
   return res.data
 }
 
-// Create a new API key
+// Create a new API key. The response carries the new key's id and name, not
+// the key itself.
 export async function createApiKey(
   data: ApiKeyFormData
-): Promise<ApiResponse<ApiKey>> {
+): Promise<ApiResponse<{ id: number; name: string }>> {
   const res = await api.post('/api/token/', data)
   return res.data
 }

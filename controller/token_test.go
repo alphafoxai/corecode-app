@@ -590,6 +590,23 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	}
 }
 
+func TestAddTokenReturnsTheNewIDWithoutTheKey(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{"name": "laptop", "expired_time": -1, "unlimited_quota": true, "status": common.TokenStatusEnabled}
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var saved model.Token
+	require.NoError(t, db.Where("name = ?", "laptop").First(&saved).Error)
+	var returned map[string]any
+	require.NoError(t, common.Unmarshal(response.Data, &returned))
+	assert.Equal(t, map[string]any{"id": float64(saved.Id), "name": "laptop"}, returned)
+	assert.NotContains(t, recorder.Body.String(), saved.Key)
+}
+
 func TestTokenAllowUserQuotaQueryOnCreateAndUpdate(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

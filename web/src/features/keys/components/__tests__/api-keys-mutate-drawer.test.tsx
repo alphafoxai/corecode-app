@@ -24,7 +24,7 @@ const { I18nextProvider, initReactI18next } = await import('react-i18next')
 const { QueryClient, QueryClientProvider } =
   await import('@tanstack/react-query')
 const { api } = await import('@/lib/api')
-const { ApiKeysProvider } = await import('../api-keys-provider')
+const { ApiKeysProvider, useApiKeys } = await import('../api-keys-provider')
 const { ApiKeysMutateDrawer } = await import('../api-keys-mutate-drawer')
 
 const i18n = createInstance()
@@ -50,6 +50,13 @@ let renderedDrawer: RenderedDrawer | null = null
 function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
   apiClient.get = async (url) => {
     switch (url) {
+      case '/api/token/41':
+        return {
+          data: {
+            success: true,
+            data: { id: 41, name: 'laptop', key: 'abcd****wxyz', status: 1 },
+          },
+        }
       case '/api/status':
         return { data: { data: { default_use_auto_group: true } } }
       case '/api/user/models':
@@ -80,7 +87,7 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
     expect(url).toBe('/api/token/')
     expect(data && typeof data === 'object').toBeTruthy()
     createdPayloads.push(data as Record<string, unknown>)
-    return { data: { success: true, data: {} } }
+    return { data: { success: true, data: { id: 41, name: 'laptop' } } }
   }
 }
 
@@ -126,6 +133,7 @@ async function renderCreateDrawer(): Promise<void> {
       <I18nextProvider i18n={i18n}>
         <ApiKeysProvider>
           <ApiKeysMutateDrawer open onOpenChange={() => undefined} />
+          <DialogProbe />
         </ApiKeysProvider>
       </I18nextProvider>
     </QueryClientProvider>
@@ -136,6 +144,15 @@ async function renderCreateDrawer(): Promise<void> {
       expect(saveButton).toBeEnabled()
     },
     { timeout: 1500 }
+  )
+}
+
+function DialogProbe() {
+  const keys = useApiKeys()
+  return (
+    <output data-testid='dialog-probe'>
+      {keys.open ?? 'none'}:{keys.currentRow?.name ?? ''}
+    </output>
   )
 }
 
@@ -297,5 +314,19 @@ describe('API keys mutate drawer user quota query switch', () => {
     fireEvent.click(findButton('Save changes', true))
     await waitFor(() => expect(createdPayloads).toHaveLength(1))
     expect(createdPayloads[0]?.allow_user_quota_query).toBe(false)
+  })
+
+  test('opens the setup guide for a single new key', async () => {
+    installApiFixtures([])
+    await renderCreateDrawer()
+
+    changeInput(getControlByLabel('Name'), 'laptop')
+    fireEvent.click(findButton('Save changes', true))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('dialog-probe')).toHaveTextContent(
+        'setup:laptop'
+      )
+    )
   })
 })

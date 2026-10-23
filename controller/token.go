@@ -315,9 +315,13 @@ func AddToken(c *gin.Context) {
 	}
 	params["id"] = token.Id
 	common.SetContextKey(c, constant.ContextKeyTokenAuditSucceeded, true)
+	// CoreCode fork: the id lets the console open the new key's setup guide.
+	// The key itself is never returned here; reading it still goes through
+	// POST /api/token/:id/key and its checks.
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		"data":    gin.H{"id": token.Id, "name": token.Name},
 	})
 }
 

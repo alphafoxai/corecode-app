@@ -7474,6 +7474,27 @@
     "Base tier; longer contexts cost more": "Base tier; longer contexts cost more",
     "Official {{price}}": "Official {{price}}",
     "Save {{percent}}": "Save {{percent}}",
-    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Official and group prices in CNY, side by side, so the cost is easy to compare."
+    "Official and group prices in CNY, side by side, so the cost is easy to compare.": "Official and group prices in CNY, side by side, so the cost is easy to compare.",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.",
+    "By API key": "By API key",
+    "By model": "By model",
+    "Cache hit rate, last 14 days": "Cache hit rate, last 14 days",
+    "Cache miss": "Cache miss",
+    "Chart metric": "Chart metric",
+    "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.",
+    "Daily cache hit rate": "Daily cache hit rate",
+    "Long context, almost no cache hit: billed as a fresh cache write": "Long context, almost no cache hit: billed as a fresh cache write",
+    "No cache data in this period yet": "No cache data in this period yet",
+    "No spend in this range.": "No spend in this range.",
+    "Show logs for {{name}}": "Show logs for {{name}}",
+    "Spend": "Spend",
+    "Spend by key": "Spend by key",
+    "Spend in this range: {{amount}}": "Spend in this range: {{amount}}",
+    "Your balance has run out": "Your balance has run out",
+    "Your balance runs out in about {{days}} days": "Your balance runs out in about {{days}} days",
+    "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} long requests missed the cache, charged {{amount}} in total",
+    "{{date}}: no cache data": "{{date}}: no cache data",
+    "{{date}}: {{rate}} cache hit": "{{date}}: {{rate}} cache hit",
+    "{{rate}} of cached context was reused": "{{rate}} of cached context was reused"
   }
 }
