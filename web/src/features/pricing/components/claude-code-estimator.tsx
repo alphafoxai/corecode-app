@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { toIntlLocale } from '@/i18n/languages'
-import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 import {
@@ -43,7 +42,6 @@ import {
 import { isTokenBasedModel } from '../lib/model-helpers'
 import type { PricingModel } from '../types'
 
-const MONEY = { digitsLarge: 2, digitsSmall: 4, abbreviate: false }
 const DAYS_PER_MONTH = 30
 
 function WorkloadNumber(props: {
@@ -86,6 +84,8 @@ function WorkloadNumber(props: {
  */
 export function ClaudeCodeEstimator(props: {
   models: PricingModel[]
+  /** CNY recharged for $1 of credit; the estimate is shown in CNY. */
+  priceRate: number
   selectedGroup?: string
   className?: string
 }) {
@@ -110,6 +110,12 @@ export function ClaudeCodeEstimator(props: {
   const saved = estimate.perDayWithoutCache - estimate.perDay
   const savedShare =
     estimate.perDayWithoutCache > 0 ? saved / estimate.perDayWithoutCache : 0
+  const yuan = (usd: number) => {
+    const value = usd * props.priceRate
+    return `¥${value.toLocaleString('en-US', {
+      maximumFractionDigits: Math.abs(value) >= 1 ? 2 : 4,
+    })}`
+  }
   const percent = (value: number) =>
     Intl.NumberFormat(locale, {
       style: 'percent',
@@ -229,7 +235,7 @@ export function ClaudeCodeEstimator(props: {
           >
             <dt className='text-muted-foreground text-xs'>{item.label}</dt>
             <dd className='mt-1 truncate text-lg font-semibold tabular-nums sm:text-xl'>
-              {formatBillingCurrencyFromUSD(item.value, MONEY)}
+              {yuan(item.value)}
             </dd>
           </div>
         ))}
@@ -248,10 +254,7 @@ export function ClaudeCodeEstimator(props: {
           {t(
             'Without the cache this would be {{amount}} a day. The cache saves {{share}}.',
             {
-              amount: formatBillingCurrencyFromUSD(
-                estimate.perDayWithoutCache,
-                MONEY
-              ),
+              amount: yuan(estimate.perDayWithoutCache),
               share: percent(savedShare),
             }
           )}
