@@ -23,6 +23,7 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/deployment"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/pkg/wsmanager"
@@ -211,9 +212,10 @@ func main() {
 		port = strconv.Itoa(*common.Port)
 	}
 
+	deploymentGate := deployment.New(server)
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: server,
+		Handler: deploymentGate,
 	}
 
 	go func() {
@@ -229,6 +231,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
+	deploymentGate.BeginShutdown()
 	common.SysLog(common.LogText("received signal: %v, shutting down...", sig))
 
 	// SSE streams may run for minutes; give them time to finish before forced exit
