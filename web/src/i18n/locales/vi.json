@@ -7532,6 +7532,9 @@
     "{{change}} vs previous period": "{{change}} so với kỳ trước",
     "Saved {{saved}} · write premium {{premium}}": "Tiết kiệm {{saved}} · phụ phí ghi {{premium}}",
     "Some models have no price and are left out": "Một số mô hình chưa có giá nên không được tính",
-    "Cache reads ÷ (reads + writes), for models that report cache usage": "Lượt đọc cache ÷ (đọc + ghi), chỉ tính các mô hình có báo cáo dùng cache"
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Lượt đọc cache ÷ (đọc + ghi), chỉ tính các mô hình có báo cáo dùng cache",
+    "Concurrent requests per token": "Số yêu cầu đồng thời mỗi token",
+    "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "Số yêu cầu một token được chạy cùng lúc, theo nhóm của người dùng sở hữu. Yêu cầu vượt quá nhận mã 429 và Claude Code sẽ thử lại. Nhóm không có trong danh sách hoặc đặt 0 thì không giới hạn.",
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Nhập đối tượng JSON gồm nhóm người dùng và số nguyên, ví dụ {\"default\": 5}"
   }
 }

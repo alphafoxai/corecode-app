@@ -7532,6 +7532,9 @@
     "{{change}} vs previous period": "前期間比 {{change}}",
     "Saved {{saved}} · write premium {{premium}}": "節約 {{saved}} · 書き込み割増 {{premium}}",
     "Some models have no price and are left out": "価格のないモデルは含まれていません",
-    "Cache reads ÷ (reads + writes), for models that report cache usage": "キャッシュ読み取り ÷（読み取り + 書き込み）。キャッシュ使用量を報告するモデルのみ"
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "キャッシュ読み取り ÷（読み取り + 書き込み）。キャッシュ使用量を報告するモデルのみ",
+    "Concurrent requests per token": "トークンごとの同時リクエスト数",
+    "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "所有ユーザーのグループごとに、1 つのトークンが同時に処理できるリクエスト数を制限します。超えたリクエストには 429 を返し、Claude Code が再試行します。未設定または 0 のグループは無制限です。",
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "ユーザーグループと整数の JSON オブジェクトで指定してください（例：{\"default\": 5}）"
   }
 }

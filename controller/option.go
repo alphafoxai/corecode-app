@@ -339,6 +339,12 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "token_setting.concurrency_limits":
+		err = operation_setting.ValidateTokenConcurrencyLimits(option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "claude_code_client_setting.min_version", "claude_code_client_setting.max_version":
 		err = operation_setting.ValidateClaudeCodeVersion(option.Value.(string))
 		if err != nil {
