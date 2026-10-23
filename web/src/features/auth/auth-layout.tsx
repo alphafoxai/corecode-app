@@ -16,48 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { ThemeSwitch } from '@/components/theme-switch'
 
-import { Skeleton } from '@/components/ui/skeleton'
-import { useSystemConfig } from '@/hooks/use-system-config'
+import { AuthBrandMark, AuthBrandPanel } from './components/auth-brand-panel'
 
 type AuthLayoutProps = {
   children: React.ReactNode
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
-  const { t } = useTranslation()
-  const { systemName, logo, loading } = useSystemConfig()
-
+export function AuthLayout(props: AuthLayoutProps) {
   return (
-    <div className='relative grid h-svh max-w-none'>
-      <Link
-        to='/'
-        className='absolute top-4 left-4 z-10 flex items-center gap-2 transition-opacity hover:opacity-80 sm:top-8 sm:left-8'
-      >
-        <div className='relative h-8 w-8'>
-          {loading ? (
-            <Skeleton className='absolute inset-0 rounded-full' />
-          ) : (
-            <img
-              src={logo}
-              alt={t('Logo')}
-              className='h-8 w-8 rounded-full object-cover'
-            />
-          )}
+    <div className='bg-background grid min-h-svh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]'>
+      <AuthBrandPanel />
+      <main className='flex min-h-svh flex-col px-4 py-6 sm:px-8 lg:py-8'>
+        <div className='flex items-center justify-between gap-4'>
+          <AuthBrandMark className='lg:invisible' />
+          <div className='flex items-center gap-1'>
+            <LanguageSwitcher />
+            <ThemeSwitch />
+          </div>
         </div>
-        {loading ? (
-          <Skeleton className='h-6 w-24' />
-        ) : (
-          <h1 className='text-xl font-medium'>{systemName}</h1>
-        )}
-      </Link>
-      <div className='container flex items-center pt-16 sm:pt-0'>
-        <div className='mx-auto flex w-full flex-col justify-center space-y-2 px-4 py-8 sm:w-[480px] sm:p-8'>
-          {children}
+        <div className='flex flex-1 items-center justify-center py-10'>
+          <div className='w-full max-w-sm'>{props.children}</div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

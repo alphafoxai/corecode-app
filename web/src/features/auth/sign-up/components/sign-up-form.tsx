@@ -251,6 +251,16 @@ export function SignUpForm({
         className={cn('grid gap-4', className)}
         {...props}
       >
+        {oauthRegisterEnabled && (
+          <OAuthProviders
+            status={status}
+            disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+            onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
+            isWeChatLoading={isWeChatSubmitting}
+            separatorLabel={t('Or sign up with a password')}
+          />
+        )}
+
         {/* Username Field */}
         <FormField
           control={form.control}
@@ -371,7 +381,8 @@ export function SignUpForm({
         {/* Submit Button */}
         <Button
           type='submit'
-          className='mt-2 w-full justify-center gap-2'
+          size='lg'
+          className='mt-2 h-10 w-full justify-center gap-2'
           disabled={
             isLoading ||
             (requiresLegalConsent && !agreedToLegal) ||
@@ -381,16 +392,6 @@ export function SignUpForm({
           {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
           {t('Create account')}
         </Button>
-
-        {oauthRegisterEnabled && (
-          <OAuthProviders
-            status={status}
-            disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
-            onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
-            isWeChatLoading={isWeChatSubmitting}
-            className='pt-2'
-          />
-        )}
       </form>
 
       {hasWeChatLogin && (

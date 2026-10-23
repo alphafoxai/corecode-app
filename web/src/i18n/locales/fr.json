@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} longues requêtes ont manqué le cache, {{amount}} facturés au total",
     "{{date}}: no cache data": "{{date}} : pas de données de cache",
     "{{date}}: {{rate}} cache hit": "{{date}} : {{rate}} de cache",
-    "{{rate}} of cached context was reused": "{{rate}} du contexte en cache a été réutilisé"
+    "{{rate}} of cached context was reused": "{{rate}} du contexte en cache a été réutilisé",
+    "Or continue with email": "Ou continuer avec un e-mail",
+    "Or use your password": "Ou utiliser votre mot de passe",
+    "Or sign up with a password": "Ou s’inscrire avec un mot de passe",
+    "Sign in to {{name}}": "Se connecter à {{name}}",
+    "Claude Code relay": "Relais Claude Code",
+    "Pure Claude,": "Du Claude pur,",
+    "nothing mixed in.": "rien d’autre.",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "Chaque requête reçoit la réponse d’un compte Claude officiel d’Anthropic. Aucun changement de modèle, rien d’un autre fournisseur.",
+    "Only official Claude": "Uniquement Claude officiel",
+    "You pick Opus, Opus answers. No other model stands in.": "Vous choisissez Opus, c’est Opus qui répond. Aucun autre modèle ne le remplace.",
+    "Prompt cache that keeps hitting": "Un cache de prompt qui fait mouche",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Chaque session Claude Code reste sur un même compte : plus une tâche est longue, moins elle coûte.",
+    "Pay for what you use": "Payez ce que vous utilisez",
+    "Every request's usage and cost is listed in the console.": "L’usage et le coût de chaque requête sont consultables dans la console."
   }
 }

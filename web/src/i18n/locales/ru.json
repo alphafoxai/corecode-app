@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} длинных запросов не попали в кэш, списано {{amount}}",
     "{{date}}: no cache data": "{{date}}: нет данных о кэше",
     "{{date}}: {{rate}} cache hit": "{{date}}: {{rate}} попаданий в кэш",
-    "{{rate}} of cached context was reused": "{{rate}} закэшированного контекста использовано повторно"
+    "{{rate}} of cached context was reused": "{{rate}} закэшированного контекста использовано повторно",
+    "Or continue with email": "Или продолжить по электронной почте",
+    "Or use your password": "Или войти с паролем",
+    "Or sign up with a password": "Или зарегистрироваться с паролем",
+    "Sign in to {{name}}": "Вход в {{name}}",
+    "Claude Code relay": "Ретранслятор Claude Code",
+    "Pure Claude,": "Чистый Claude,",
+    "nothing mixed in.": "без примесей.",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "На каждый запрос отвечает официальный аккаунт Anthropic Claude. Без подмены моделей и без чужих моделей.",
+    "Only official Claude": "Только официальный Claude",
+    "You pick Opus, Opus answers. No other model stands in.": "Выбрали Opus — отвечает Opus. Другие модели его не заменяют.",
+    "Prompt cache that keeps hitting": "Кэш промптов стабильно срабатывает",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Каждая сессия Claude Code закреплена за одним аккаунтом, поэтому длинные задачи со временем обходятся дешевле.",
+    "Pay for what you use": "Платите за то, что используете",
+    "Every request's usage and cost is listed in the console.": "Объём и стоимость каждого запроса видны в консоли."
   }
 }

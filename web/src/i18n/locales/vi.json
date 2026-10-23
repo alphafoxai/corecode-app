@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} yêu cầu dài trượt cache, tổng cộng {{amount}}",
     "{{date}}: no cache data": "{{date}}: không có dữ liệu cache",
     "{{date}}: {{rate}} cache hit": "{{date}}: trúng cache {{rate}}",
-    "{{rate}} of cached context was reused": "{{rate}} ngữ cảnh đã cache được dùng lại"
+    "{{rate}} of cached context was reused": "{{rate}} ngữ cảnh đã cache được dùng lại",
+    "Or continue with email": "Hoặc tiếp tục bằng email",
+    "Or use your password": "Hoặc dùng mật khẩu",
+    "Or sign up with a password": "Hoặc đăng ký bằng mật khẩu",
+    "Sign in to {{name}}": "Đăng nhập vào {{name}}",
+    "Claude Code relay": "Trạm chuyển tiếp Claude Code",
+    "Pure Claude,": "Claude nguyên bản,",
+    "nothing mixed in.": "không pha trộn.",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "Mọi yêu cầu đều được tài khoản Claude chính thức của Anthropic trả lời. Không đổi mô hình, không trộn mô hình khác.",
+    "Only official Claude": "Chỉ Claude chính thức",
+    "You pick Opus, Opus answers. No other model stands in.": "Bạn chọn Opus thì Opus trả lời. Không có mô hình nào khác thay thế.",
+    "Prompt cache that keeps hitting": "Bộ nhớ đệm prompt luôn trúng",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Mỗi phiên Claude Code được giữ trên cùng một tài khoản, nên tác vụ càng dài càng tiết kiệm.",
+    "Pay for what you use": "Dùng bao nhiêu, trả bấy nhiêu",
+    "Every request's usage and cost is listed in the console.": "Mức sử dụng và chi phí của từng yêu cầu đều xem được trong bảng điều khiển."
   }
 }

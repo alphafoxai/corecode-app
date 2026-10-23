@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} long requests missed the cache, charged {{amount}} in total",
     "{{date}}: no cache data": "{{date}}: no cache data",
     "{{date}}: {{rate}} cache hit": "{{date}}: {{rate}} cache hit",
-    "{{rate}} of cached context was reused": "{{rate}} of cached context was reused"
+    "{{rate}} of cached context was reused": "{{rate}} of cached context was reused",
+    "Or continue with email": "Or continue with email",
+    "Or use your password": "Or use your password",
+    "Or sign up with a password": "Or sign up with a password",
+    "Sign in to {{name}}": "Sign in to {{name}}",
+    "Claude Code relay": "Claude Code relay",
+    "Pure Claude,": "Pure Claude,",
+    "nothing mixed in.": "nothing mixed in.",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.",
+    "Only official Claude": "Only official Claude",
+    "You pick Opus, Opus answers. No other model stands in.": "You pick Opus, Opus answers. No other model stands in.",
+    "Prompt cache that keeps hitting": "Prompt cache that keeps hitting",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Each Claude Code session stays on one account, so long tasks cost less as they run.",
+    "Pay for what you use": "Pay for what you use",
+    "Every request's usage and cost is listed in the console.": "Every request's usage and cost is listed in the console."
   }
 }
