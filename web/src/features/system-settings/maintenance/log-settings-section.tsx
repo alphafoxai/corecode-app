@@ -51,6 +51,7 @@ import { ServerLogFiles } from './server-log-files'
 const logSettingsSchema = z.object({
   LogConsumeEnabled: z.boolean(),
   log_setting: z.object({
+    record_client_ip: z.boolean(),
     user_export_enabled: z.boolean(),
     max_range_days: z.number().int().min(1),
   }),
@@ -61,6 +62,7 @@ type LogSettingsFormValues = z.infer<typeof logSettingsSchema>
 type LogSettingsSectionProps = {
   defaultValues: {
     LogConsumeEnabled: boolean
+    'log_setting.record_client_ip': boolean
     'log_setting.user_export_enabled': boolean
     'log_setting.max_range_days': number
   }
@@ -75,6 +77,7 @@ export function LogSettingsSection(props: LogSettingsSectionProps) {
     () => ({
       LogConsumeEnabled: props.defaultValues.LogConsumeEnabled,
       log_setting: {
+        record_client_ip: props.defaultValues['log_setting.record_client_ip'],
         user_export_enabled:
           props.defaultValues['log_setting.user_export_enabled'],
         max_range_days: props.defaultValues['log_setting.max_range_days'],
@@ -94,6 +97,7 @@ export function LogSettingsSection(props: LogSettingsSectionProps) {
   const onSubmit = async (values: LogSettingsFormValues) => {
     const changes = [
       ['LogConsumeEnabled', values.LogConsumeEnabled],
+      ['log_setting.record_client_ip', values.log_setting.record_client_ip],
       [
         'log_setting.user_export_enabled',
         values.log_setting.user_export_enabled,
@@ -133,6 +137,31 @@ export function LogSettingsSection(props: LogSettingsSectionProps) {
                     <FormDescription>
                       {t(
                         'Track per-request consumption to power usage analytics. Keeping this on increases database writes.'
+                      )}
+                    </FormDescription>
+                  </SettingsSwitchContent>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </SettingsSwitchItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='log_setting.record_client_ip'
+              render={({ field }) => (
+                <SettingsSwitchItem>
+                  <SettingsSwitchContent>
+                    <FormLabel>
+                      {t('Record client IP for every user')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t(
+                        'Store the client IP on every usage and error log, so administrators can spot a key used from many places. Users see IPs in their own logs only after turning on Record IP Address.'
                       )}
                     </FormDescription>
                   </SettingsSwitchContent>

@@ -7535,6 +7535,9 @@
     "Cache reads ÷ (reads + writes), for models that report cache usage": "Lượt đọc cache ÷ (đọc + ghi), chỉ tính các mô hình có báo cáo dùng cache",
     "Concurrent requests per token": "Số yêu cầu đồng thời mỗi token",
     "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "Số yêu cầu một token được chạy cùng lúc, theo nhóm của người dùng sở hữu. Yêu cầu vượt quá nhận mã 429 và Claude Code sẽ thử lại. Nhóm không có trong danh sách hoặc đặt 0 thì không giới hạn.",
-    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Nhập đối tượng JSON gồm nhóm người dùng và số nguyên, ví dụ {\"default\": 5}"
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Nhập đối tượng JSON gồm nhóm người dùng và số nguyên, ví dụ {\"default\": 5}",
+    "Record client IP for every user": "Ghi IP máy khách cho mọi người dùng",
+    "Store the client IP on every usage and error log, so administrators can spot a key used from many places. Users see IPs in their own logs only after turning on Record IP Address.": "Lưu IP máy khách trên mọi nhật ký sử dụng và lỗi, để quản trị viên phát hiện một khóa được dùng từ nhiều nơi. Người dùng chỉ thấy IP trong nhật ký của mình sau khi tự bật Ghi địa chỉ IP.",
+    "Show the client IP in your own usage and error logs. The service may record it for abuse prevention either way.": "Hiển thị IP máy khách trong nhật ký sử dụng và lỗi của bạn. Dù bật hay không, dịch vụ vẫn có thể ghi IP để chống lạm dụng."
   }
 }

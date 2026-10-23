@@ -7535,6 +7535,9 @@
     "Cache reads ÷ (reads + writes), for models that report cache usage": "缓存读取 ÷（读取 + 写入），只统计会上报缓存用量的模型",
     "Concurrent requests per token": "每个令牌的并发请求数",
     "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "按令牌所属用户的分组，限制一个令牌同时进行的请求数。超出的请求会收到 429，Claude Code 会自动重试。未列出或设为 0 的分组不限制。",
-    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "请填写用户分组到整数的 JSON 对象，例如 {\"default\": 5}"
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "请填写用户分组到整数的 JSON 对象，例如 {\"default\": 5}",
+    "Record client IP for every user": "为所有用户记录客户端 IP",
+    "Store the client IP on every usage and error log, so administrators can spot a key used from many places. Users see IPs in their own logs only after turning on Record IP Address.": "在每条使用日志和错误日志上记录客户端 IP，方便管理员发现同一个密钥在很多地方使用。用户只有自己开启\"记录 IP 地址\"后，才会在自己的日志里看到 IP。",
+    "Show the client IP in your own usage and error logs. The service may record it for abuse prevention either way.": "在你自己的使用日志和错误日志里显示客户端 IP。无论是否开启，服务方都可能为防止滥用而记录 IP。"
   }
 }
