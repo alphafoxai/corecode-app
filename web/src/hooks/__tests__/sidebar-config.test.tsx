@@ -180,3 +180,15 @@ describe('audit log sidebar entry', () => {
     expect(titles).toContain('Audit Logs')
   })
 })
+
+describe('sidebar group order', () => {
+  it('puts Chat after Personal so the console groups come first', () => {
+    const { result } = sidebarFor()
+    expect(result.current.map((group) => group.id)).toEqual([
+      'general',
+      'personal',
+      'chat',
+      'admin',
+    ])
+  })
+})
