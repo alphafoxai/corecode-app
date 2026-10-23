@@ -50,11 +50,40 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          # setup-go keys its cache on go.sum alone and skips the save on a key
+          # hit, so the build cache froze at the last dependency change and every
+          # later run recompiled what had changed since. The steps below replace it.
+          cache: false
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.0
+
+      # Modules change with go.sum; compiled packages and cached test results
+      # change with any Go source, so the key hashes both and a miss restores the
+      # closest earlier entry. Pull requests only read these caches; main and
+      # manual runs write a new entry when the key misses. Bun's package cache
+      # follows the lockfile.
+      - name: Restore Go caches
+        id: go-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-check-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            go-check-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-check-${{ runner.os }}-
+
+      - name: Restore Bun package cache
+        id: bun-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-check-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: |
+            bun-check-${{ runner.os }}-
 
       # main.go embeds web/dist, so the Go toolchain will not even parse the
       # module until the console bundle exists. Building it here is a build
@@ -72,6 +101,22 @@ jobs:
           go vet ./...
           go test ./common/... ./controller/... ./middleware/... ./model/... ./service/... 2>&1 | tail -40
           go test -race ./pkg/deployment
+
+      - name: Save Go caches
+        if: github.event_name != 'pull_request' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
+
+      - name: Save Bun package cache
+        if: github.event_name != 'pull_request' && steps.bun-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ steps.bun-cache.outputs.cache-primary-key }}
 
   publish:
     needs: [check]
@@ -93,6 +138,41 @@ jobs:
           service_account: derouter-build@alphafox-506201.iam.gserviceaccount.com
 
       - uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      # The Dockerfile's cache mounts (Go modules, Go build cache, Bun packages)
+      # live in the builder, and a hosted runner starts with an empty one: the
+      # registry layer cache skipped `go mod download`, so `go build` downloaded
+      # every module again and compiled every package from scratch. The cache
+      # dance copies the mounts in from the Actions cache before the build and
+      # back out after it. Post steps run in reverse order, so the extraction
+      # finishes before actions/cache saves. The directories sit in RUNNER_TEMP
+      # so they never enter the Docker build context. The key follows the same
+      # rule as the check job's: dependencies plus Go sources, and an exact hit
+      # skips both the extraction and the save.
+      - name: Restore build cache mounts
+        id: mount-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cache-mounts
+          key: docker-mounts-${{ hashFiles('go.sum', 'web/bun.lock') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            docker-mounts-${{ hashFiles('go.sum', 'web/bun.lock') }}-
+            docker-mounts-
+
+      - name: Inject build cache mounts
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723 # v3.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          scratch-dir: ${{ runner.temp }}/cache-dance-scratch
+          skip-extraction: ${{ steps.mount-cache.outputs.cache-hit }}
+          cache-map: |
+            {
+              "${{ runner.temp }}/cache-mounts/go-mod": {"target": "/go/pkg/mod", "id": "new-api-go-mod"},
+              "${{ runner.temp }}/cache-mounts/go-build": {"target": "/root/.cache/go-build", "id": "new-api-go-build"},
+              "${{ runner.temp }}/cache-mounts/bun": {"target": "/root/.bun/install/cache", "id": "new-api-bun"}
+            }
+
       - name: Log in to Artifact Registry
         uses: docker/login-action@v3
         with:
@@ -122,7 +202,8 @@ jobs:
       # A hosted runner has no builder state that survives between runs, so the
       # layer cache lives in the registry under a second tag. mode=max keeps the
       # intermediate stages too: this image builds the web bundle before the Go
-      # binary, and both stages are worth reusing.
+      # binary, and both stages are worth reusing. The cache mounts above are a
+      # separate store; layers here, mount contents in the Actions cache.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

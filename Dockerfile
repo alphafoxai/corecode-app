@@ -1,17 +1,18 @@
 FROM oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS builder
 
 WORKDIR /build/web
-COPY web/package.json web/bun.lock ./
-# Bun's install cache lives outside the layer, so a lockfile change refetches
-# only what changed. Without the mount every build re-downloads the tree.
-RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
 COPY ./web ./
 COPY ./VERSION /build/VERSION
 # VERSION ships empty; CI writes it before building. The fallback keeps a local
 # build from stamping an empty version into the console bundle.
 ARG BUILD_VERSION=dev
-RUN if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
+# Install and build in one step, so node_modules (over 300 MB) never becomes a
+# layer: a registry cache hit on a separate install layer still has to pull and
+# unpack it, which took longer than installing from Bun's own cache. The mount
+# keeps that cache, and CI restores it between runs.
+RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
+    if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
+    && bun install --frozen-lockfile \
     && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
 
 FROM golang:1.26.10-alpine@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca AS builder2
