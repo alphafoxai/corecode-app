@@ -16,36 +16,46 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import i18n from 'i18next'
+import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
 import { convertDetectedLanguage } from './languages'
-import en from './locales/en.json'
-import fr from './locales/fr.json'
-import ja from './locales/ja.json'
-import ru from './locales/ru.json'
-import vi from './locales/vi.json'
-import zhTW from './locales/zh-TW.json'
-import zhCN from './locales/zh.json'
 
-export const resources = {
-  en,
-  zhCN,
-  fr,
-  ru,
-  ja,
-  vi,
-  zhTW,
-} as const
+type LocaleModule = { default: { translation: Record<string, string> } }
 
-i18n
+// Each locale is 0.5–0.8 MB and a visitor reads one, so each loads as its own
+// chunk on demand instead of all seven riding in the entry bundle. i18next
+// requests the current language and the `en` fallback.
+const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
+  en: () => import('./locales/en.json'),
+  zhCN: () => import('./locales/zh.json'),
+  fr: () => import('./locales/fr.json'),
+  ru: () => import('./locales/ru.json'),
+  ja: () => import('./locales/ja.json'),
+  vi: () => import('./locales/vi.json'),
+  zhTW: () => import('./locales/zh-TW.json'),
+}
+
+// i18next awaits `read` when it takes two parameters and returns a promise.
+const lazyLocales: BackendModule = {
+  type: 'backend',
+  init: () => undefined,
+  async read(language: string, _namespace: string) {
+    const load = localeLoaders[language]
+    return load ? (await load()).default.translation : {}
+  },
+}
+
+// Resolves once the current language and the fallback are loaded, or have
+// failed to load; keys then render as their English source text.
+export const i18nReady = i18n
+  .use(lazyLocales)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
     fallbackLng: 'en',
-    supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],
+    supportedLngs: Object.keys(localeLoaders),
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
     debug: import.meta.env.DEV,
