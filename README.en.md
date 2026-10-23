@@ -250,6 +250,12 @@ For production, put the console behind HTTPS and configure your reverse proxy fo
 
 Pin an image version from [Releases](https://github.com/QuantumNous/new-api/releases), review its upgrade notes, and back up before upgrading. The `latest` tag follows published builds and can change; migrations and compatibility must be assessed for your existing installation.
 
+### CoreCode deployment admission
+
+The loopback-only deployment API, drain behavior, retryable 503 responses and legacy-image
+rollout prerequisite are documented in the [deployment admission reference](./README.md#corecode-deployment-admission).
+This mechanism preserves admitted handlers but does not promise zero downtime.
+
 <a id="development"></a>
 
 ## Development and extensions

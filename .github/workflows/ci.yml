@@ -71,6 +71,7 @@ jobs:
           set -eu
           go vet ./...
           go test ./common/... ./controller/... ./middleware/... ./model/... ./service/... 2>&1 | tail -40
+          go test -race ./pkg/deployment
 
   publish:
     needs: [check]

@@ -246,6 +246,34 @@ For production, put the console behind HTTPS and configure your reverse proxy fo
 
 Pin an image version from [Releases](https://github.com/QuantumNous/new-api/releases), review its upgrade notes, and back up before upgrading. The `latest` tag follows published builds and can change; migrations and compatibility must be assessed for your existing installation.
 
+### CoreCode deployment admission
+
+The existing HTTP listener (port 3000 by default) exposes deployment control only to
+an actual loopback TCP peer. Forwarded headers grant no access. Non-loopback requests
+to `/_internal/deployment` and its descendants return 404 before normal middleware.
+Reverse proxies and BFFs must never forward this namespace, including when they connect
+over loopback. No new authentication secret is required.
+
+- `GET /_internal/deployment` returns `{"draining":false,"active":0}` with current state.
+- `POST /_internal/deployment/drain` closes admission atomically and returns current state.
+- `POST /_internal/deployment/resume` reopens admission without resetting the active count;
+  after terminal signal shutdown begins, it leaves `draining` true.
+- Unknown control paths return 404; unsupported methods on known paths return 405.
+
+Drain does not cancel admitted requests. Active counts include the full handler lifetime,
+including deferred cleanup and hijacked sessions until their handlers return. Control
+requests and `GET /api/status` are excluded; that health route stays available during drain.
+New normal requests receive JSON error type `deployment_draining`, HTTP 503 and
+`Retry-After: 5` before any stream or downstream handler begins. This is not zero downtime.
+
+Deployment must observe `draining: true` and `active: 0` before stopping the instance.
+If waiting times out or is canceled, leave the process running and resume using a fresh
+control request. Terminal shutdown retains `SHUTDOWN_TIMEOUT_SECONDS` (default 120).
+The runtime image label `live.corecode.deployment-drain="1"` identifies this capability;
+candidate images must support it. Infra owns the separately verified legacy bootstrap:
+gracefully finish proxy responses before the first compatible upgrade, without forced kills.
+See the [CoreCode infra runbook](https://github.com/alphafoxai/corecode-infra/blob/main/README.md).
+
 <a id="development"></a>
 
 ## Development and extensions

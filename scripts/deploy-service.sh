@@ -12,8 +12,8 @@
 #   2. Reaches the relay over an IAP tunnel, so the host never exposes SSH.
 #   3. Verifies the host key against relay_known_hosts and refuses to connect
 #      otherwise, which is what makes the tunnel trustworthy.
-#   4. Asks the relay for the tag it currently runs and skips the restart when
-#      it is already the requested one.
+#   4. Lets the host verify actual containers under its cross-repository lock.
+#      A matching tag alone is not evidence of a healthy running container.
 #
 # Environment:
 #   RELAY_SSH_KEY   path to the private key file      (required)
@@ -75,19 +75,7 @@ chmod 600 "$work/config"
 
 relay_ssh() { ssh -F "$work/config" relay "$1"; }
 
-# A failed read must not look like "nothing recorded": that would redeploy a
-# service on every run and hide a broken host.
-if ! running=$(relay_ssh "sudo sh $DEST/set-image-tag.sh --show 2>/dev/null"); then
-  echo "deploy: could not read the tags the relay runs; refusing to guess" >&2
-  exit 1
-fi
 for svc in "$@"; do
-  var=$(printf '%s' "$svc" | tr 'a-z-' 'A-Z_')
-  current=$(printf '%s\n' "$running" | grep "^${var}_TAG=" | cut -d= -f2- || true)
-  if [ "$current" = "$TAG" ]; then
-    echo "deploy: $svc already runs $TAG; nothing to restart"
-    continue
-  fi
-  echo "deploy: $svc ${current:-<unknown>} -> $TAG"
+  echo "deploy: requesting $svc $TAG"
   relay_ssh "sudo sh $DEST/set-image-tag.sh $svc $TAG"
 done
