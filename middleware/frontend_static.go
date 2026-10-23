@@ -25,12 +25,14 @@ type precompressedFile struct {
 	err         error
 }
 
-// ServeFrontendFiles serves files from the embedded frontend build. The build
-// never changes while the process runs, so each file is gzip-compressed once
-// and the bytes are reused, instead of recompressing multi-megabyte chunks on
-// every request. The cache holds at most one entry per build file. Clients
-// without gzip, the image types the gzip middleware skips, directories, and
-// the index.html redirect keep using http.FileServer.
+// ServeFrontendFiles serves files from the embedded frontend build. The web
+// build writes a brotli copy beside each text asset (web/scripts/precompress.mjs);
+// a client that accepts br gets that copy as is. Otherwise the build never
+// changes while the process runs, so each file is gzip-compressed once and the
+// bytes are reused, instead of recompressing multi-megabyte chunks on every
+// request. The cache holds at most one entry per build file. Clients without
+// gzip, the image types the gzip middleware skips, directories, and the
+// index.html redirect keep using http.FileServer.
 func ServeFrontendFiles(frontendFS static.ServeFileSystem) gin.HandlerFunc {
 	fileServer := http.FileServer(frontendFS)
 	var cache sync.Map // URL path -> *precompressedFile
@@ -40,7 +42,26 @@ func ServeFrontendFiles(frontendFS static.ServeFileSystem) gin.HandlerFunc {
 			return
 		}
 		c.Abort()
-		if !strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") ||
+		acceptEncoding := c.GetHeader("Accept-Encoding")
+		contentType := mime.TypeByExtension(path.Ext(urlPath))
+		if strings.Contains(acceptEncoding, "br") && contentType != "" && !strings.HasSuffix(urlPath, "/index.html") {
+			if brotliFile, err := frontendFS.Open(urlPath + ".br"); err == nil {
+				defer brotliFile.Close()
+				if info, err := brotliFile.Stat(); err == nil && !info.IsDir() {
+					header := c.Writer.Header()
+					header.Set("Content-Encoding", "br")
+					header.Set("Vary", "Accept-Encoding")
+					header.Set("Content-Type", contentType)
+					header.Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+					c.Writer.WriteHeader(http.StatusOK)
+					if c.Request.Method != http.MethodHead {
+						_, _ = io.Copy(c.Writer, brotliFile)
+					}
+					return
+				}
+			}
+		}
+		if !strings.Contains(acceptEncoding, "gzip") ||
 			ginGzip.DefaultExcludedExtentions.Contains(path.Ext(urlPath)) ||
 			strings.HasSuffix(urlPath, "/index.html") {
 			fileServer.ServeHTTP(c.Writer, c.Request)
