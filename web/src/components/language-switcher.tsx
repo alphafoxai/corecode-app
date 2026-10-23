@@ -16,29 +16,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Languages, Check } from 'lucide-react'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  INTERFACE_LANGUAGE_OPTIONS,
-  normalizeInterfaceLanguage,
-} from '@/i18n/languages'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
+const OPTIONS = [
+  { code: 'en', label: 'EN' },
+  { code: 'zhCN', label: '中文' },
+] as const
+
+/**
+ * CoreCode fork: an EN / 中文 pill instead of upstream's seven-language menu.
+ * Any Chinese variant lights 中文; every other language lights EN. The
+ * profile page still offers the full list.
+ */
 export function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
   const user = useAuthStore((s) => s.auth.user)
-  const currentLanguage = normalizeInterfaceLanguage(i18n.language)
+  const current = i18n.language?.startsWith('zh') ? 'zhCN' : 'en'
   const handleChangeLanguage = useCallback(
     async (code: string) => {
       await i18n.changeLanguage(code)
@@ -54,30 +52,32 @@ export function LanguageSwitcher() {
   )
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger
-        render={<Button variant='ghost' size='icon' className='h-9 w-9' />}
-      >
-        <Languages className='size-[1.2rem]' />
-        <span className='sr-only'>{t('Change language')}</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            onClick={() => handleChangeLanguage(lang.code)}
+    <div
+      role='group'
+      aria-label={t('Change language')}
+      className='bg-muted inline-flex h-8 shrink-0 items-center rounded-full p-0.5'
+    >
+      {OPTIONS.map((option) => {
+        const active = option.code === current
+        return (
+          <button
+            key={option.code}
+            type='button'
+            aria-pressed={active}
+            onClick={() => {
+              if (!active) handleChangeLanguage(option.code)
+            }}
+            className={cn(
+              'focus-visible:ring-ring/50 h-full rounded-full px-3 text-sm transition-colors outline-none focus-visible:ring-[3px]',
+              active
+                ? 'bg-background text-foreground font-medium shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
           >
-            {lang.label}
-            <Check
-              size={14}
-              className={cn(
-                'ms-auto',
-                currentLanguage !== lang.code && 'hidden'
-              )}
-            />
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
   )
 }

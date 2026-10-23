@@ -1550,7 +1550,12 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
             />
           </section>
 
-          {!isDynamic && <ClaudeCodeEstimator models={[props.model]} />}
+          {!isDynamic && (
+            <ClaudeCodeEstimator
+              models={[props.model]}
+              priceRate={props.priceRate}
+            />
+          )}
 
           <ModelBackendDetailsSection model={props.model} />
         </TabsContent>

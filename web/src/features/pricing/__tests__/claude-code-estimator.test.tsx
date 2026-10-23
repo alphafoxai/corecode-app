@@ -57,28 +57,30 @@ function amount(label: string) {
   return screen.getByText(label).nextElementSibling?.textContent
 }
 
-it('estimates the default Claude Code workload per turn, day and month', () => {
-  render(<ClaudeCodeEstimator models={[sonnet]} />)
+it('estimates the default Claude Code workload in CNY per turn, day and month', () => {
+  render(<ClaudeCodeEstimator models={[sonnet]} priceRate={2} />)
 
-  expect(amount('Per turn')).toBe('$0.0531')
-  expect(amount('Per day')).toBe('$10.62')
-  expect(amount('Per 30 days')).toBe('$318.6')
+  expect(amount('Per turn')).toBe('¥0.1062')
+  expect(amount('Per day')).toBe('¥21.24')
+  expect(amount('Per 30 days')).toBe('¥637.2')
   expect(screen.getByText(/The cache saves/)).toHaveTextContent('74%')
 })
 
 it('recomputes when the customer changes the workload', async () => {
   const user = userEvent.setup()
-  render(<ClaudeCodeEstimator models={[sonnet]} />)
+  render(<ClaudeCodeEstimator models={[sonnet]} priceRate={2} />)
 
   const turns = screen.getByLabelText('Turns per day')
   await user.clear(turns)
   await user.type(turns, '100')
 
-  expect(amount('Per day')).toBe('$5.31')
+  expect(amount('Per day')).toBe('¥10.62')
 })
 
 it('offers a model picker only when there is more than one model', () => {
-  const { rerender } = render(<ClaudeCodeEstimator models={[sonnet]} />)
+  const { rerender } = render(
+    <ClaudeCodeEstimator models={[sonnet]} priceRate={2} />
+  )
   expect(
     screen.queryByRole('combobox', { name: 'Model' })
   ).not.toBeInTheDocument()
@@ -86,6 +88,7 @@ it('offers a model picker only when there is more than one model', () => {
   rerender(
     <ClaudeCodeEstimator
       models={[sonnet, { ...sonnet, id: 2, model_name: 'claude-opus-5-5' }]}
+      priceRate={2}
     />
   )
   expect(screen.getByRole('combobox', { name: 'Model' })).toHaveTextContent(
@@ -105,6 +108,7 @@ it('names the tier a context-priced model bills the workload at', async () => {
             'len <= 100000 ? tier("standard", p * 0.1 + c * 0.5 + cr * 0.01 + cc * 0.125) : tier("long_context", p * 0.5 + c * 2.5 + cr * 0.05 + cc * 0.625)',
         },
       ]}
+      priceRate={2}
     />
   )
   expect(screen.getByText(/billed at the standard tier/)).toBeVisible()
@@ -118,7 +122,10 @@ it('names the tier a context-priced model bills the workload at', async () => {
 
 it('renders nothing for a model priced per request', () => {
   const { container } = render(
-    <ClaudeCodeEstimator models={[{ ...sonnet, quota_type: 1 }]} />
+    <ClaudeCodeEstimator
+      models={[{ ...sonnet, quota_type: 1 }]}
+      priceRate={2}
+    />
   )
   expect(container).toBeEmptyDOMElement()
 })
