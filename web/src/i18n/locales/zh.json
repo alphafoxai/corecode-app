@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "缓存稳定命中",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "同一个 Claude Code 会话固定在同一个账号上，长任务越跑越省。",
     "Pay for what you use": "用多少，付多少",
-    "Every request's usage and cost is listed in the console.": "每一条请求的用量和费用都能在控制台查到。"
+    "Every request's usage and cost is listed in the console.": "每一条请求的用量和费用都能在控制台查到。",
+    "Hit rate": "命中率",
+    "Net cache savings": "净缓存节省",
+    "How savings are estimated": "节省金额如何估算",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "按当前价格估算：缓存读取相比按完整输入价计费省下的金额，减去缓存写入高于完整输入价的部分。所有缓存写入都按 5 分钟写入计价。",
+    "Show cache hit rate for": "按模型查看缓存命中率",
+    "{{delta}}pp vs previous period": "较上一周期 {{delta}}pp",
+    "{{change}} vs previous period": "较上一周期 {{change}}",
+    "Saved {{saved}} · write premium {{premium}}": "节省 {{saved}} · 写入溢价 {{premium}}",
+    "Some models have no price and are left out": "部分模型没有价格，未计入",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "缓存读取 ÷（读取 + 写入），只统计会上报缓存用量的模型"
   }
 }

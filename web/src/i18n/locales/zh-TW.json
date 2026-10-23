@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "快取穩定命中",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "同一個 Claude Code 工作階段固定在同一個帳號上，長任務越跑越省。",
     "Pay for what you use": "用多少，付多少",
-    "Every request's usage and cost is listed in the console.": "每一筆請求的用量和費用都能在控制台查到。"
+    "Every request's usage and cost is listed in the console.": "每一筆請求的用量和費用都能在控制台查到。",
+    "Hit rate": "命中率",
+    "Net cache savings": "淨快取節省",
+    "How savings are estimated": "節省金額如何估算",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "按目前價格估算：快取讀取相比按完整輸入價計費省下的金額，減去快取寫入高於完整輸入價的部分。所有快取寫入都按 5 分鐘寫入計價。",
+    "Show cache hit rate for": "按模型查看快取命中率",
+    "{{delta}}pp vs previous period": "較上一週期 {{delta}}pp",
+    "{{change}} vs previous period": "較上一週期 {{change}}",
+    "Saved {{saved}} · write premium {{premium}}": "節省 {{saved}} · 寫入溢價 {{premium}}",
+    "Some models have no price and are left out": "部分模型沒有價格，未計入",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "快取讀取 ÷（讀取 + 寫入），只統計會回報快取用量的模型"
   }
 }

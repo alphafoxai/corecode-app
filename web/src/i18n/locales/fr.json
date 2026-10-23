@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "Un cache de prompt qui fait mouche",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Chaque session Claude Code reste sur un même compte : plus une tâche est longue, moins elle coûte.",
     "Pay for what you use": "Payez ce que vous utilisez",
-    "Every request's usage and cost is listed in the console.": "L’usage et le coût de chaque requête sont consultables dans la console."
+    "Every request's usage and cost is listed in the console.": "L’usage et le coût de chaque requête sont consultables dans la console.",
+    "Hit rate": "Taux de succès",
+    "Net cache savings": "Économies nettes du cache",
+    "How savings are estimated": "Comment les économies sont estimées",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "Estimation aux prix actuels : ce que les lectures du cache ont économisé par rapport au prix d’entrée complet, moins le surcoût des écritures du cache. Chaque écriture est comptée comme une écriture de 5 minutes.",
+    "Show cache hit rate for": "Afficher le taux de cache pour",
+    "{{delta}}pp vs previous period": "{{delta}} pts vs période précédente",
+    "{{change}} vs previous period": "{{change}} vs période précédente",
+    "Saved {{saved}} · write premium {{premium}}": "Économisé {{saved}} · surcoût d’écriture {{premium}}",
+    "Some models have no price and are left out": "Les modèles sans prix sont exclus",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Lectures du cache ÷ (lectures + écritures), pour les modèles qui signalent l’usage du cache"
   }
 }

@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "Bộ nhớ đệm prompt luôn trúng",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Mỗi phiên Claude Code được giữ trên cùng một tài khoản, nên tác vụ càng dài càng tiết kiệm.",
     "Pay for what you use": "Dùng bao nhiêu, trả bấy nhiêu",
-    "Every request's usage and cost is listed in the console.": "Mức sử dụng và chi phí của từng yêu cầu đều xem được trong bảng điều khiển."
+    "Every request's usage and cost is listed in the console.": "Mức sử dụng và chi phí của từng yêu cầu đều xem được trong bảng điều khiển.",
+    "Hit rate": "Tỷ lệ trúng",
+    "Net cache savings": "Tiết kiệm ròng nhờ cache",
+    "How savings are estimated": "Cách ước tính khoản tiết kiệm",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "Ước tính theo giá hiện tại: số tiền đọc cache tiết kiệm được so với giá đầu vào đầy đủ, trừ phần ghi cache phải trả cao hơn giá đó. Mọi lần ghi cache đều tính như ghi 5 phút.",
+    "Show cache hit rate for": "Xem tỷ lệ trúng cache cho",
+    "{{delta}}pp vs previous period": "{{delta}} điểm % so với kỳ trước",
+    "{{change}} vs previous period": "{{change}} so với kỳ trước",
+    "Saved {{saved}} · write premium {{premium}}": "Tiết kiệm {{saved}} · phụ phí ghi {{premium}}",
+    "Some models have no price and are left out": "Một số mô hình chưa có giá nên không được tính",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Lượt đọc cache ÷ (đọc + ghi), chỉ tính các mô hình có báo cáo dùng cache"
   }
 }
