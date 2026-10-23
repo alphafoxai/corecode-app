@@ -17,14 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
+import { ArrowLeft, ArrowRight, Loader2, Mail, MailCheck } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -36,13 +36,20 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { requestMagicLink } from '@/features/auth/api'
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp'
+import { requestMagicLink, signInWithMagicLinkCode } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import {
   forgotPasswordFormSchema,
+  MAGIC_LINK_CODE_LENGTH,
   MAGIC_LINK_COUNTDOWN,
 } from '@/features/auth/constants'
+import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useCountdown } from '@/hooks/use-countdown'
 import { useStatus } from '@/hooks/use-status'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -60,7 +67,9 @@ type MagicLinkFormProps = {
 }
 
 // One field signs customers in and registers them: an unknown address creates
-// the account when the operator allows registration.
+// the account when the operator allows registration. The mail carries a code
+// and a link to the same credential, so the customer can type the code here or
+// open the link on any device.
 export function MagicLinkForm({
   className,
   redirectTo,
@@ -82,18 +91,14 @@ export function MagicLinkForm({
     setAgreedToLegal(!requiresLegalConsent)
   }, [requiresLegalConsent])
 
-  const {
-    secondsLeft,
-    isActive,
-    start: startCountdown,
-  } = useCountdown({ initialSeconds: MAGIC_LINK_COUNTDOWN })
+  const countdown = useCountdown({ initialSeconds: MAGIC_LINK_COUNTDOWN })
 
   const form = useForm<z.infer<typeof forgotPasswordFormSchema>>({
     resolver: zodResolver(forgotPasswordFormSchema),
     defaultValues: { email: '' },
   })
 
-  async function onSubmit(data: z.infer<typeof forgotPasswordFormSchema>) {
+  async function sendMail(email: string) {
     // A link that can open an account is a registration entry, so the same
     // consent gate as the password form applies before the send is spent.
     if (requiresLegalConsent && !agreedToLegal) {
@@ -103,11 +108,11 @@ export function MagicLinkForm({
 
     setIsLoading(true)
     try {
-      const res = await requestMagicLink(data.email, redirectTo)
+      const res = await requestMagicLink(email, redirectTo)
       if (res?.success) {
-        setSentTo(data.email)
-        startCountdown(res.resend_after)
-        toast.success(t('Sign-in link sent, please check your inbox'))
+        setSentTo(email)
+        countdown.start(res.resend_after)
+        toast.success(t('Sign-in code sent, please check your inbox'))
       } else {
         handleServerError(
           createServerError(res, t('Failed to send sign-in link'))
@@ -122,11 +127,25 @@ export function MagicLinkForm({
     }
   }
 
+  if (sentTo) {
+    return (
+      <MagicLinkCodeStep
+        className={className}
+        email={sentTo}
+        redirectTo={redirectTo}
+        isResending={isLoading}
+        resendSecondsLeft={countdown.isActive ? countdown.secondsLeft : 0}
+        onResend={() => sendMail(sentTo)}
+        onChangeEmail={() => setSentTo('')}
+      />
+    )
+  }
+
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        onSubmit={form.handleSubmit((data) => sendMail(data.email))}
+        className={cn('grid gap-5', className)}
       >
         {showOAuthProviders && (
           <OAuthProviders
@@ -143,39 +162,32 @@ export function MagicLinkForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('Email')}</FormLabel>
-              <FormControl>
-                <Input
-                  type='email'
-                  autoComplete='email'
-                  className='h-10'
-                  placeholder='name@example.com'
-                  {...field}
+              <div className='relative'>
+                <Mail
+                  aria-hidden='true'
+                  className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2'
                 />
-              </FormControl>
+                <FormControl>
+                  <Input
+                    type='email'
+                    autoComplete='email'
+                    className='h-11 pl-9'
+                    placeholder='name@example.com'
+                    {...field}
+                  />
+                </FormControl>
+              </div>
               <FormDescription>
                 {registrationEnabled
                   ? t(
-                      'We will email you a sign-in link. New email addresses create an account automatically.'
+                      'We will email you a sign-in code and link. New email addresses create an account automatically.'
                     )
-                  : t('We will email you a one-time sign-in link.')}
+                  : t('We will email you a one-time sign-in code and link.')}
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {sentTo && (
-          <Alert>
-            <AlertDescription>
-              {t(
-                'A sign-in link was sent to {{email}}. It works once and expires in 10 minutes.',
-                {
-                  email: sentTo,
-                }
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
 
         <LegalConsent
           status={status}
@@ -186,16 +198,179 @@ export function MagicLinkForm({
         <Button
           type='submit'
           size='lg'
-          className='h-10'
-          disabled={isLoading || isActive}
+          className='h-11'
+          disabled={isLoading || countdown.isActive}
         >
           {isLoading && <Loader2 className='animate-spin' />}
-          {isActive
-            ? t('Resend link ({{seconds}}s)', { seconds: secondsLeft })
-            : t('Send sign-in link')}
+          {countdown.isActive
+            ? t('Resend code ({{seconds}}s)', {
+                seconds: countdown.secondsLeft,
+              })
+            : t('Send sign-in code')}
           {!isLoading && <ArrowRight />}
         </Button>
       </form>
     </Form>
+  )
+}
+
+type MagicLinkCodeStepProps = {
+  className?: string
+  email: string
+  redirectTo?: string
+  isResending: boolean
+  resendSecondsLeft: number
+  onResend: () => void
+  onChangeEmail: () => void
+}
+
+// The second step after the mail is sent: the code is typed or pasted here,
+// and the mailed link remains the alternative that needs no transcription.
+function MagicLinkCodeStep({
+  className,
+  email,
+  redirectTo,
+  isResending,
+  resendSecondsLeft,
+  onResend,
+  onChangeEmail,
+}: MagicLinkCodeStepProps) {
+  const { t } = useTranslation()
+  const { handleLoginResult } = useAuthRedirect()
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
+  const codeId = useId()
+  const errorId = useId()
+
+  async function verify(value: string) {
+    if (value.length !== MAGIC_LINK_CODE_LENGTH || isVerifying) return
+    setIsVerifying(true)
+    setError('')
+    try {
+      const res = await signInWithMagicLinkCode(email, value)
+      if (res?.success) {
+        await handleLoginResult(res.data, redirectTo)
+        return
+      }
+      setError(t('Code is incorrect or has expired'))
+      setCode('')
+    } catch (err: unknown) {
+      setError(
+        AuthOperationError.from(err, t('Code is incorrect or has expired'))
+          .message
+      )
+      setCode('')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  return (
+    <form
+      className={cn('grid gap-6', className)}
+      onSubmit={(event) => {
+        event.preventDefault()
+        void verify(code)
+      }}
+    >
+      <div className='flex items-start gap-3'>
+        <div className='bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full'>
+          <MailCheck aria-hidden='true' className='size-5' />
+        </div>
+        <div className='min-w-0 space-y-1'>
+          <h2 className='text-base font-semibold'>{t('Check your email')}</h2>
+          <p className='text-muted-foreground truncate text-sm' title={email}>
+            {email}
+          </p>
+        </div>
+      </div>
+
+      <div className='grid gap-3'>
+        <label htmlFor={codeId} className='text-sm font-medium'>
+          {t('Sign-in code')}
+        </label>
+        <InputOTP
+          id={codeId}
+          autoFocus
+          maxLength={MAGIC_LINK_CODE_LENGTH}
+          pattern={REGEXP_ONLY_DIGITS}
+          inputMode='numeric'
+          autoComplete='one-time-code'
+          value={code}
+          disabled={isVerifying}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(value) => {
+            setCode(value)
+            if (error) setError('')
+          }}
+          onComplete={(value: string) => void verify(value)}
+          containerClassName='w-full'
+        >
+          <InputOTPGroup className='w-full'>
+            {Array.from({ length: MAGIC_LINK_CODE_LENGTH }, (_, index) => (
+              <InputOTPSlot
+                key={index}
+                index={index}
+                aria-invalid={error ? true : undefined}
+                className='h-12 flex-1 font-mono text-lg font-medium'
+              />
+            ))}
+          </InputOTPGroup>
+        </InputOTP>
+        {error ? (
+          <p id={errorId} role='alert' className='text-destructive text-sm'>
+            {error}
+          </p>
+        ) : (
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              'Enter the 6-digit code from the email. It works once and expires in 10 minutes.'
+            )}
+          </p>
+        )}
+      </div>
+
+      <Button
+        type='submit'
+        size='lg'
+        className='h-11'
+        disabled={isVerifying || code.length !== MAGIC_LINK_CODE_LENGTH}
+      >
+        {isVerifying && <Loader2 className='animate-spin' />}
+        {t('Sign in')}
+      </Button>
+
+      <p className='text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5 text-sm'>
+        {t('You can also open the link in the email to sign in.')}
+      </p>
+
+      <div className='flex items-center justify-between gap-2 text-sm'>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          className='text-muted-foreground hover:text-foreground -ml-2'
+          onClick={onChangeEmail}
+        >
+          <ArrowLeft aria-hidden='true' />
+          {t('Use a different email')}
+        </Button>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          className='text-muted-foreground hover:text-foreground -mr-2'
+          disabled={isResending || resendSecondsLeft > 0}
+          onClick={onResend}
+        >
+          {isResending && <Loader2 className='animate-spin' />}
+          {resendSecondsLeft > 0
+            ? t('Resend code ({{seconds}}s)', { seconds: resendSecondsLeft })
+            : t('Resend code')}
+        </Button>
+      </div>
+    </form>
   )
 }

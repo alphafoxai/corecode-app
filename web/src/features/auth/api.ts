@@ -194,6 +194,20 @@ export async function signInWithMagicLink(
   return res.data
 }
 
+// Sign in with the six-digit code mailed beside the link, for a customer reading
+// mail on another device. The code and the link spend the same credential.
+export async function signInWithMagicLinkCode(
+  email: string,
+  code: string
+): Promise<LoginResponse> {
+  const res = await api.post(
+    '/api/magic_link/code',
+    { email, code },
+    { skipAuthRefresh: true }
+  )
+  return res.data
+}
+
 // ----------------------------------------------------------------------------
 // OAuth
 // ----------------------------------------------------------------------------

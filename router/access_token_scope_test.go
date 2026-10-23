@@ -39,6 +39,7 @@ var accessTokenExemptRoutes = []string{
 	"GET /api/reset_password",
 	"POST /api/magic_link/send",
 	"POST /api/magic_link/login",
+	"POST /api/magic_link/code",
 	"POST /api/user/reset",
 	"POST /api/user/register",
 	"GET /api/user/login/encryption-key",

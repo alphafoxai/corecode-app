@@ -28,7 +28,7 @@ import {
 } from '@tanstack/react-router'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
 import { STATUS_QUERY_KEY } from '@/lib/status-query'
@@ -113,8 +113,14 @@ function SignInHarness() {
 async function submitEmail(user: ReturnType<typeof userEvent.setup>) {
   const emailInput = await screen.findByLabelText('Email')
   await user.type(emailInput, 'someone@example.com')
-  await user.click(screen.getByRole('button', { name: /Send sign-in link/ }))
+  await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
 }
+
+// input-otp probes for password-manager badges with elementFromPoint, which
+// jsdom does not implement.
+beforeAll(() => {
+  document.elementFromPoint ??= () => null
+})
 
 afterEach(() => {
   cleanup()
@@ -132,7 +138,7 @@ describe('MagicLinkForm', () => {
     const user = userEvent.setup()
     const emailInput = await screen.findByLabelText('Email')
     await user.type(emailInput, 'someone@example.com')
-    await user.click(screen.getByRole('button', { name: /Send sign-in link/ }))
+    await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
 
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
     expect(post).toHaveBeenCalledWith(
@@ -140,13 +146,12 @@ describe('MagicLinkForm', () => {
       { email: 'someone@example.com', redirect: '/pricing' },
       { skipAuthRefresh: true }
     )
-    await waitFor(() =>
-      expect(
-        screen.getByText(
-          'A sign-in link was sent to someone@example.com. It works once and expires in 10 minutes.'
-        )
-      ).toBeInTheDocument()
-    )
+    // The form moves to the code step for the address the mail went to.
+    expect(
+      await screen.findByRole('heading', { name: 'Check your email' })
+    ).toBeInTheDocument()
+    expect(screen.getByText('someone@example.com')).toBeInTheDocument()
+    expect(screen.getByLabelText('Sign-in code')).toBeInTheDocument()
   })
 
   it('reserves the resend button for the server-provided wait', async () => {
@@ -158,11 +163,11 @@ describe('MagicLinkForm', () => {
     const user = userEvent.setup()
     const emailInput = await screen.findByLabelText('Email')
     await user.type(emailInput, 'someone@example.com')
-    await user.click(screen.getByRole('button', { name: /Send sign-in link/ }))
+    await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /Resend link \(\d+s\)/ })
+        screen.getByRole('button', { name: /Resend code \(\d+s\)/ })
       ).toBeDisabled()
     )
   })
@@ -179,7 +184,7 @@ describe('MagicLinkForm', () => {
     expect(post).not.toHaveBeenCalled()
 
     await user.click(await screen.findByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: /Send sign-in link/ }))
+    await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
   })
 
@@ -195,19 +200,78 @@ describe('MagicLinkForm', () => {
     const user = userEvent.setup()
     const emailInput = await screen.findByLabelText('Email')
     await user.type(emailInput, 'someone@example.com')
-    await user.click(screen.getByRole('button', { name: /Send sign-in link/ }))
+    await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
 
-    // The delivered-link confirmation must never appear for a rejected request.
+    // The code step must never appear for a rejected request.
     await waitFor(() =>
       expect(
-        screen.queryByText(
-          'A sign-in link was sent to someone@example.com. It works once and expires in 10 minutes.'
-        )
+        screen.queryByRole('heading', { name: 'Check your email' })
       ).not.toBeInTheDocument()
     )
     expect(
-      screen.getByRole('button', { name: /Send sign-in link/ })
+      screen.getByRole('button', { name: /Send sign-in code/ })
     ).toBeEnabled()
+  })
+})
+
+describe('MagicLinkForm code step', () => {
+  function mockMailAndCode(codeResponse: Record<string, unknown>) {
+    return vi.spyOn(api, 'post').mockImplementation(((url: string) =>
+      Promise.resolve({
+        data:
+          url === '/api/magic_link/send'
+            ? { success: true, resend_after: 45 }
+            : codeResponse,
+      })) as never)
+  }
+
+  it('signs in with the six digits as soon as the last one is typed', async () => {
+    const post = mockMailAndCode({ success: false, message: 'x' })
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    await submitEmail(user)
+
+    await user.type(await screen.findByLabelText('Sign-in code'), '123456')
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        '/api/magic_link/code',
+        { email: 'someone@example.com', code: '123456' },
+        { skipAuthRefresh: true }
+      )
+    )
+  })
+
+  it('shows a wrong code beside the field and lets the customer retype', async () => {
+    mockMailAndCode({
+      success: false,
+      message: 'Code is incorrect or has expired',
+    })
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    await submitEmail(user)
+
+    const input = await screen.findByLabelText('Sign-in code')
+    await user.type(input, '000000')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Code is incorrect or has expired'
+    )
+    expect(input).toHaveValue('')
+    await user.type(input, '1')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('returns to the email field for a different address', async () => {
+    mockMailAndCode({ success: false })
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    await submitEmail(user)
+
+    await user.click(
+      await screen.findByRole('button', { name: /Use a different email/ })
+    )
+    expect(await screen.findByLabelText('Email')).toBeInTheDocument()
   })
 })
 
@@ -223,7 +287,7 @@ describe('SignUp', () => {
     expect(screen.queryByText('Password')).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'We will email you a sign-in link. New email addresses create an account automatically.'
+        'We will email you a sign-in code and link. New email addresses create an account automatically.'
       )
     ).toBeInTheDocument()
   })
@@ -232,7 +296,7 @@ describe('SignUp', () => {
     renderInRouter(SignUp, '/', { magic_link_enabled: false })
 
     expect(await screen.findByLabelText('Username')).toBeInTheDocument()
-    expect(screen.queryByText(/Send sign-in link/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Send sign-in code/)).not.toBeInTheDocument()
   })
 })
 

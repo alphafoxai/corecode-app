@@ -70,6 +70,7 @@ const (
 
 	MsgEmailMagicLinkSubject      = "email.magic_link.subject"
 	MsgEmailMagicLinkGreeting     = "email.magic_link.greeting"
+	MsgEmailMagicLinkCode         = "email.magic_link.code"
 	MsgEmailMagicLinkLink         = "email.magic_link.link"
 	MsgEmailMagicLinkLinkFallback = "email.magic_link.link_fallback"
 	MsgEmailMagicLinkValidity     = "email.magic_link.validity"
