@@ -73,6 +73,8 @@ const SECURITY_SECTIONS = [
         defaultValues={{
           'token_setting.max_user_tokens':
             settings['token_setting.max_user_tokens'],
+          'token_setting.concurrency_limits':
+            settings['token_setting.concurrency_limits'],
         }}
       />
     ),

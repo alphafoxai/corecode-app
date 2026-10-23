@@ -7532,6 +7532,9 @@
     "{{change}} vs previous period": "{{change}} к прошлому периоду",
     "Saved {{saved}} · write premium {{premium}}": "Сэкономлено {{saved}} · наценка за запись {{premium}}",
     "Some models have no price and are left out": "Модели без цены не учтены",
-    "Cache reads ÷ (reads + writes), for models that report cache usage": "Чтения из кэша ÷ (чтения + записи), только для моделей, сообщающих об использовании кэша"
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Чтения из кэша ÷ (чтения + записи), только для моделей, сообщающих об использовании кэша",
+    "Concurrent requests per token": "Одновременных запросов на токен",
+    "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "Сколько запросов один токен может выполнять одновременно, по группе владельца. Лишний запрос получает 429, и Claude Code повторяет его. Группа без значения или с 0 не ограничена.",
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Укажите JSON-объект групп и целых чисел, например {\"default\": 5}"
   }
 }

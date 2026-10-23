@@ -7532,6 +7532,9 @@
     "{{change}} vs previous period": "较上一周期 {{change}}",
     "Saved {{saved}} · write premium {{premium}}": "节省 {{saved}} · 写入溢价 {{premium}}",
     "Some models have no price and are left out": "部分模型没有价格，未计入",
-    "Cache reads ÷ (reads + writes), for models that report cache usage": "缓存读取 ÷（读取 + 写入），只统计会上报缓存用量的模型"
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "缓存读取 ÷（读取 + 写入），只统计会上报缓存用量的模型",
+    "Concurrent requests per token": "每个令牌的并发请求数",
+    "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "按令牌所属用户的分组，限制一个令牌同时进行的请求数。超出的请求会收到 429，Claude Code 会自动重试。未列出或设为 0 的分组不限制。",
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "请填写用户分组到整数的 JSON 对象，例如 {\"default\": 5}"
   }
 }
