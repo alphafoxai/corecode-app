@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { useStatus } from '@/hooks/use-status'
+import { useSystemConfig } from '@/hooks/use-system-config'
 
 import { AuthLayout } from '../auth-layout'
 import { TermsFooter } from '../components/terms-footer'
@@ -32,6 +33,7 @@ export function SignIn() {
   const { t } = useTranslation()
   const { redirect } = useSearch({ from: '/(auth)/sign-in' })
   const { status } = useStatus()
+  const { systemName } = useSystemConfig()
 
   const magicLinkEnabled =
     (status?.magic_link_enabled ?? status?.data?.magic_link_enabled ?? true) !==
@@ -44,22 +46,15 @@ export function SignIn() {
     (status?.password_login_enabled ??
       status?.data?.password_login_enabled ??
       true) !== false
-  const hasAlternativeLogin = Boolean(
-    status?.passkey_login ||
-    status?.wechat_login ||
-    status?.github_oauth ||
-    status?.discord_oauth ||
-    status?.oidc_enabled ||
-    status?.linuxdo_oauth ||
-    status?.telegram_oauth ||
-    (status?.custom_oauth_providers?.length ?? 0) > 0
-  )
+  // OAuth already sits above the emailed link, so only the password form,
+  // passkeys and WeChat need the second view.
+  const hasOtherLogin = Boolean(status?.passkey_login || status?.wechat_login)
 
   // The emailed link is the customer path; the password form stays reachable for
-  // the root account and for passkey or OAuth sign-in.
+  // the root account and for passkey or WeChat sign-in.
   const [showPasswordForm, setShowPasswordForm] = useState(!magicLinkEnabled)
   const showOtherWays =
-    magicLinkEnabled && (passwordLoginEnabled || hasAlternativeLogin)
+    magicLinkEnabled && (passwordLoginEnabled || hasOtherLogin)
 
   // A separate sign-up page is only needed when the link itself cannot create
   // the account.
@@ -72,19 +67,18 @@ export function SignIn() {
     <AuthLayout>
       <div className='w-full space-y-8'>
         <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Sign in')}
-          </h2>
+          <h1 className='text-3xl'>
+            {t('Sign in to {{name}}', { name: systemName })}
+          </h1>
           {showRegisterLink && (
-            <p className='text-muted-foreground text-left text-sm sm:text-base'>
+            <p className='text-muted-foreground text-sm'>
               {t("Don't have an account?")}{' '}
               <Link
                 to='/sign-up'
-                className='hover:text-primary font-medium underline underline-offset-4'
+                className='text-primary font-medium underline-offset-4 hover:underline'
               >
                 {t('Sign up')}
               </Link>
-              .
             </p>
           )}
         </div>
@@ -95,6 +89,7 @@ export function SignIn() {
           <MagicLinkForm
             redirectTo={redirect}
             registrationEnabled={magicLinkRegisterEnabled}
+            showOAuthProviders
           />
         )}
 
@@ -102,7 +97,7 @@ export function SignIn() {
           <Button
             type='button'
             variant='link'
-            className='w-full'
+            className='text-muted-foreground hover:text-foreground w-full'
             onClick={() => setShowPasswordForm((current) => !current)}
           >
             {showPasswordForm

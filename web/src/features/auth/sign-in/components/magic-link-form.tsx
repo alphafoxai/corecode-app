@@ -38,6 +38,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { requestMagicLink } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
+import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import {
   forgotPasswordFormSchema,
   MAGIC_LINK_COUNTDOWN,
@@ -53,6 +54,9 @@ type MagicLinkFormProps = {
   className?: string
   redirectTo?: string
   registrationEnabled?: boolean
+  // OAuth sits beside the link, not behind "another way": both can open an
+  // account, so a new customer sees every way in at once.
+  showOAuthProviders?: boolean
 }
 
 // One field signs customers in and registers them: an unknown address creates
@@ -61,6 +65,7 @@ export function MagicLinkForm({
   className,
   redirectTo,
   registrationEnabled = true,
+  showOAuthProviders = false,
 }: MagicLinkFormProps) {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
@@ -123,6 +128,15 @@ export function MagicLinkForm({
         onSubmit={form.handleSubmit(onSubmit)}
         className={cn('grid gap-4', className)}
       >
+        {showOAuthProviders && (
+          <OAuthProviders
+            status={status}
+            redirectTo={redirectTo}
+            disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+            separatorLabel={t('Or continue with email')}
+          />
+        )}
+
         <FormField
           control={form.control}
           name='email'
@@ -133,6 +147,7 @@ export function MagicLinkForm({
                 <Input
                   type='email'
                   autoComplete='email'
+                  className='h-10'
                   placeholder='name@example.com'
                   {...field}
                 />
@@ -168,7 +183,12 @@ export function MagicLinkForm({
           onCheckedChange={setAgreedToLegal}
         />
 
-        <Button type='submit' disabled={isLoading || isActive}>
+        <Button
+          type='submit'
+          size='lg'
+          className='h-10'
+          disabled={isLoading || isActive}
+        >
           {isLoading && <Loader2 className='animate-spin' />}
           {isActive
             ? t('Resend link ({{seconds}}s)', { seconds: secondsLeft })

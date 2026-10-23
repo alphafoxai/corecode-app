@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 件の長いリクエストがキャッシュミス、合計 {{amount}}",
     "{{date}}: no cache data": "{{date}}：キャッシュデータなし",
     "{{date}}: {{rate}} cache hit": "{{date}}：キャッシュヒット {{rate}}",
-    "{{rate}} of cached context was reused": "キャッシュしたコンテキストの {{rate}} が再利用されました"
+    "{{rate}} of cached context was reused": "キャッシュしたコンテキストの {{rate}} が再利用されました",
+    "Or continue with email": "またはメールアドレスで続行",
+    "Or use your password": "またはパスワードでサインイン",
+    "Or sign up with a password": "またはパスワードで登録",
+    "Sign in to {{name}}": "{{name}} にサインイン",
+    "Claude Code relay": "Claude Code リレー",
+    "Pure Claude,": "純正の Claude、",
+    "nothing mixed in.": "混ぜ物なし。",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "すべてのリクエストに Anthropic 公式の Claude アカウントが応答します。モデルの差し替えも、他社モデルの混入もありません。",
+    "Only official Claude": "公式 Claude のみ",
+    "You pick Opus, Opus answers. No other model stands in.": "Opus を選べば、応答するのは Opus です。他のモデルで代替しません。",
+    "Prompt cache that keeps hitting": "プロンプトキャッシュが安定してヒット",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "各 Claude Code セッションは同じアカウントに固定されるため、長いタスクほどコストが下がります。",
+    "Pay for what you use": "使った分だけ",
+    "Every request's usage and cost is listed in the console.": "すべてのリクエストの使用量と費用をコンソールで確認できます。"
   }
 }

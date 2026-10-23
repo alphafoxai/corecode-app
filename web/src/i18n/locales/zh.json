@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 次长上下文请求没命中缓存，共扣费 {{amount}}",
     "{{date}}: no cache data": "{{date}}：无缓存数据",
     "{{date}}: {{rate}} cache hit": "{{date}}：缓存命中 {{rate}}",
-    "{{rate}} of cached context was reused": "已缓存的上下文有 {{rate}} 被复用"
+    "{{rate}} of cached context was reused": "已缓存的上下文有 {{rate}} 被复用",
+    "Or continue with email": "或使用邮箱继续",
+    "Or use your password": "或使用账号密码登录",
+    "Or sign up with a password": "或使用账号密码注册",
+    "Sign in to {{name}}": "登录 {{name}}",
+    "Claude Code relay": "Claude Code 中转",
+    "Pure Claude,": "纯血 Claude，",
+    "nothing mixed in.": "一滴不掺。",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "每个请求都由 Anthropic 官方 Claude 账号作答，不换模型，不掺别家。",
+    "Only official Claude": "只有官方 Claude",
+    "You pick Opus, Opus answers. No other model stands in.": "你选的是 Opus，答你的就是 Opus，不拿别家模型顶替。",
+    "Prompt cache that keeps hitting": "缓存稳定命中",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "同一个 Claude Code 会话固定在同一个账号上，长任务越跑越省。",
+    "Pay for what you use": "用多少，付多少",
+    "Every request's usage and cost is listed in the console.": "每一条请求的用量和费用都能在控制台查到。"
   }
 }

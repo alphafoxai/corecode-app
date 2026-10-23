@@ -7495,6 +7495,20 @@
     "{{count}} long requests missed the cache, charged {{amount}} in total": "{{count}} 次長上下文請求沒命中快取，共扣費 {{amount}}",
     "{{date}}: no cache data": "{{date}}：無快取資料",
     "{{date}}: {{rate}} cache hit": "{{date}}：快取命中 {{rate}}",
-    "{{rate}} of cached context was reused": "已快取的上下文有 {{rate}} 被重用"
+    "{{rate}} of cached context was reused": "已快取的上下文有 {{rate}} 被重用",
+    "Or continue with email": "或使用電子郵件繼續",
+    "Or use your password": "或使用帳號密碼登入",
+    "Or sign up with a password": "或使用帳號密碼註冊",
+    "Sign in to {{name}}": "登入 {{name}}",
+    "Claude Code relay": "Claude Code 中轉",
+    "Pure Claude,": "純血 Claude，",
+    "nothing mixed in.": "一滴不摻。",
+    "Every request is answered by an official Anthropic Claude account. No model swaps, nothing from anyone else.": "每個請求都由 Anthropic 官方 Claude 帳號作答，不換模型，不摻別家。",
+    "Only official Claude": "只有官方 Claude",
+    "You pick Opus, Opus answers. No other model stands in.": "你選的是 Opus，回答你的就是 Opus，不拿別家模型頂替。",
+    "Prompt cache that keeps hitting": "快取穩定命中",
+    "Each Claude Code session stays on one account, so long tasks cost less as they run.": "同一個 Claude Code 工作階段固定在同一個帳號上，長任務越跑越省。",
+    "Pay for what you use": "用多少，付多少",
+    "Every request's usage and cost is listed in the console.": "每一筆請求的用量和費用都能在控制台查到。"
   }
 }
