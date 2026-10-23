@@ -171,3 +171,28 @@ func MigrateLegacyGitHubBindingWithTx(tx *gorm.DB, userID int, legacyID, gitHubI
 	}
 	return result.RowsAffected == 1, nil
 }
+
+// LinkUnboundIdentityWithTx binds an external identity to an account that has no
+// identity in that column yet. The OAuth login uses it when the provider
+// confirmed the address the account holds. It never replaces a binding: an
+// account already bound to another subject reports ErrAccountBindingChanged.
+func LinkUnboundIdentityWithTx(tx *gorm.DB, userID int, column, value string) error {
+	if !userBindColumns[column] || userID <= 0 || value == "" {
+		return ErrAccountBindingChanged
+	}
+	var count int64
+	if err := tx.Model(&User{}).Unscoped().Where(column+" = ?", value).Count(&count).Error; err != nil {
+		return err
+	}
+	if count != 0 {
+		return ErrExternalIdentityAlreadyClaimed
+	}
+	result := tx.Model(&User{}).Where("id = ? AND ("+column+" = '' OR "+column+" IS NULL)", userID).Update(column, value)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return ErrAccountBindingChanged
+	}
+	return nil
+}

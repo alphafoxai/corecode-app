@@ -7323,6 +7323,7 @@
     "Your Discord OAuth Client ID": "Your Discord OAuth Client ID",
     "Your Discord OAuth Client Secret": "Your Discord OAuth Client Secret",
     "{{provider}} login and registration has not been enabled by administrator": "{{provider}} login and registration has not been enabled by administrator",
+    "{{provider}} has not verified the email address of this account": "{{provider}} has not verified the email address of this account",
     "{{provider}} returned empty user info, please check settings": "{{provider}} returned empty user info, please check settings",
     "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}": "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}",
     "Your GitHub OAuth Client ID": "Your GitHub OAuth Client ID",

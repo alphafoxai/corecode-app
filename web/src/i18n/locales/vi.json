@@ -7323,6 +7323,7 @@
     "Your Discord OAuth Client ID": "Discord OAuth Client ID của bạn",
     "Your Discord OAuth Client Secret": "Discord OAuth Client Secret của bạn",
     "{{provider}} login and registration has not been enabled by administrator": "Quản trị viên chưa bật đăng nhập và đăng ký qua {{provider}}",
+    "{{provider}} has not verified the email address of this account": "{{provider}} chưa xác minh địa chỉ email của tài khoản này",
     "{{provider}} returned empty user info, please check settings": "{{provider}} trả về thông tin người dùng trống, vui lòng kiểm tra cài đặt",
     "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}": "Nạp tiền qua {{provider}} thành công, số tiền đã nạp: {{quota}}, số tiền thanh toán: {{amount}}",
     "Your GitHub OAuth Client ID": "Client ID OAuth GitHub của bạn",

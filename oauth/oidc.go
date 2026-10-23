@@ -35,6 +35,7 @@ type oidcOAuthResponse struct {
 type oidcUser struct {
 	OpenID            string `json:"sub"`
 	Email             string `json:"email"`
+	EmailVerified     any    `json:"email_verified"`
 	Name              string `json:"name"`
 	PreferredUsername string `json:"preferred_username"`
 	Picture           string `json:"picture"`
@@ -147,6 +148,15 @@ func (p *OIDCProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAu
 		return nil, NewOAuthError(common.NewMessage(msgUserInfoEmpty, map[string]any{"provider": "OIDC"}))
 	}
 
+	// A new account takes this email, and an emailed sign-in link opens whichever
+	// account holds an address, so an address the provider has not confirmed
+	// would let its claimant pre-register an account for the real owner. Google
+	// sends the claim as a boolean; some providers send the string "true".
+	if oidcUser.EmailVerified != true && oidcUser.EmailVerified != "true" {
+		logger.LogWarn(ctx, common.LogText("[OAuth-OIDC] GetUserInfo refused: email_verified=%v", oidcUser.EmailVerified))
+		return nil, NewOAuthError(common.NewMessage(msgEmailUnverified, map[string]any{"provider": p.GetName()}))
+	}
+
 	logger.LogDebug(ctx, "[OAuth-OIDC] GetUserInfo success: sub=%s, username=%s, name=%s, email=%s", oidcUser.OpenID, oidcUser.PreferredUsername, oidcUser.Name, oidcUser.Email)
 
 	return &OAuthUser{
@@ -154,6 +164,7 @@ func (p *OIDCProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAu
 		Username:       oidcUser.PreferredUsername,
 		DisplayName:    oidcUser.Name,
 		Email:          oidcUser.Email,
+		EmailVerified:  true,
 	}, nil
 }
 

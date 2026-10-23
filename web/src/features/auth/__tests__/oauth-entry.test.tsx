@@ -81,6 +81,22 @@ describe('sign-in OAuth entry', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
   })
 
+  it('marks the OIDC slot as Google when it points at Google', async () => {
+    renderAuthPage(SignIn, '/sign-in', {
+      ...linkWithLinuxDO,
+      oidc_enabled: true,
+      oidc_display_name: 'Google',
+      oidc_client_id: 'google-client',
+      oidc_authorization_endpoint:
+        'https://accounts.google.com/o/oauth2/v2/auth',
+    })
+
+    const google = await screen.findByRole('button', {
+      name: /Continue with Google/,
+    })
+    expect(google.querySelector('title')?.textContent).toBe('Google')
+  })
+
   it('keeps the password form reachable when OAuth is the only other provider', async () => {
     renderAuthPage(SignIn, '/sign-in', {
       ...linkWithLinuxDO,

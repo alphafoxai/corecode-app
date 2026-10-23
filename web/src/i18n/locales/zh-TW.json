@@ -7323,6 +7323,7 @@
     "Your Discord OAuth Client ID": "您的 Discord OAuth 用戶端 ID",
     "Your Discord OAuth Client Secret": "您的 Discord OAuth 用戶端密鑰",
     "{{provider}} login and registration has not been enabled by administrator": "管理員未開啟透過 {{provider}} 登入及註冊",
+    "{{provider}} has not verified the email address of this account": "{{provider}} 尚未驗證此帳號的電子郵件地址",
     "{{provider}} returned empty user info, please check settings": "{{provider}} 回傳的使用者資訊為空，請檢查設定",
     "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}": "{{provider}} 儲值成功，儲值額度：{{quota}}，支付金額：{{amount}}",
     "Your GitHub OAuth Client ID": "您的 GitHub OAuth 用戶端 ID",

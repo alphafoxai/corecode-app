@@ -23,17 +23,21 @@ type OAuthUser struct {
 	DisplayName string
 	// Email is the email from the OAuth provider
 	Email string
+	// EmailVerified reports that the provider confirmed Email belongs to this
+	// account. Only then may the login match Email against an existing account.
+	EmailVerified bool
 	// Extra contains any additional provider-specific data
 	Extra map[string]any
 }
 
 // Texts of OAuthError that the web console translates.
 const (
-	msgInvalidCode   = "Invalid authorization code"
-	msgTokenFailed   = "Failed to get token from {{provider}}, please check settings"
-	msgUserInfoEmpty = "{{provider}} returned empty user info, please check settings"
-	msgConnectFailed = "Unable to connect to {{provider}} server, please try again later"
-	msgGetUserFailed = "Failed to get user information"
+	msgInvalidCode     = "Invalid authorization code"
+	msgTokenFailed     = "Failed to get token from {{provider}}, please check settings"
+	msgUserInfoEmpty   = "{{provider}} returned empty user info, please check settings"
+	msgConnectFailed   = "Unable to connect to {{provider}} server, please try again later"
+	msgGetUserFailed   = "Failed to get user information"
+	msgEmailUnverified = "{{provider}} has not verified the email address of this account"
 )
 
 // OAuthError represents a translatable OAuth error
