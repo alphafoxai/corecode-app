@@ -374,15 +374,6 @@ export function Dashboard() {
                   </Suspense>
                 </FadeIn>
               )}
-              <FadeIn delay={0.08}>
-                <Suspense fallback={<ModelChartsFallback />}>
-                  <LazyCacheHitRateChart
-                    data={modelData}
-                    loading={dataLoading}
-                    filters={modelFilters}
-                  />
-                </Suspense>
-              </FadeIn>
               <FadeIn delay={0.1}>
                 <Suspense fallback={<ModelChartsFallback />}>
                   <LazyConsumptionDistributionChart
@@ -406,6 +397,15 @@ export function Dashboard() {
                     timeGranularity={
                       modelFilters.time_granularity || DEFAULT_TIME_GRANULARITY
                     }
+                  />
+                </Suspense>
+              </FadeIn>
+              <FadeIn delay={0.2}>
+                <Suspense fallback={<ModelChartsFallback />}>
+                  <LazyCacheHitRateChart
+                    data={modelData}
+                    loading={dataLoading}
+                    filters={modelFilters}
                   />
                 </Suspense>
               </FadeIn>

@@ -14,8 +14,8 @@ write token counts. A customer could not see:
 
 ## Decision
 
-- **A cache hit rate panel on `/dashboard/models`,** above the consumption
-  chart. It follows the page's time range, granularity and user filter, and
+- **A cache hit rate panel on `/dashboard/models`,** at the bottom of the
+  page, below the model call chart. It follows the page's time range, granularity and user filter, and
   reads the `quota_data` rows the page already loads. One bar per hour, day or
   Monday-based week; a bucket without cache use shows no bar instead of 0%.
 - **The rate is reads ÷ (reads + writes),** the same as the overview, through
