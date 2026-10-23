@@ -97,6 +97,12 @@ const LazyConsumptionDistributionChart = lazy(() =>
   }))
 )
 
+const LazyCacheHitRateChart = lazy(() =>
+  import('./components/models/cache-hit-rate-chart').then((m) => ({
+    default: m.CacheHitRateChart,
+  }))
+)
+
 const LazyPerformanceOverview = lazy(() =>
   import('./components/models/performance-overview').then((m) => ({
     default: m.PerformanceOverview,
@@ -368,6 +374,15 @@ export function Dashboard() {
                   </Suspense>
                 </FadeIn>
               )}
+              <FadeIn delay={0.08}>
+                <Suspense fallback={<ModelChartsFallback />}>
+                  <LazyCacheHitRateChart
+                    data={modelData}
+                    loading={dataLoading}
+                    filters={modelFilters}
+                  />
+                </Suspense>
+              </FadeIn>
               <FadeIn delay={0.1}>
                 <Suspense fallback={<ModelChartsFallback />}>
                   <LazyConsumptionDistributionChart

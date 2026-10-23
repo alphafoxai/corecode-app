@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "Кэш промптов стабильно срабатывает",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Каждая сессия Claude Code закреплена за одним аккаунтом, поэтому длинные задачи со временем обходятся дешевле.",
     "Pay for what you use": "Платите за то, что используете",
-    "Every request's usage and cost is listed in the console.": "Объём и стоимость каждого запроса видны в консоли."
+    "Every request's usage and cost is listed in the console.": "Объём и стоимость каждого запроса видны в консоли.",
+    "Hit rate": "Доля попаданий",
+    "Net cache savings": "Чистая экономия на кэше",
+    "How savings are estimated": "Как оценивается экономия",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "Оценка по текущим ценам: сколько сэкономили чтения из кэша по сравнению с полной ценой ввода, минус переплата за записи в кэш. Каждая запись в кэш считается как 5-минутная.",
+    "Show cache hit rate for": "Показать попадания в кэш для",
+    "{{delta}}pp vs previous period": "{{delta}} п.п. к прошлому периоду",
+    "{{change}} vs previous period": "{{change}} к прошлому периоду",
+    "Saved {{saved}} · write premium {{premium}}": "Сэкономлено {{saved}} · наценка за запись {{premium}}",
+    "Some models have no price and are left out": "Модели без цены не учтены",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Чтения из кэша ÷ (чтения + записи), только для моделей, сообщающих об использовании кэша"
   }
 }

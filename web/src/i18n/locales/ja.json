@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "プロンプトキャッシュが安定してヒット",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "各 Claude Code セッションは同じアカウントに固定されるため、長いタスクほどコストが下がります。",
     "Pay for what you use": "使った分だけ",
-    "Every request's usage and cost is listed in the console.": "すべてのリクエストの使用量と費用をコンソールで確認できます。"
+    "Every request's usage and cost is listed in the console.": "すべてのリクエストの使用量と費用をコンソールで確認できます。",
+    "Hit rate": "ヒット率",
+    "Net cache savings": "キャッシュによる純節約額",
+    "How savings are estimated": "節約額の算出方法",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "現在の価格で推定：キャッシュ読み取りで通常の入力価格より節約できた額から、キャッシュ書き込みで通常の入力価格を上回った額を差し引いた値です。キャッシュ書き込みはすべて 5 分間の書き込みとして計算します。",
+    "Show cache hit rate for": "キャッシュヒット率の表示対象",
+    "{{delta}}pp vs previous period": "前期間比 {{delta}}pt",
+    "{{change}} vs previous period": "前期間比 {{change}}",
+    "Saved {{saved}} · write premium {{premium}}": "節約 {{saved}} · 書き込み割増 {{premium}}",
+    "Some models have no price and are left out": "価格のないモデルは含まれていません",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "キャッシュ読み取り ÷（読み取り + 書き込み）。キャッシュ使用量を報告するモデルのみ"
   }
 }

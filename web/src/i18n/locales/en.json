@@ -7510,6 +7510,16 @@
     "Prompt cache that keeps hitting": "Prompt cache that keeps hitting",
     "Each Claude Code session stays on one account, so long tasks cost less as they run.": "Each Claude Code session stays on one account, so long tasks cost less as they run.",
     "Pay for what you use": "Pay for what you use",
-    "Every request's usage and cost is listed in the console.": "Every request's usage and cost is listed in the console."
+    "Every request's usage and cost is listed in the console.": "Every request's usage and cost is listed in the console.",
+    "Hit rate": "Hit rate",
+    "Net cache savings": "Net cache savings",
+    "How savings are estimated": "How savings are estimated",
+    "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.": "Estimated from current prices: what cache reads saved against full input price, minus what cache writes cost above it. Every cache write is priced as a 5-minute write.",
+    "Show cache hit rate for": "Show cache hit rate for",
+    "{{delta}}pp vs previous period": "{{delta}}pp vs previous period",
+    "{{change}} vs previous period": "{{change}} vs previous period",
+    "Saved {{saved}} · write premium {{premium}}": "Saved {{saved}} · write premium {{premium}}",
+    "Some models have no price and are left out": "Some models have no price and are left out",
+    "Cache reads ÷ (reads + writes), for models that report cache usage": "Cache reads ÷ (reads + writes), for models that report cache usage"
   }
 }
