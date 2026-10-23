@@ -8,8 +8,8 @@ COPY ./VERSION /build/VERSION
 ARG BUILD_VERSION=dev
 # Install and build in one step, so node_modules (over 300 MB) never becomes a
 # layer: a registry cache hit on a separate install layer still has to pull and
-# unpack it, which took longer than installing from Bun's own cache. The mount
-# keeps that cache, and CI restores it between runs.
+# unpack it, which took longer than a fresh install. The mount speeds up local
+# rebuilds; CI starts with it empty.
 RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
     if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
     && bun install --frozen-lockfile \
