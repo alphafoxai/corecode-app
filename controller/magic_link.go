@@ -20,6 +20,7 @@ import (
 type magicLinkRequest struct {
 	Email    string `json:"email"`
 	Token    string `json:"token"`
+	Code     string `json:"code"`
 	Redirect string `json:"redirect"`
 }
 
@@ -119,7 +120,7 @@ func SendMagicLink(c *gin.Context) {
 		})
 		return
 	}
-	token, expiresAt, err := model.CreateMagicLink(email, c.ClientIP())
+	token, code, expiresAt, err := model.CreateMagicLink(email, c.ClientIP())
 	if err != nil {
 		common.SysError(common.LogText("failed to create magic link: %v", err))
 		common.ApiErrorT(c, "Failed to send sign-in email, please contact the administrator")
@@ -141,9 +142,13 @@ func SendMagicLink(c *gin.Context) {
 	subject := i18n.Translate(lang, i18n.MsgEmailMagicLinkSubject, systemName)
 	content := fmt.Sprintf("<p>%s</p>"+
 		"<p>%s</p>"+
+		"<p style=\"font-size:28px;font-weight:600;letter-spacing:6px;font-family:ui-monospace,Menlo,Consolas,monospace\">%s</p>"+
+		"<p>%s</p>"+
 		"<p>%s </p>"+
 		"<p>%s</p>",
 		i18n.Translate(lang, i18n.MsgEmailMagicLinkGreeting, systemName),
+		i18n.Translate(lang, i18n.MsgEmailMagicLinkCode),
+		code,
 		i18n.Translate(lang, i18n.MsgEmailMagicLinkLink, map[string]any{"Link": link}),
 		i18n.Translate(lang, i18n.MsgEmailMagicLinkLinkFallback, map[string]any{"Link": link}),
 		i18n.Translate(lang, i18n.MsgEmailMagicLinkValidity, map[string]any{"Minutes": int(time.Until(expiresAt).Round(time.Minute) / time.Minute)}))
@@ -178,6 +183,38 @@ func LoginWithMagicLink(c *gin.Context) {
 		writeMagicLinkError(c, err)
 		return
 	}
+	signInMagicLinkAddress(c, email)
+}
+
+// LoginWithMagicLinkCode signs in with the code mailed beside the link, for a
+// customer reading mail on another device. It spends the same link, so the code
+// and the URL are one credential. Wrong, expired, and spent codes and unknown
+// addresses share one message.
+func LoginWithMagicLinkCode(c *gin.Context) {
+	if !magicLinkSendEnabled() {
+		common.ApiErrorT(c, "Email link sign-in has been disabled by administrator")
+		return
+	}
+	var req magicLinkRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	email, err := model.ConsumeMagicLinkCode(req.Email, req.Code)
+	if errors.Is(err, model.ErrAuthFlowInvalid) {
+		common.ApiErrorT(c, "Code is incorrect or has expired")
+		return
+	}
+	if err != nil {
+		writeMagicLinkError(c, err)
+		return
+	}
+	signInMagicLinkAddress(c, email)
+}
+
+// signInMagicLinkAddress issues the session for an address whose mailbox was
+// just proven, registering it when registration is open.
+func signInMagicLinkAddress(c *gin.Context, email string) {
 	c.Set("login_method", "magic_link")
 	user, err := model.GetUniqueUserByEmail(email)
 	if errors.Is(err, model.ErrEmailNotFound) {

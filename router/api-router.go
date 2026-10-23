@@ -51,6 +51,7 @@ func SetApiRouter(router *gin.Engine) {
 		// in yet (operator decision, tracked separately).
 		apiRouter.POST("/magic_link/send", middleware.CriticalRateLimit(), middleware.EmailVerificationRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.SendMagicLink)
 		apiRouter.POST("/magic_link/login", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.LoginWithMagicLink)
+		apiRouter.POST("/magic_link/code", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.LoginWithMagicLinkCode)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.POST("/oauth/state", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), anonymousRequestBodyLimit, controller.GenerateOAuthCode)
 		apiRouter.POST("/oauth/email/bind/start", middleware.UserAuth(), middleware.CriticalRateLimit(), middleware.UserCriticalRateLimit("account-security"), middleware.EmailVerificationRateLimit(), middleware.DisableCache(), controller.EmailBindStart)

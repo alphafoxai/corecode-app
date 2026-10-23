@@ -1,7 +1,11 @@
 package model
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
 	"errors"
+	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -30,6 +34,12 @@ const (
 	MagicLinkWindow      = time.Hour
 
 	magicLinkRedirectMaxLen = 200
+
+	// MagicLinkCodeMaxAttempts burns a link after that many wrong codes. With six
+	// digits and the per-mailbox send cap, a guesser gets at most 50 tries an hour
+	// against a million codes.
+	MagicLinkCodeDigits      = 6
+	MagicLinkCodeMaxAttempts = 5
 )
 
 var ErrMagicLinkRegistrationDisabled = errors.New("magic link registration is disabled")
@@ -37,27 +47,40 @@ var ErrMagicLinkRegistrationDisabled = errors.New("magic link registration is di
 // MagicLinkState is server-owned payload. It carries the address the link was
 // issued for, so consumption needs nothing but the opaque token and the link URL
 // leaks no account identifier.
+//
+// CodeHash is the keyed hash of the code mailed beside the link, and Attempts
+// counts wrong codes. A link issued before codes existed has no CodeHash and
+// signs in only through its URL.
 type MagicLinkState struct {
-	Email string `json:"email"`
-	IP    string `json:"ip,omitempty"`
+	Email    string `json:"email"`
+	IP       string `json:"ip,omitempty"`
+	CodeHash string `json:"code_hash,omitempty"`
+	Attempts int    `json:"attempts,omitempty"`
 }
 
 // CreateMagicLink issues a single-use sign-in link for an email address and
-// returns the opaque token together with the instant it stops working.
+// returns the opaque token, the code mailed beside it, and the instant both stop
+// working. The token and the code open the same row, so using either spends
+// both.
 //
 // Issuing consumes every earlier link for the same mailbox. One mailbox
 // therefore holds at most one live link: an older message in the inbox cannot
 // sign in after a newer request, and two live links can never race into two
 // accounts. Superseded rows stay counted, so the send throttle measures every
 // link actually issued rather than only the survivors.
-func CreateMagicLink(email, clientIP string) (string, time.Time, error) {
+func CreateMagicLink(email, clientIP string) (string, string, time.Time, error) {
 	email = NormalizeEmail(email)
 	if email == "" || len(email) > MagicLinkEmailMaxLen {
-		return "", time.Time{}, ErrAuthFlowInvalid
+		return "", "", time.Time{}, ErrAuthFlowInvalid
 	}
-	payload, err := common.Marshal(MagicLinkState{Email: email, IP: clientIP})
+	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
-		return "", time.Time{}, err
+		return "", "", time.Time{}, fmt.Errorf("generate magic link code: %w", err)
+	}
+	code := fmt.Sprintf("%0*d", MagicLinkCodeDigits, n.Int64())
+	payload, err := common.Marshal(MagicLinkState{Email: email, IP: clientIP, CodeHash: magicLinkCodeHash(email, code)})
+	if err != nil {
+		return "", "", time.Time{}, err
 	}
 	var token string
 	var flow *AuthFlow
@@ -80,9 +103,69 @@ func CreateMagicLink(email, clientIP string) (string, time.Time, error) {
 		return err
 	})
 	if err != nil {
-		return "", time.Time{}, err
+		return "", "", time.Time{}, err
 	}
-	return token, flow.ExpiresAt, nil
+	return token, code, flow.ExpiresAt, nil
+}
+
+// magicLinkCodeHash keys the code with the session secret and binds it to the
+// address, so a database copy alone cannot be searched for the six digits.
+func magicLinkCodeHash(email, code string) string {
+	return common.GenerateHMACWithKey([]byte("magic-link-code-v1:"+common.SessionSecret), email+":"+code)
+}
+
+// ConsumeMagicLinkCode spends the live link of an address when code matches the
+// one mailed with it, and returns the address. A wrong code counts against the
+// link, and the last allowed miss spends it.
+//
+// Every write is a compare-and-swap on the payload that was read, so concurrent
+// guesses cannot share one attempt: a guess whose write loses counts as wrong.
+// No live link, a link without a code, a wrong code, and a lost race all return
+// ErrAuthFlowInvalid.
+func ConsumeMagicLinkCode(email, code string) (string, error) {
+	email = NormalizeEmail(email)
+	code = strings.TrimSpace(code)
+	if email == "" || len(email) > MagicLinkEmailMaxLen || len(code) != MagicLinkCodeDigits {
+		return "", ErrAuthFlowInvalid
+	}
+	now := time.Now()
+	var flow AuthFlow
+	err := DB.Where("purpose = ? AND provider = ? AND consumed_at IS NULL AND expires_at > ?", MagicLinkPurpose, email, now).
+		Order("id desc").First(&flow).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", ErrAuthFlowInvalid
+	}
+	if err != nil {
+		return "", err
+	}
+	var state MagicLinkState
+	if err := common.UnmarshalJsonStr(flow.Payload, &state); err != nil || state.CodeHash == "" {
+		return "", ErrAuthFlowInvalid
+	}
+	live := DB.Model(&AuthFlow{}).Where("id = ? AND payload = ? AND consumed_at IS NULL", flow.Id, flow.Payload)
+	if hmac.Equal([]byte(state.CodeHash), []byte(magicLinkCodeHash(email, code))) {
+		result := live.Update("consumed_at", now)
+		if result.Error != nil {
+			return "", result.Error
+		}
+		if result.RowsAffected != 1 {
+			return "", ErrAuthFlowInvalid
+		}
+		return email, nil
+	}
+	state.Attempts++
+	payload, err := common.Marshal(state)
+	if err != nil {
+		return "", err
+	}
+	updates := map[string]any{"payload": string(payload)}
+	if state.Attempts >= MagicLinkCodeMaxAttempts {
+		updates["consumed_at"] = now
+	}
+	if err := live.Updates(updates).Error; err != nil {
+		return "", err
+	}
+	return "", ErrAuthFlowInvalid
 }
 
 // MagicLinkLastSentAt reports when a link was last issued for an address; the
