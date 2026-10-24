@@ -1,9 +1,13 @@
 package model
 
 import (
+	"context"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/gin-gonic/gin"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -241,4 +245,61 @@ func TestLogFormattingPreservesLargeIntegerLexemes(t *testing.T) {
 		FormatAdminLogs(adminLogs)
 		assert.Equal(t, unprivileged, adminLogs[0].Other)
 	})
+}
+
+// TestRecordClientIPIsHiddenFromUsersWhoDidNotAskForIt checks that
+// log_setting.record_client_ip records every client IP for administrators,
+// while a user sees IPs in their own logs only after turning on their own IP
+// setting.
+func TestRecordClientIPIsHiddenFromUsersWhoDidNotAskForIt(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logSetting := operation_setting.GetLogSetting()
+	previous := logSetting.RecordClientIP
+	t.Cleanup(func() { logSetting.RecordClientIP = previous })
+
+	optedIn := &User{Username: "ip-opted-in", AffCode: "ipin", Status: common.UserStatusEnabled, Setting: `{"record_ip_log":true}`}
+	optedOut := &User{Username: "ip-opted-out", AffCode: "ipout", Status: common.UserStatusEnabled}
+	require.NoError(t, DB.Create(optedIn).Error)
+	require.NoError(t, DB.Create(optedOut).Error)
+
+	record := func(userId int, token int) {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest("POST", "/v1/messages", nil)
+		c.Request.RemoteAddr = "203.0.113.7:4321"
+		RecordConsumeLog(c, userId, RecordConsumeLogParams{TokenId: token, ModelName: "claude-opus-5-5"})
+	}
+	storedIp := func(token int) string {
+		var log Log
+		require.NoError(t, LOG_DB.Where("token_id = ?", token).Order("id desc").First(&log).Error)
+		return log.Ip
+	}
+
+	logSetting.RecordClientIP = false
+	record(optedOut.Id, 990001)
+	assert.Empty(t, storedIp(990001), "without the operator switch an opted-out user's IP is not recorded")
+
+	logSetting.RecordClientIP = true
+	record(optedOut.Id, 990002)
+	record(optedIn.Id, 990003)
+	assert.Equal(t, "203.0.113.7", storedIp(990002))
+	assert.Equal(t, "203.0.113.7", storedIp(990003))
+
+	logs := []*Log{
+		{UserId: optedOut.Id, Ip: "203.0.113.7"},
+		{UserId: optedIn.Id, Ip: "203.0.113.7"},
+	}
+	formatUserLogs(logs, 0)
+	assert.Empty(t, logs[0].Ip, "a user who did not turn on IP logging does not see it")
+	assert.Equal(t, "203.0.113.7", logs[1].Ip)
+
+	var streamed []string
+	require.NoError(t, StreamUserLogs(context.Background(), optedOut.Id, LogFilter{}, func(log *Log) error {
+		streamed = append(streamed, log.Ip)
+		return nil
+	}))
+	require.NotEmpty(t, streamed)
+	for _, ip := range streamed {
+		assert.Empty(t, ip, "an export of an opted-out user's logs carries no IP")
+	}
 }

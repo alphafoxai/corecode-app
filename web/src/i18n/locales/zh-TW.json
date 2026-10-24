@@ -7533,6 +7533,9 @@
     "Cache reads ÷ (reads + writes), for models that report cache usage": "快取讀取 ÷（讀取 + 寫入），只統計會回報快取用量的模型",
     "Concurrent requests per token": "每個權杖的並行請求數",
     "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "按權杖所屬使用者的分組，限制一個權杖同時進行的請求數。超出的請求會收到 429，Claude Code 會自動重試。未列出或設為 0 的分組不限制。",
-    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "請填寫使用者分組到整數的 JSON 物件，例如 {\"default\": 5}"
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "請填寫使用者分組到整數的 JSON 物件，例如 {\"default\": 5}",
+    "Record client IP for every user": "為所有使用者記錄用戶端 IP",
+    "Store the client IP on every usage and error log, so administrators can spot a key used from many places. Users see IPs in their own logs only after turning on Record IP Address.": "在每筆使用紀錄和錯誤紀錄上記錄用戶端 IP，方便管理員發現同一個金鑰在很多地方使用。使用者只有自己開啟「記錄 IP 位址」後，才會在自己的紀錄裡看到 IP。",
+    "Show the client IP in your own usage and error logs. The service may record it for abuse prevention either way.": "在你自己的使用紀錄和錯誤紀錄裡顯示用戶端 IP。無論是否開啟，服務方都可能為防止濫用而記錄 IP。"
   }
 }

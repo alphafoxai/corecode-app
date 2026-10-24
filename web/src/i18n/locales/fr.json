@@ -7533,6 +7533,9 @@
     "Cache reads ÷ (reads + writes), for models that report cache usage": "Lectures du cache ÷ (lectures + écritures), pour les modèles qui signalent l’usage du cache",
     "Concurrent requests per token": "Requêtes simultanées par jeton",
     "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited.": "Nombre de requêtes qu’un jeton peut avoir en cours en même temps, selon le groupe de son propriétaire. Une requête de plus reçoit un 429 et Claude Code la relance. Un groupe absent ou à 0 n’est pas limité.",
-    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Utilisez un objet JSON associant des groupes à des entiers, par exemple {\"default\": 5}"
+    "Use a JSON object of user groups to whole numbers, for example {\"default\": 5}": "Utilisez un objet JSON associant des groupes à des entiers, par exemple {\"default\": 5}",
+    "Record client IP for every user": "Enregistrer l’IP client de tous les utilisateurs",
+    "Store the client IP on every usage and error log, so administrators can spot a key used from many places. Users see IPs in their own logs only after turning on Record IP Address.": "Enregistre l’IP client sur chaque journal d’utilisation et d’erreur, pour repérer une clé utilisée depuis de nombreux endroits. Un utilisateur ne voit les IP dans ses propres journaux qu’après avoir activé Enregistrer l’adresse IP.",
+    "Show the client IP in your own usage and error logs. The service may record it for abuse prevention either way.": "Afficher l’IP client dans vos propres journaux d’utilisation et d’erreur. Le service peut l’enregistrer dans tous les cas pour prévenir les abus."
   }
 }

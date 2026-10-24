@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -112,11 +113,28 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 }
 
 func formatUserLogs(logs []*Log, startIdx int) {
+	showsIp := make(map[int]bool)
 	for i := range logs {
 		logs[i].ChannelName = ""
 		logs[i].Other = formatLogOtherJSON(logs[i].Other, logOtherVisibilityUser)
+		shows, ok := showsIp[logs[i].UserId]
+		if !ok {
+			shows = userRecordsOwnIp(logs[i].UserId)
+			showsIp[logs[i].UserId] = shows
+		}
+		if !shows {
+			logs[i].Ip = ""
+		}
 	}
 	assignDisplayLogIds(logs, startIdx)
+}
+
+// userRecordsOwnIp reports whether the user turned on IP logging for
+// themselves. An IP recorded only because log_setting.record_client_ip is on
+// is kept for administrators and hidden from the user's own log views.
+func userRecordsOwnIp(userId int) bool {
+	settingMap, err := GetUserSetting(userId, false)
+	return err == nil && settingMap.RecordIpLog
 }
 
 // FormatAdminLogs removes root-only diagnostics while retaining operational
@@ -282,13 +300,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := upstreamRequestID(c)
 	otherStr := other.JSONString()
-	// 判断是否需要记录 IP
-	needRecordIp := false
-	if settingMap, err := GetUserSetting(userId, false); err == nil {
-		if settingMap.RecordIpLog {
-			needRecordIp = true
-		}
-	}
+	needRecordIp := operation_setting.GetLogSetting().RecordClientIP || userRecordsOwnIp(userId)
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
@@ -358,13 +370,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	other := params.Other
 	content := other.setContent(params.Content)
 	otherStr := other.JSONString()
-	// 判断是否需要记录 IP
-	needRecordIp := false
-	if settingMap, err := GetUserSetting(userId, false); err == nil {
-		if settingMap.RecordIpLog {
-			needRecordIp = true
-		}
-	}
+	needRecordIp := operation_setting.GetLogSetting().RecordClientIP || userRecordsOwnIp(userId)
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
@@ -660,11 +666,15 @@ func StreamUserLogs(ctx context.Context, userId int, filter LogFilter, fn func(*
 		return err
 	}
 	count := 0
+	showsIp := userRecordsOwnIp(userId)
 	return streamLogs(tx, "logs.id desc", func(log *Log) error {
 		count++
 		log.Id = count
 		log.ChannelName = ""
 		log.Other = formatLogOtherJSON(log.Other, logOtherVisibilityUser)
+		if !showsIp {
+			log.Ip = ""
+		}
 		return fn(log)
 	})
 }

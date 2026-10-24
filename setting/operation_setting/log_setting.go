@@ -17,6 +17,10 @@ type LogSetting struct {
 	// MaxRangeDays is the longest time range a user can search in their logs
 	// and dashboard, and the longest range any export can cover.
 	MaxRangeDays int `json:"max_range_days"`
+	// RecordClientIP stores the client IP of every usage and error log, so
+	// administrators can see a key used from many places. A user still sees
+	// IPs in their own logs only after turning on their own IP setting.
+	RecordClientIP bool `json:"record_client_ip"`
 }
 
 var logSetting = LogSetting{
