@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Family is a tokenizer family. Models in one family tokenize text alike.
@@ -151,71 +152,89 @@ func EstimateFamily(family Family, text string) int {
 	if !ok {
 		w = familyWeights[FamilyUnknown]
 	}
+	cost := [...]float64{
+		classSymbol:     w.Symbol,
+		classSpace:      w.Space,
+		classNewline:    w.Newline,
+		classCJK:        w.CJK,
+		classEmoji:      w.Emoji,
+		classLetter:     w.Word,
+		classNumber:     w.Number,
+		classMathSymbol: w.MathSymbol,
+		classAtSign:     w.AtSign,
+		classURLDelim:   w.URLDelim,
+	}
 	var count float64
 
-	type wordType int
-	const (
-		none wordType = iota
-		latin
-		number
-	)
-	current := none
-
+	previous := classSpace // neither a letter nor a digit
 	for _, r := range text {
-		if unicode.IsSpace(r) {
-			current = none
-			if r == '\n' || r == '\t' {
-				count += w.Newline
-			} else {
-				count += w.Space
-			}
-			continue
+		var class runeClass
+		if r < utf8.RuneSelf {
+			class = asciiClass[r]
+		} else {
+			class = classifyRune(r)
 		}
-
-		if isCJK(r) {
-			current = none
-			count += w.CJK
-			continue
-		}
-
-		if isEmoji(r) {
-			current = none
-			count += w.Emoji
-			continue
-		}
-
 		// A run of letters or digits counts once; switching between letters
 		// and digits starts a new run.
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
-			next := latin
-			if unicode.IsNumber(r) {
-				next = number
-			}
-			if current != next {
-				if next == number {
-					count += w.Number
-				} else {
-					count += w.Word
-				}
-				current = next
-			}
+		if class == previous && (class == classLetter || class == classNumber) {
 			continue
 		}
-
-		current = none
-		switch {
-		case isMathSymbol(r):
-			count += w.MathSymbol
-		case r == '@':
-			count += w.AtSign
-		case isURLDelim(r):
-			count += w.URLDelim
-		default:
-			count += w.Symbol
-		}
+		count += cost[class]
+		previous = class
 	}
 
 	return int(math.Ceil(count))
+}
+
+// runeClass is the text feature a rune counts as in EstimateFamily.
+type runeClass uint8
+
+const (
+	classSymbol runeClass = iota
+	classSpace
+	classNewline
+	classCJK
+	classEmoji
+	classLetter
+	classNumber
+	classMathSymbol
+	classAtSign
+	classURLDelim
+)
+
+// asciiClass holds classifyRune for every ASCII rune. Most of a coding prompt
+// is ASCII, and the lookup skips the Unicode tables that dominated the
+// estimate's CPU time on large requests.
+var asciiClass = func() (classes [utf8.RuneSelf]runeClass) {
+	for r := range classes {
+		classes[r] = classifyRune(rune(r))
+	}
+	return classes
+}()
+
+func classifyRune(r rune) runeClass {
+	switch {
+	case r == '\n' || r == '\t':
+		return classNewline
+	case unicode.IsSpace(r):
+		return classSpace
+	case isCJK(r):
+		return classCJK
+	case isEmoji(r):
+		return classEmoji
+	case unicode.IsNumber(r):
+		return classNumber
+	case unicode.IsLetter(r):
+		return classLetter
+	case isMathSymbol(r):
+		return classMathSymbol
+	case r == '@':
+		return classAtSign
+	case isURLDelim(r):
+		return classURLDelim
+	default:
+		return classSymbol
+	}
 }
 
 func isCJK(r rune) bool {
