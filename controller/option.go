@@ -345,6 +345,14 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "violation_guard_setting.mode", "violation_guard_setting.suspend_hours",
+		"violation_guard_setting.ban_strikes", "violation_guard_setting.strike_window_days":
+		field := strings.TrimPrefix(option.Key, "violation_guard_setting.")
+		err = operation_setting.ValidateViolationGuardOption(field, option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "claude_code_client_setting.min_version", "claude_code_client_setting.max_version":
 		err = operation_setting.ValidateClaudeCodeVersion(option.Value.(string))
 		if err != nil {

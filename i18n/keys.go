@@ -28,6 +28,9 @@ const (
 
 	MsgTokenConcurrencyLimitReached = "rate_limit.token_concurrency_reached"
 
+	MsgViolationSuspended           = "violation.suspended"
+	MsgViolationConversationBlocked = "violation.conversation_blocked"
+
 	MsgDistributorInvalidRequest               = "distributor.invalid_request"
 	MsgDistributorInvalidChannelId             = "distributor.invalid_channel_id"
 	MsgDistributorChannelDisabled              = "distributor.channel_disabled"

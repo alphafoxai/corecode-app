@@ -72,6 +72,12 @@ const (
 	// It is not returned to end users, but can be persisted into consume/error logs for debugging.
 	ContextKeyAdminRejectReason ContextKey = "admin_reject_reason"
 
+	// ContextKeyUpstreamRefusal marks a response the upstream refused under its
+	// usage policy. ContextKeyUpstreamRefusalCategory holds the policy category
+	// when the upstream named one.
+	ContextKeyUpstreamRefusal         ContextKey = "upstream_refusal"
+	ContextKeyUpstreamRefusalCategory ContextKey = "upstream_refusal_category"
+
 	// ContextKeyLanguage stores the user's language preference for i18n
 	ContextKeyLanguage             ContextKey = "language"
 	ContextKeyIsStream             ContextKey = "is_stream"

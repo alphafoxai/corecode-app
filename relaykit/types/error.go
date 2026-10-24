@@ -42,6 +42,10 @@ const (
 	ErrorCodeSensitiveWordsDetected ErrorCode = "sensitive_words_detected"
 	ErrorCodeViolationFeeGrokCSAM   ErrorCode = "violation_fee.grok.csam"
 
+	// The violation guard rejected the request before it reached a channel.
+	ErrorCodeViolationSuspended           ErrorCode = "violation_suspended"
+	ErrorCodeViolationConversationBlocked ErrorCode = "violation_conversation_blocked"
+
 	// new api error
 	ErrorCodeCountTokenFailed   ErrorCode = "count_token_failed"
 	ErrorCodeModelPriceError    ErrorCode = "model_price_error"

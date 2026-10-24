@@ -21,6 +21,7 @@ import { SSRFSection } from '../request-limits/ssrf-section'
 import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { ViolationGuardSection } from '../violation-guard/violation-guard-section'
 
 const SECURITY_SECTIONS = [
   {
@@ -75,6 +76,26 @@ const SECURITY_SECTIONS = [
             settings['token_setting.max_user_tokens'],
           'token_setting.concurrency_limits':
             settings['token_setting.concurrency_limits'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'violation-guard',
+    titleKey: 'Usage policy violations',
+    build: (settings: SecuritySettings) => (
+      <ViolationGuardSection
+        defaultValues={{
+          'violation_guard_setting.enabled':
+            settings['violation_guard_setting.enabled'],
+          'violation_guard_setting.mode':
+            settings['violation_guard_setting.mode'],
+          'violation_guard_setting.suspend_hours':
+            settings['violation_guard_setting.suspend_hours'],
+          'violation_guard_setting.ban_strikes':
+            settings['violation_guard_setting.ban_strikes'],
+          'violation_guard_setting.strike_window_days':
+            settings['violation_guard_setting.strike_window_days'],
         }}
       />
     ),
