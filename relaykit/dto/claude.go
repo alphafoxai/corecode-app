@@ -22,6 +22,7 @@ type ClaudeMediaMessage struct {
 	Source       *ClaudeMessageSource `json:"source,omitempty"`
 	Usage        *ClaudeUsage         `json:"usage,omitempty"`
 	StopReason   *string              `json:"stop_reason,omitempty"`
+	StopDetails  *ClaudeStopDetails   `json:"stop_details,omitempty"`
 	PartialJson  *string              `json:"partial_json,omitempty"`
 	Role         string               `json:"role,omitempty"`
 	Thinking     *string              `json:"thinking,omitempty"`
@@ -574,6 +575,15 @@ type ClaudeErrorWithStatusCode struct {
 	LocalError bool
 }
 
+// ClaudeStopDetails accompanies stop_reason "refusal". Category names the
+// usage-policy category that declined the request and is null when the
+// refusal maps to none.
+type ClaudeStopDetails struct {
+	Type        string  `json:"type,omitempty"`
+	Category    *string `json:"category,omitempty"`
+	Explanation *string `json:"explanation,omitempty"`
+}
+
 type ClaudeResponse struct {
 	Id           string               `json:"id,omitempty"`
 	Type         string               `json:"type"`
@@ -581,6 +591,7 @@ type ClaudeResponse struct {
 	Content      []ClaudeMediaMessage `json:"content,omitempty"`
 	Completion   string               `json:"completion,omitempty"`
 	StopReason   string               `json:"stop_reason,omitempty"`
+	StopDetails  *ClaudeStopDetails   `json:"stop_details,omitempty"`
 	Model        string               `json:"model,omitempty"`
 	Error        any                  `json:"error,omitempty"`
 	Usage        *ClaudeUsage         `json:"usage,omitempty"`

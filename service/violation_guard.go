@@ -1,0 +1,346 @@
+package service
+
+import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"net/http"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+
+	"github.com/bytedance/gopkg/util/gopool"
+	"github.com/gin-gonic/gin"
+)
+
+// maxViolationExcerptBytes caps the refused message kept for review.
+const maxViolationExcerptBytes = 4096
+
+// minViolationMergeSeconds groups refusals into one strike when suspension is
+// off, so the parallel requests of one incident still count once.
+const minViolationMergeSeconds = 10 * 60
+
+// violationGuardState is what the relay checks on every request: suspended
+// users, and the refused conversations of each user with the time each was
+// refused. It lives in process memory because one new-api instance serves the
+// relay. It loads from the database on first use, and every strike or lift
+// writes the database first and then this copy.
+var violationGuardState = struct {
+	sync.RWMutex
+	loaded         bool
+	suspendedUntil map[int]int64
+	conversations  map[int]map[string]int64
+}{}
+
+func loadViolationGuardState(now, windowStart int64) bool {
+	violationGuardState.RLock()
+	loaded := violationGuardState.loaded
+	violationGuardState.RUnlock()
+	if loaded {
+		return true
+	}
+	suspended, err := model.GetActiveViolationSuspensions(now)
+	if err == nil {
+		var conversations map[int]map[string]int64
+		conversations, err = model.GetRefusedViolationConversations(windowStart)
+		if err == nil {
+			violationGuardState.Lock()
+			defer violationGuardState.Unlock()
+			if !violationGuardState.loaded {
+				violationGuardState.suspendedUntil = suspended
+				violationGuardState.conversations = conversations
+				violationGuardState.loaded = true
+			}
+			return true
+		}
+	}
+	common.SysError(common.LogText("violation guard: failed to load suspensions and refused conversations: %s", err.Error()))
+	return false
+}
+
+// CheckViolationGuard rejects, before any channel is used, a request from an
+// account suspended for a violation, or one that resends a conversation the
+// upstream refused. In observe mode it only logs what it would reject. When
+// the state cannot be loaded the request passes.
+func CheckViolationGuard(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
+	setting := operation_setting.GetViolationGuardSetting()
+	if !setting.Enabled || info == nil {
+		return nil
+	}
+	now := common.GetTimestamp()
+	windowStart := now - int64(setting.StrikeWindowDays)*86400
+	if !loadViolationGuardState(now, windowStart) {
+		return nil
+	}
+	enforce := setting.Mode == operation_setting.ViolationGuardModeEnforce
+
+	violationGuardState.RLock()
+	suspendedUntil := violationGuardState.suspendedUntil[info.UserId]
+	hasRefusedConversations := len(violationGuardState.conversations[info.UserId]) > 0
+	violationGuardState.RUnlock()
+
+	if suspendedUntil > now {
+		if enforce {
+			until := time.Unix(suspendedUntil, 0).UTC().Format("2006-01-02 15:04 UTC")
+			return types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationSuspended, map[string]any{"Until": until})),
+				types.ErrorCodeViolationSuspended, http.StatusForbidden, types.ErrOptionWithSkipRetry())
+		}
+		logger.LogInfo(c, common.LogText("violation guard (observe): user %d is suspended; enforce mode would reject this request", info.UserId))
+	}
+	if !hasRefusedConversations {
+		return nil
+	}
+
+	keys := violationConversationKeys(humanMessages(info.Request))
+	refused := false
+	violationGuardState.RLock()
+	for _, key := range keys {
+		if refusedAt, ok := violationGuardState.conversations[info.UserId][key]; ok && refusedAt > windowStart {
+			refused = true
+			break
+		}
+	}
+	violationGuardState.RUnlock()
+	if !refused {
+		return nil
+	}
+	if !enforce {
+		logger.LogInfo(c, common.LogText("violation guard (observe): user %d resent a refused conversation; enforce mode would reject this request", info.UserId))
+		return nil
+	}
+	RequestPolicy(c).AddEvent(PolicyEvent{ErrorCode: string(types.ErrorCodeViolationConversationBlocked), ErrorSource: "local", Decision: PolicyDecision{Action: "stop", Reason: "local_rejection", Source: "global"}, Health: "unchanged"})
+	return types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationConversationBlocked)),
+		types.ErrorCodeViolationConversationBlocked, http.StatusForbidden, types.ErrOptionWithSkipRetry())
+}
+
+// RecordUpstreamRefusal turns an upstream usage-policy refusal of this request
+// into a violation record and applies the strike policy. The response has
+// already been sent; the database work runs off the request.
+func RecordUpstreamRefusal(c *gin.Context, info *relaycommon.RelayInfo) {
+	setting := *operation_setting.GetViolationGuardSetting()
+	if !setting.Enabled || info == nil || !common.GetContextKeyBool(c, constant.ContextKeyUpstreamRefusal) {
+		return
+	}
+	category := common.GetContextKeyString(c, constant.ContextKeyUpstreamRefusalCategory)
+	record := model.ViolationRecord{
+		UserId:    info.UserId,
+		TokenId:   info.TokenId,
+		ChannelId: info.ChannelId,
+		ModelName: info.OriginModelName,
+		RequestId: info.RequestId,
+		Category:  category[:min(len(category), 64)],
+	}
+	if messages := humanMessages(info.Request); len(messages) > 0 {
+		keys := violationConversationKeys(messages)
+		record.ConversationKey = keys[len(keys)-1]
+		excerpt := strings.TrimSuffix(messages[len(messages)-1], "\n")
+		record.Excerpt = strings.ToValidUTF8(excerpt[:min(len(excerpt), maxViolationExcerptBytes)], "")
+	}
+	gopool.Go(func() {
+		if err := applyViolationStrike(setting, record, common.GetTimestamp()); err != nil {
+			common.SysError(common.LogText("violation guard: failed to record a refusal for user %d: %s", record.UserId, err.Error()))
+		}
+	})
+}
+
+// applyViolationStrike records one refusal. A refusal starts a new strike
+// unless its conversation already has a counted strike in the window, or the
+// user's last strike is recent enough to merge with: the suspension period,
+// at least minViolationMergeSeconds. Strikes count only within the mode they
+// were recorded in, so observe mode is a dry run and enforce mode starts from
+// zero. Administrators are recorded as exempt.
+func applyViolationStrike(setting operation_setting.ViolationGuardSetting, record model.ViolationRecord, now int64) error {
+	user, err := model.GetUserCache(record.UserId)
+	if err != nil {
+		return err
+	}
+	state, err := model.GetUserViolationState(record.UserId)
+	if err != nil {
+		return err
+	}
+	windowStart := max(now-int64(setting.StrikeWindowDays)*86400, state.ForgivenAt)
+	record.CreatedAt = now
+	record.Mode = setting.Mode
+	if user.Role >= common.RoleAdminUser {
+		record.Mode = model.ViolationModeExempt
+	}
+
+	newStrike := true
+	if record.ConversationKey != "" {
+		counted, err := model.HasViolationStrikeInConversation(record.UserId, record.Mode, record.ConversationKey, windowStart)
+		if err != nil {
+			return err
+		}
+		newStrike = !counted
+	}
+	if newStrike {
+		mergeSeconds := max(int64(setting.SuspendHours)*3600, minViolationMergeSeconds)
+		if newStrike, err = model.ClaimViolationStrike(record.UserId, record.Mode, now, now-mergeSeconds); err != nil {
+			return err
+		}
+	}
+	record.Action = model.ViolationActionMerged
+	if newStrike {
+		strikes, err := model.CountViolationStrikes(record.UserId, record.Mode, windowStart)
+		if err != nil {
+			return err
+		}
+		switch {
+		case setting.BanStrikes > 0 && strikes+1 >= int64(setting.BanStrikes):
+			record.Action = model.ViolationActionBan
+		case setting.SuspendHours > 0:
+			record.Action = model.ViolationActionSuspend
+		default:
+			record.Action = model.ViolationActionStrike
+		}
+	}
+	if err := model.CreateViolationRecord(&record); err != nil {
+		return err
+	}
+	// Refused messages are kept for review only as long as strikes count.
+	if err := model.ClearViolationExcerpts(now - int64(setting.StrikeWindowDays)*86400); err != nil {
+		common.SysError(common.LogText("violation guard: failed to clear expired refused messages: %s", err.Error()))
+	}
+	common.SysLog(common.LogText("violation guard: upstream refused a request of user %d (category %q); action %s in %s mode", record.UserId, record.Category, record.Action, record.Mode))
+	if record.Mode == model.ViolationModeExempt {
+		return nil
+	}
+
+	violationGuardState.Lock()
+	if violationGuardState.loaded && record.ConversationKey != "" {
+		if violationGuardState.conversations[record.UserId] == nil {
+			violationGuardState.conversations[record.UserId] = map[string]int64{}
+		}
+		violationGuardState.conversations[record.UserId][record.ConversationKey] = now
+	}
+	violationGuardState.Unlock()
+
+	if record.Mode != operation_setting.ViolationGuardModeEnforce {
+		return nil
+	}
+	switch record.Action {
+	case model.ViolationActionSuspend:
+		until := now + int64(setting.SuspendHours)*3600
+		if err := model.SuspendUserForViolation(record.UserId, until); err != nil {
+			return err
+		}
+		violationGuardState.Lock()
+		if violationGuardState.loaded {
+			violationGuardState.suspendedUntil[record.UserId] = until
+		}
+		violationGuardState.Unlock()
+	case model.ViolationActionBan:
+		disabled := model.User{Id: record.UserId, Status: common.UserStatusDisabled}
+		if err := disabled.Update(false); err != nil {
+			return err
+		}
+		if err := model.InvalidateUserTokensCache(record.UserId); err != nil {
+			common.SysError(common.LogText("violation guard: failed to invalidate tokens cache for user %d: %s", record.UserId, err.Error()))
+		}
+	}
+	return nil
+}
+
+// ForgiveViolations lifts a user's suspension and lets the user resend
+// refused conversations; earlier strikes stop counting. It does not re-enable
+// an account the guard disabled.
+func ForgiveViolations(userId int) error {
+	if err := model.ForgiveUserViolations(userId, common.GetTimestamp()); err != nil {
+		return err
+	}
+	violationGuardState.Lock()
+	defer violationGuardState.Unlock()
+	delete(violationGuardState.suspendedUntil, userId)
+	delete(violationGuardState.conversations, userId)
+	return nil
+}
+
+// humanMessages returns the user messages of a request that a person wrote,
+// oldest first. Tool results, and the <system-reminder> blocks clients such as
+// Claude Code inject, are not human text; messages left empty are dropped.
+func humanMessages(request dto.Request) []string {
+	var messages []string
+	switch request := request.(type) {
+	case *dto.ClaudeRequest:
+		for i := range request.Messages {
+			message := &request.Messages[i]
+			if message.Role != "user" {
+				continue
+			}
+			if message.IsStringContent() {
+				messages = append(messages, humanMessageText([]string{message.GetStringContent()}))
+				continue
+			}
+			parts, err := message.ParseContent()
+			if err != nil {
+				continue
+			}
+			texts := make([]string, 0, len(parts))
+			for _, part := range parts {
+				if part.Type == "text" {
+					texts = append(texts, part.GetText())
+				}
+			}
+			messages = append(messages, humanMessageText(texts))
+		}
+	case *dto.GeneralOpenAIRequest:
+		for i := range request.Messages {
+			message := &request.Messages[i]
+			if message.Role != "user" {
+				continue
+			}
+			texts := []string{}
+			for _, part := range message.ParseContent() {
+				if part.Type == dto.ContentTypeText {
+					texts = append(texts, part.Text)
+				}
+			}
+			messages = append(messages, humanMessageText(texts))
+		}
+	}
+	return slices.DeleteFunc(messages, func(message string) bool { return message == "" })
+}
+
+// violationConversationKeys fingerprints a conversation by its human
+// messages. The i-th key covers the first i of them, so a later request in the
+// same conversation reproduces every earlier key, while another conversation
+// that happens to repeat one message does not.
+func violationConversationKeys(messages []string) []string {
+	hash := sha256.New()
+	keys := make([]string, 0, len(messages))
+	var length [8]byte
+	for _, message := range messages {
+		binary.LittleEndian.PutUint64(length[:], uint64(len(message)))
+		hash.Write(length[:])
+		hash.Write([]byte(message))
+		keys = append(keys, hex.EncodeToString(hash.Sum(nil)))
+	}
+	return keys
+}
+
+// humanMessageText joins the text blocks of one user message that a person
+// wrote, leaving out injected <system-reminder> blocks.
+func humanMessageText(texts []string) string {
+	var builder strings.Builder
+	for _, text := range texts {
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" || (strings.HasPrefix(trimmed, "<system-reminder>") && strings.HasSuffix(trimmed, "</system-reminder>")) {
+			continue
+		}
+		builder.WriteString(trimmed)
+		builder.WriteByte('\n')
+	}
+	return builder.String()
+}

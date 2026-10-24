@@ -25,13 +25,17 @@ func stopReasonClaude2OpenAI(reason string) string {
 	return relayconvert.StopReasonClaudeToOpenAI(reason)
 }
 
-func maybeMarkClaudeRefusal(c *gin.Context, info *relaycommon.RelayInfo, stopReason string) {
+func maybeMarkClaudeRefusal(c *gin.Context, info *relaycommon.RelayInfo, stopReason string, details *dto.ClaudeStopDetails) {
 	if c == nil {
 		return
 	}
 	if strings.EqualFold(stopReason, "refusal") {
 		info.PerformanceBusinessRejection = true
 		common.SetContextKey(c, constant.ContextKeyAdminRejectReason, "claude_stop_reason=refusal")
+		common.SetContextKey(c, constant.ContextKeyUpstreamRefusal, true)
+		if details != nil && details.Category != nil {
+			common.SetContextKey(c, constant.ContextKeyUpstreamRefusalCategory, *details.Category)
+		}
 	}
 }
 
@@ -100,10 +104,10 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		info.ObserveResponseModel(claudeResponse.Message.Model)
 	}
 	if claudeResponse.StopReason != "" {
-		maybeMarkClaudeRefusal(c, info, claudeResponse.StopReason)
+		maybeMarkClaudeRefusal(c, info, claudeResponse.StopReason, claudeResponse.StopDetails)
 	}
 	if claudeResponse.Delta != nil && claudeResponse.Delta.StopReason != nil {
-		maybeMarkClaudeRefusal(c, info, *claudeResponse.Delta.StopReason)
+		maybeMarkClaudeRefusal(c, info, *claudeResponse.Delta.StopReason, claudeResponse.Delta.StopDetails)
 	}
 	if claudeResponse.Type == "message_stop" {
 		info.StreamStatus.MarkCompleted()
@@ -365,7 +369,7 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		return types.WithClaudeError(*claudeError, http.StatusInternalServerError)
 	}
 	info.ObserveResponseModel(claudeResponse.Model)
-	maybeMarkClaudeRefusal(c, info, claudeResponse.StopReason)
+	maybeMarkClaudeRefusal(c, info, claudeResponse.StopReason, claudeResponse.StopDetails)
 	if claudeInfo.Usage == nil {
 		claudeInfo.Usage = &dto.Usage{}
 	}

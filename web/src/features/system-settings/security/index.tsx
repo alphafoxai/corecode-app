@@ -43,6 +43,11 @@ const defaultSecuritySettings: SecuritySettings = {
   'fetch_setting.apply_ip_filter_for_domain': false,
   'token_setting.max_user_tokens': 1000,
   'token_setting.concurrency_limits': '{}',
+  'violation_guard_setting.enabled': false,
+  'violation_guard_setting.mode': 'observe',
+  'violation_guard_setting.suspend_hours': 24,
+  'violation_guard_setting.ban_strikes': 2,
+  'violation_guard_setting.strike_window_days': 30,
 }
 
 export function SecuritySettings() {

@@ -151,6 +151,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}()
 
+	if newAPIError = service.CheckViolationGuard(c, relayInfo); newAPIError != nil {
+		return
+	}
+
 	generalSettings := operation_setting.GetGeneralSetting()
 	if relayFormat == types.RelayFormatClaude && relayInfo.IsStream && generalSettings.PingIntervalEnabled {
 		stopKeepAlive := helper.StartStreamKeepAlive(c, time.Duration(generalSettings.PingIntervalSeconds)*time.Second)
@@ -216,6 +220,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if newAPIError == nil {
 			service.MarkRequestPolicySuccess(c, relayInfo.StreamStatus)
+			service.RecordUpstreamRefusal(c, relayInfo)
 			relayInfo.LastError = nil
 			return
 		}

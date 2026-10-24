@@ -418,6 +418,11 @@ export type SecuritySettings = {
   'fetch_setting.apply_ip_filter_for_domain': boolean
   'token_setting.max_user_tokens': number
   'token_setting.concurrency_limits': string
+  'violation_guard_setting.enabled': boolean
+  'violation_guard_setting.mode': 'observe' | 'enforce'
+  'violation_guard_setting.suspend_hours': number
+  'violation_guard_setting.ban_strikes': number
+  'violation_guard_setting.strike_window_days': number
 }
 
 export type UpstreamChannel = {
