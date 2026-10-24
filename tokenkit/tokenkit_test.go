@@ -49,6 +49,40 @@ func TestEstimateUsesFamilyWeights(t *testing.T) {
 	assert.Zero(t, Estimate("claude-sonnet-5", ""))
 }
 
+// The pre-consume charge is computed from these estimates. The texts cover
+// every rune class, including non-ASCII letters, digits and spaces and invalid
+// UTF-8, so a change to the counting loop that alters any estimate fails here.
+func TestEstimateFamilyCounts(t *testing.T) {
+	texts := []string{
+		"func main() {\n\tfmt.Println(\"统计 token\", 42)\n}\nSee https://example.com/a?b=1",
+		"cc @team: a1b2 v2.0_rc #3; x² ≤ ∑ 😀 ✓ café ٣٤ 한글 かな",
+		"\u00a0\u0085 \r\v\f|\xff",
+	}
+	for _, tc := range []struct {
+		family Family
+		want   [3]int
+	}{
+		{FamilyClaude, [3]int{37, 49, 3}},
+		{FamilyClaude47, [3]int{49, 57, 4}},
+		{FamilyGemini, [3]int{37, 40, 2}},
+		{FamilyOpenAI, [3]int{30, 41, 3}},
+		{FamilyUnknown, [3]int{31, 44, 4}},
+	} {
+		for i, text := range texts {
+			assert.Equal(t, tc.want[i], EstimateFamily(tc.family, text), "%s %q", tc.family, text)
+		}
+	}
+}
+
+// A Claude Code request is mostly ASCII code, JSON and prose.
+func BenchmarkEstimateFamily(b *testing.B) {
+	text := strings.Repeat("func (s *Server) Handle(w http.ResponseWriter, r *http.Request) {\n\tif err := s.check(r); err != nil {\n\t\treturn // 处理错误\n\t}\n}\n{\"type\":\"tool_result\",\"content\":\"ok 200\"}\n", 8000)
+	b.SetBytes(int64(len(text)))
+	for b.Loop() {
+		EstimateFamily(FamilyClaude47, text)
+	}
+}
+
 func TestCountUsesTiktokenForOpenAIModels(t *testing.T) {
 	const text = "大语言模型按 token 计费；Large language models bill by token. 🙂"
 	o200k, _ := codec.NewO200kBase().Count(text)
