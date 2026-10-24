@@ -200,11 +200,17 @@ jobs:
 
       # The key exists only inside this step: written to RUNNER_TEMP with 0600,
       # removed by the script's own trap, and never exported to another step.
+      # The target host comes from repository variables, so moving the relay is a
+      # variable change; unset variables keep the current host. The host key must
+      # also be in relay_known_hosts.
       - name: Deploy to the relay
         env:
           RELAY_SSH_KEY_FILE: ${{ runner.temp }}/relay_key
           RELAY_SSH_KEY_SECRET: ${{ secrets.CORECODE_RELAY_SSH_KEY }}
           TAG: ${{ needs.publish.outputs.tag }}
+          VM: ${{ vars.RELAY_VM || 'derouter-relay' }}
+          ZONE: ${{ vars.RELAY_ZONE || 'us-east1-c' }}
+          DEST: ${{ vars.RELAY_DEST || '/opt/derouter' }}
         run: |
           set -eu
           umask 077
