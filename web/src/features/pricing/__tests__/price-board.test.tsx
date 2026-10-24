@@ -66,20 +66,38 @@ it('lists group prices in CNY against the struck official price', () => {
   expect(within(row).getByText('Official ¥27.2')).toBeVisible()
   expect(within(row).getByText('Save 78%')).toBeVisible()
   expect(screen.getByText('仅限 Claude Code CLI 使用')).toBeVisible()
-  expect(
-    screen.getByRole('radio', { name: new RegExp(GROUP) })
-  ).toHaveAttribute('aria-checked', 'true')
 })
 
-it('shows official prices alone when switched', async () => {
+it('shows a lone group without a picker or its ratio', () => {
   renderBoard(1, 6.8)
+
+  expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+  expect(screen.getByText(GROUP)).toBeVisible()
+  expect(screen.getByText('2.2 of official price')).toBeVisible()
+  expect(screen.queryByText(/ratio/)).not.toBeInTheDocument()
+})
+
+it('lets the customer pick between several groups', async () => {
+  const cheap = 'Claude 特价'
+  render(
+    <PriceBoard
+      models={[{ ...opus, enable_groups: [GROUP, cheap] }]}
+      groupRatio={{ [GROUP]: 1.5, [cheap]: 1 }}
+      usableGroup={{ [GROUP]: '', [cheap]: '' }}
+      priceRate={1}
+      usdExchangeRate={6.8}
+      onModelClick={vi.fn()}
+    />
+  )
+
+  const cheapRadio = screen.getByRole('radio', { name: new RegExp(cheap) })
+  expect(cheapRadio).toHaveAttribute('aria-checked', 'true')
+  expect(within(desktopRow()).getByText('¥4')).toBeVisible()
+
   await userEvent
     .setup()
-    .click(screen.getByRole('button', { name: 'Official price' }))
-
-  const row = desktopRow()
-  expect(within(row).getByText('¥27.2')).toBeVisible()
-  expect(within(row).queryByText(/Save/)).not.toBeInTheDocument()
+    .click(screen.getByRole('radio', { name: new RegExp(GROUP) }))
+  expect(within(desktopRow()).getByText('¥6')).toBeVisible()
 })
 
 it('claims no saving when the group price is above the official price', () => {
@@ -95,4 +113,31 @@ it('opens the model details from the model name', async () => {
     })
   )
   expect(onModelClick).toHaveBeenCalledWith('claude-opus-5-5')
+})
+
+it('lists models from cheapest to most expensive', () => {
+  render(
+    <PriceBoard
+      models={[
+        opus,
+        { ...opus, id: 2, model_name: 'claude-haiku-5-5', model_ratio: 0.1 },
+        { ...opus, id: 3, model_name: 'claude-fable-5-1', model_ratio: 5 },
+      ]}
+      groupRatio={{ [GROUP]: 1.5 }}
+      usableGroup={{ [GROUP]: '' }}
+      priceRate={1}
+      usdExchangeRate={6.8}
+      onModelClick={vi.fn()}
+    />
+  )
+
+  const names = within(screen.getByRole('table'))
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('button')[0].textContent)
+  expect(names).toEqual([
+    'claude-haiku-5-5',
+    'claude-opus-5-5',
+    'claude-fable-5-1',
+  ])
 })

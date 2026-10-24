@@ -25,8 +25,12 @@ type countingFrontendFS struct {
 	opens atomic.Int32
 }
 
+// Open counts source-file opens only: a br-capable request also probes for a
+// precompressed .br copy, which reads and compresses nothing.
 func (f *countingFrontendFS) Open(name string) (http.File, error) {
-	f.opens.Add(1)
+	if !strings.HasSuffix(name, ".br") {
+		f.opens.Add(1)
+	}
 	return f.ServeFileSystem.Open(name)
 }
 
@@ -103,4 +107,41 @@ func TestServeFrontendFilesCompressesEachFileOnce(t *testing.T) {
 	missing := performFrontendRequest(router, http.MethodGet, "/static/js/missing.js", "gzip")
 	assert.Equal(t, http.StatusTeapot, missing.Code)
 	assert.Equal(t, "fallback", missing.Body.String())
+}
+
+func TestServeFrontendFilesSendsPrecompressedBrotli(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	frontendDir := t.TempDir()
+	script := []byte(strings.Repeat("export const answer = 42;\n", 400))
+	// The bytes are served as is, so any content stands in for real brotli output.
+	brotli := []byte("precompressed brotli bytes")
+	require.NoError(t, os.MkdirAll(filepath.Join(frontendDir, "static", "js"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(frontendDir, "static", "js", "app.js"), script, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(frontendDir, "static", "js", "app.js.br"), brotli, 0o644))
+	router := gin.New()
+	router.NoRoute(ServeFrontendFiles(static.LocalFile(frontendDir, false)))
+
+	plain := performFrontendRequest(router, http.MethodGet, "/static/js/app.js", "")
+	require.Equal(t, http.StatusOK, plain.Code)
+
+	br := performFrontendRequest(router, http.MethodGet, "/static/js/app.js", "gzip, deflate, br, zstd")
+	require.Equal(t, http.StatusOK, br.Code)
+	assert.Equal(t, "br", br.Header().Get("Content-Encoding"))
+	assert.Equal(t, "Accept-Encoding", br.Header().Get("Vary"))
+	assert.Equal(t, plain.Header().Get("Content-Type"), br.Header().Get("Content-Type"))
+	assert.Equal(t, strconv.Itoa(len(brotli)), br.Header().Get("Content-Length"))
+	assert.Equal(t, brotli, br.Body.Bytes())
+
+	head := performFrontendRequest(router, http.MethodHead, "/static/js/app.js", "br")
+	assert.Equal(t, "br", head.Header().Get("Content-Encoding"))
+	assert.Equal(t, strconv.Itoa(len(brotli)), head.Header().Get("Content-Length"))
+	assert.Empty(t, head.Body.Bytes())
+
+	gzipOnly := performFrontendRequest(router, http.MethodGet, "/static/js/app.js", "gzip")
+	assert.Equal(t, "gzip", gzipOnly.Header().Get("Content-Encoding"))
+	reader, err := gzip.NewReader(bytes.NewReader(gzipOnly.Body.Bytes()))
+	require.NoError(t, err)
+	decoded, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, script, decoded)
 }

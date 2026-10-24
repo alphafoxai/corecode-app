@@ -21,7 +21,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
 import { EXCLUDED_GROUPS } from '../constants'
@@ -43,11 +42,6 @@ const COLUMN_LABEL: Record<UnitPriceKey, string> = {
   cacheWrite: 'Cache Creation',
   cacheRead: 'Cache Read',
 }
-
-type PriceMode = 'group' | 'official'
-
-const PRESSED =
-  'aria-pressed:bg-primary aria-pressed:text-primary-foreground hover:aria-pressed:bg-primary/90'
 
 function trimNumber(value: number, digits: number): string {
   return String(Number(value.toFixed(digits)))
@@ -86,7 +80,8 @@ function groupDescription(value: unknown): string {
  * CoreCode fork: the model square as a price list. Each model's four Claude
  * Code prices in CNY at the chosen group, the official price struck through
  * beside them, and the share saved. Every figure comes from the live recharge
- * price, exchange rate and group ratios.
+ * price, exchange rate and group ratios. A lone group is shown, not offered
+ * as a choice.
  */
 export function PriceBoard(props: {
   models: PricingModel[]
@@ -97,7 +92,6 @@ export function PriceBoard(props: {
   onModelClick: (modelName: string) => void
 }) {
   const { t } = useTranslation()
-  const [mode, setMode] = useState<PriceMode>('group')
   const groups = listGroups(props.models, props.groupRatio, props.usableGroup)
   const [selected, setSelected] = useState<string | null>(null)
   const group = selected && groups.includes(selected) ? selected : groups[0]
@@ -123,7 +117,7 @@ export function PriceBoard(props: {
     .filter((row): row is { model: PricingModel; base: BaseUnitPrices } =>
       Boolean(row.base)
     )
-    .sort((a, b) => b.base.prices.input - a.base.prices.input)
+    .sort((a, b) => a.base.prices.input - b.base.prices.input)
 
   const groupYuan = (usd: number) => usd * ratio * props.priceRate
   const officialYuan = (usd: number) => usd * props.usdExchangeRate
@@ -133,25 +127,20 @@ export function PriceBoard(props: {
     if (!Number.isFinite(usd)) {
       return <span className='text-muted-foreground'>—</span>
     }
-    const main = mode === 'group' ? groupYuan(usd) : officialYuan(usd)
     return (
       <>
         <span className='font-mono font-semibold tabular-nums'>
-          <span className={cn(mode === 'group' && 'text-primary')}>
-            {formatYuan(main)}
-          </span>
+          <span className='text-primary'>{formatYuan(groupYuan(usd))}</span>
           <span className='text-muted-foreground text-xs font-normal'>
             {' '}
             / 1M tokens
           </span>
         </span>
-        {mode === 'group' && (
-          <span className='text-muted-foreground block font-mono text-xs tabular-nums line-through'>
-            {t('Official {{price}}', {
-              price: formatYuan(officialYuan(usd)),
-            })}
-          </span>
-        )}
+        <span className='text-muted-foreground block font-mono text-xs tabular-nums line-through'>
+          {t('Official {{price}}', {
+            price: formatYuan(officialYuan(usd)),
+          })}
+        </span>
       </>
     )
   }
@@ -196,9 +185,9 @@ export function PriceBoard(props: {
           {t('Pricing rules')}
         </span>
         <span className='text-muted-foreground'>
-          {t('Official prices are converted at $1 = ¥{{rate}}', {
-            rate: trimNumber(props.usdExchangeRate, 2),
-          })}
+          {t(
+            'The table shows what you actually pay. Usage is charged in USD at the same discount.'
+          )}
         </span>
         <span className='text-muted-foreground'>
           {t('¥{{price}} recharged buys $1 of credit', {
@@ -215,36 +204,23 @@ export function PriceBoard(props: {
         </span>
       </section>
 
-      <section className='bg-card rounded-xl border'>
-        <div className='flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3'>
-          <div className='min-w-0'>
-            <h2 className='text-base font-semibold'>{t('Price list')}</h2>
-            <p className='text-muted-foreground text-xs'>
-              {t('Pick a group to see what each model costs in CNY.')}
-            </p>
-          </div>
-          <ToggleGroup
-            value={[mode]}
-            onValueChange={(values) => {
-              if (values[0] === 'group' || values[0] === 'official') {
-                setMode(values[0])
-              }
-            }}
-            variant='outline'
-            size='sm'
-            aria-label={t('Price display mode')}
-          >
-            <ToggleGroupItem value='group' className={PRESSED}>
-              {t('Group price')}
-            </ToggleGroupItem>
-            <ToggleGroupItem value='official' className={PRESSED}>
-              {t('Official price')}
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-
+      <section
+        aria-label={t('Price list')}
+        className='bg-card rounded-xl border'
+      >
         <div className='flex flex-col gap-3 p-4'>
-          {groups.length > 0 && (
+          {groups.length === 1 && (
+            <div className='border-primary bg-primary/5 mx-auto flex max-w-full items-center gap-3 rounded-xl border px-6 py-4'>
+              <span className='truncate text-lg font-semibold'>{group}</span>
+              {saving > 0 && (
+                <span className='bg-primary/10 text-primary shrink-0 rounded px-2 py-0.5 font-mono text-sm font-semibold'>
+                  {discountLabel(combined)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {groups.length > 1 && (
             <div
               role='radiogroup'
               aria-label={t('Group')}
@@ -302,7 +278,7 @@ export function PriceBoard(props: {
           {description && (
             <p className='border-primary/20 bg-primary/5 rounded-lg border px-3 py-2 text-sm'>
               <span className='text-primary font-medium'>
-                {t('Group description')}：
+                {t('Usage note')}：
               </span>
               {description}
             </p>
@@ -316,7 +292,7 @@ export function PriceBoard(props: {
                     {modelName(model)}
                     {base.tiered && tierNote}
                   </div>
-                  {mode === 'group' && savingChip}
+                  {savingChip}
                 </div>
                 <dl className='mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5'>
                   {UNIT_PRICE_KEYS.map((key) => (
@@ -350,14 +326,12 @@ export function PriceBoard(props: {
                       {t(COLUMN_LABEL[key])}
                     </th>
                   ))}
-                  {mode === 'group' && (
-                    <th
-                      scope='col'
-                      className='px-4 py-2.5 text-right font-medium'
-                    >
-                      {t('Savings')}
-                    </th>
-                  )}
+                  <th
+                    scope='col'
+                    className='px-4 py-2.5 text-right font-medium'
+                  >
+                    {t('Savings')}
+                  </th>
                 </tr>
               </thead>
               <tbody className='divide-y'>
@@ -375,9 +349,7 @@ export function PriceBoard(props: {
                         {renderPrice(base.prices[key])}
                       </td>
                     ))}
-                    {mode === 'group' && (
-                      <td className='px-4 py-3 text-right'>{savingChip}</td>
-                    )}
+                    <td className='px-4 py-3 text-right'>{savingChip}</td>
                   </tr>
                 ))}
               </tbody>
