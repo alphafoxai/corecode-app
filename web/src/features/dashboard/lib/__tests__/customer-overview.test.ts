@@ -91,6 +91,19 @@ describe('summarizeRecentLogs', () => {
     expect(summary.cacheHitRate).toBeCloseTo(0.5)
   })
 
+  test('counts the costly misses that did not stream', () => {
+    const miss = { claude: true, cache_creation_tokens: 65_000 }
+    const summary = summarizeRecentLogs([
+      log({ is_stream: false, quota: 30, other: miss }),
+      log({ is_stream: false, quota: 20, other: miss }),
+      log({ is_stream: true, quota: 10, other: miss }),
+      log({ is_stream: false, other: { claude: true, cache_tokens: 65_000 } }),
+    ])
+    expect(summary.costlyMisses).toBe(3)
+    expect(summary.costlyMissQuota).toBe(60)
+    expect(summary.nonStreamMisses).toBe(2)
+  })
+
   test('ignores non-consume rows and averages first-token time over rows that record it', () => {
     const summary = summarizeRecentLogs([
       log({ other: { frt: 1000 } }),
@@ -109,6 +122,7 @@ describe('summarizeRecentLogs', () => {
       avgFirstTokenMs: null,
       costlyMisses: 0,
       costlyMissQuota: 0,
+      nonStreamMisses: 0,
     })
   })
 

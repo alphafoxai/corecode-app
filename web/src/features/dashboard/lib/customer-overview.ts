@@ -25,6 +25,7 @@ import type { UsageLog } from '@/features/usage-logs/data/schema'
 import {
   getInputCacheTokens,
   isCostlyCacheMiss,
+  isNonStreamCacheMiss,
 } from '@/features/usage-logs/lib/cost-check'
 import { parseLogOther } from '@/features/usage-logs/lib/format'
 
@@ -39,6 +40,8 @@ export interface RecentUsageSummary {
   /** Long requests that missed the cache, and what they were charged. */
   costlyMisses: number
   costlyMissQuota: number
+  /** Costly misses that did not stream; see isNonStreamCacheMiss. */
+  nonStreamMisses: number
 }
 
 /** Cache hit rate and first-token time over a set of request logs. */
@@ -50,6 +53,7 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
   let firstTokenCount = 0
   let costlyMisses = 0
   let costlyMissQuota = 0
+  let nonStreamMisses = 0
 
   for (const log of logs) {
     if (log.type !== LOG_TYPE_CONSUME) continue
@@ -62,6 +66,7 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
       costlyMisses++
       costlyMissQuota += log.quota || 0
     }
+    if (isNonStreamCacheMiss(log, other)) nonStreamMisses++
 
     if (other?.frt && other.frt > 0) {
       firstTokenTotal += other.frt
@@ -76,6 +81,7 @@ export function summarizeRecentLogs(logs: UsageLog[]): RecentUsageSummary {
       firstTokenCount > 0 ? firstTokenTotal / firstTokenCount : null,
     costlyMisses,
     costlyMissQuota,
+    nonStreamMisses,
   }
 }
 

@@ -7513,6 +7513,8 @@
     "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "残高がなくなると Claude Code のリクエストは 403 で失敗します。セッションを止めないようチャージしてください。",
     "Daily cache hit rate": "日別キャッシュヒット率",
     "Long context, almost no cache hit: billed as a fresh cache write": "長いコンテキストでほぼキャッシュヒットなし：新規キャッシュ書き込みとして課金",
+    "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "直近 {{count}} 件のリクエストのうちです。その多くは非ストリーミングで、Claude Code の auto モードの特徴と一致します。ツール呼び出しの前に、分類器が会話履歴をモデルに送って許可するかを判断し、その部分はほとんどキャッシュされません。auto モードを有効にしている場合（--permission-mode auto または Shift+Tab）、これは通常のコストであり、中継の不具合ではありません。",
+    "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.": "非ストリーミング、長いコンテキストでほぼキャッシュヒットなし。Claude Code の auto モードによる確認の可能性が高いです：ツール呼び出しの前に会話履歴をモデルに送るため、その部分はほとんどキャッシュされません。",
     "No cache data in this period yet": "この期間のキャッシュデータはまだありません",
     "No spend in this range.": "この期間の利用額はありません。",
     "Show logs for {{name}}": "{{name}} のログを表示",

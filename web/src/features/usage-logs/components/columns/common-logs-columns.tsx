@@ -80,6 +80,7 @@ import {
   isPerCallBilling,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
+import { CacheMissTooltip } from '../cache-miss-tooltip'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
@@ -762,14 +763,17 @@ export function useCommonLogsColumns(
                 {promptTokens.toLocaleString()} /{' '}
                 {completionTokens.toLocaleString()}
                 {costlyMiss && (
-                  <span
-                    className='bg-warning/15 text-warning rounded px-1 font-sans text-[10px] font-medium'
-                    title={t(
-                      'Long context, almost no cache hit: billed as a fresh cache write'
-                    )}
-                  >
-                    {t('Cache miss')} {Math.round(cacheHitRate * 100)}%
-                  </span>
+                  <CacheMissTooltip
+                    isStream={log.is_stream}
+                    render={
+                      <span
+                        className='bg-warning/15 text-warning cursor-help rounded px-1 font-sans text-[10px] font-medium'
+                        tabIndex={0}
+                      >
+                        {t('Cache miss')} {Math.round(cacheHitRate * 100)}%
+                      </span>
+                    }
+                  />
                 )}
                 {!costlyMiss && cacheRead > 0 && (
                   <span

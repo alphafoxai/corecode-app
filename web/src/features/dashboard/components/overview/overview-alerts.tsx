@@ -41,6 +41,9 @@ export function OverviewAlerts(props: {
   const { t } = useTranslation()
   const lowBalance = props.balanceHealth !== 'healthy'
   const misses = props.recent.costlyMisses
+  // Mostly non-streaming misses point at auto mode's classifier rather than
+  // the session-level causes listed by default.
+  const mostlyNonStream = props.recent.nonStreamMisses * 2 > misses
   if (!lowBalance && misses === 0) return null
 
   return (
@@ -94,10 +97,15 @@ export function OverviewAlerts(props: {
           </AlertTitle>
           <AlertDescription className='flex flex-wrap items-center justify-between gap-3'>
             <span>
-              {t(
-                'Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.',
-                { count: props.recent.requests }
-              )}
+              {mostlyNonStream
+                ? t(
+                    'Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.',
+                    { count: props.recent.requests }
+                  )
+                : t(
+                    'Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.',
+                    { count: props.recent.requests }
+                  )}
             </span>
             <Button
               variant='outline'
