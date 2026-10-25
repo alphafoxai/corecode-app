@@ -379,6 +379,10 @@ func migrateDB() error {
 		&QuotaAdjustmentRequest{},
 		&ViolationRecord{},
 		&UserViolationState{},
+		&Affiliate{},
+		&AffiliateReferral{},
+		&AffiliateCommission{},
+		&AffiliateWithdrawal{},
 	)
 	if err != nil {
 		return err
