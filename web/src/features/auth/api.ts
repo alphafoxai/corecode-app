@@ -166,14 +166,16 @@ export async function sendPasswordResetEmail(
 
 // Request a one-time sign-in link. The response is the same whether the
 // address has an account, so it never confirms registration. redirect is the
-// in-app path the link should continue to after it lands.
+// in-app path the link should continue to after it lands. aff is the inviter's
+// code; the server uses it only when the link registers a new account.
 export async function requestMagicLink(
   email: string,
-  redirect?: string
+  redirect?: string,
+  aff?: string
 ): Promise<MagicLinkResponse> {
   const res = await api.post(
     '/api/magic_link/send',
-    { email, redirect },
+    { email, redirect, aff },
     { skipAuthRefresh: true }
   )
   return res.data

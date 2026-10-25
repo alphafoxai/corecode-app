@@ -287,3 +287,95 @@ export interface BillingHistoryResponse {
 export interface CompleteOrderRequest {
   trade_no: string
 }
+
+// ============================================================================
+// Invitation commission (affiliate) program
+// ============================================================================
+
+/** The user's affiliate account. Amounts are quota units. */
+export interface AffiliateAccount {
+  id: number
+  user_id: number
+  /** Commission rate in percent */
+  rate: number
+  /** Promotion channel: second-level commission and cash withdrawals */
+  channel: boolean
+  granted_by: number
+  balance: number
+  earned: number
+  created_at: number
+  updated_at: number
+}
+
+/** GET /api/affiliate/self */
+export interface AffiliateSummary {
+  enabled: boolean
+  self_serve_rate: number
+  /** Gateway-paid top-ups needed to apply, in payment currency */
+  self_serve_min_topup: number
+  second_level_rate: number
+  /** Minimum withdrawal, in payment currency */
+  min_withdrawal: number
+  /** Gateway-paid top-ups so far, in payment currency */
+  paid_money: number
+  affiliate: AffiliateAccount | null
+  /** Non-empty only when affiliate.rate > 0 */
+  aff_code: string
+  invitee_count: number
+  balance_money: number
+  earned_money: number
+}
+
+/** GET /api/affiliate/admin/users/:id */
+export interface AffiliateAdminView extends AffiliateSummary {
+  max_rate: number
+  inviter_id: number
+  inviter_name: string
+}
+
+export interface AffiliateCommission {
+  id: number
+  user_id: number
+  source_user_id: number
+  /** Masked name of the invitee the commission came from */
+  source_name: string
+  level: 1 | 2
+  rate: number
+  /** Consumed quota the commission was computed from */
+  base: number
+  amount: number
+  created_at: number
+}
+
+export type AffiliateWithdrawalStatus = 'pending' | 'paid' | 'rejected'
+
+export interface AffiliateWithdrawal {
+  id: number
+  user_id: number
+  quota: number
+  /** Payout amount in payment currency */
+  money: number
+  account: string
+  status: AffiliateWithdrawalStatus
+  note: string
+  created_at: number
+  processed_at: number
+  processed_by: number
+}
+
+export interface AffiliatePage<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface AffiliatePageParams {
+  p: number
+  page_size: number
+}
+
+export interface AffiliateWithdrawRequest {
+  quota: number
+  account: string
+}

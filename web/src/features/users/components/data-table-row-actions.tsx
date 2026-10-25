@@ -28,6 +28,7 @@ import {
   ShieldAlert,
   Link2,
   CreditCard,
+  Gift,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -60,6 +61,7 @@ import {
 } from '../constants'
 import { getUserActionMessage } from '../lib'
 import type { User } from '../types'
+import { UserAffiliateDialog } from './dialogs/user-affiliate-dialog'
 import { UserBindingDialog } from './dialogs/user-binding-dialog'
 import { useUsers } from './users-provider'
 
@@ -88,6 +90,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
+  const [affiliateDialogOpen, setAffiliateDialogOpen] = useState(false)
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -275,6 +278,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuShortcut>
         </DropdownMenuItem>
 
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault()
+            setAffiliateDialogOpen(true)
+          }}
+        >
+          {t('Invitation settings')}
+          <DropdownMenuShortcut>
+            <Gift size={16} />
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
+
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
@@ -347,6 +362,14 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         userId={user.id}
         onUnbindSuccess={triggerRefresh}
       />
+
+      {affiliateDialogOpen && (
+        <UserAffiliateDialog
+          open={affiliateDialogOpen}
+          onOpenChange={setAffiliateDialogOpen}
+          user={{ id: user.id, username: user.username }}
+        />
+      )}
 
       <UserSubscriptionsDialog
         open={subscriptionsDialogOpen}

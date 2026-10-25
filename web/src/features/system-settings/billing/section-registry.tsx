@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { parseCurrencyDisplayType } from '@/lib/currency'
 
+import { AffiliateSection } from '../affiliate/affiliate-section'
 import { CheckinSettingsSection } from '../general/checkin-settings-section'
 import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
@@ -184,6 +185,26 @@ const BILLING_SECTIONS = [
             settings['payment_setting.compliance_terms_version'] ?? '',
           confirmedAt: settings['payment_setting.compliance_confirmed_at'] ?? 0,
           confirmedBy: settings['payment_setting.compliance_confirmed_by'] ?? 0,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'affiliate',
+    titleKey: 'Invitation program',
+    build: (settings: BillingSettings) => (
+      <AffiliateSection
+        defaultValues={{
+          'affiliate_setting.enabled': settings['affiliate_setting.enabled'],
+          'affiliate_setting.self_serve_rate':
+            settings['affiliate_setting.self_serve_rate'],
+          'affiliate_setting.self_serve_min_topup':
+            settings['affiliate_setting.self_serve_min_topup'],
+          'affiliate_setting.max_rate': settings['affiliate_setting.max_rate'],
+          'affiliate_setting.second_level_rate':
+            settings['affiliate_setting.second_level_rate'],
+          'affiliate_setting.min_withdrawal':
+            settings['affiliate_setting.min_withdrawal'],
         }}
       />
     ),

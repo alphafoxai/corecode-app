@@ -21,9 +21,10 @@ For commercial licensing, please contact support@quantumnous.com
 // ============================================================================
 
 /**
- * Generate affiliate registration link
+ * Generate the invitation link. Sign-in is the registration page: the emailed
+ * link creates the account and reads the code from the address.
  */
 export function generateAffiliateLink(affCode: string): string {
   if (typeof window === 'undefined') return ''
-  return `${window.location.origin}/sign-up?aff=${affCode}`
+  return `${window.location.origin}/sign-in?aff=${encodeURIComponent(affCode)}`
 }

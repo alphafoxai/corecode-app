@@ -34,6 +34,9 @@ const (
 	MagicLinkWindow      = time.Hour
 
 	magicLinkRedirectMaxLen = 200
+	// MagicLinkAffMaxLen matches the users.aff_code column an invite code
+	// is looked up in.
+	MagicLinkAffMaxLen = 32
 
 	// MagicLinkCodeMaxAttempts burns a link after that many wrong codes. With six
 	// digits and the per-mailbox send cap, a guesser gets at most 50 tries an hour
@@ -51,11 +54,15 @@ var ErrMagicLinkRegistrationDisabled = errors.New("magic link registration is di
 // CodeHash is the keyed hash of the code mailed beside the link, and Attempts
 // counts wrong codes. A link issued before codes existed has no CodeHash and
 // signs in only through its URL.
+//
+// Aff is the invite code the requester arrived with. It binds an inviter only
+// if the link registers a new account.
 type MagicLinkState struct {
 	Email    string `json:"email"`
 	IP       string `json:"ip,omitempty"`
 	CodeHash string `json:"code_hash,omitempty"`
 	Attempts int    `json:"attempts,omitempty"`
+	Aff      string `json:"aff,omitempty"`
 }
 
 // CreateMagicLink issues a single-use sign-in link for an email address and
@@ -68,17 +75,21 @@ type MagicLinkState struct {
 // sign in after a newer request, and two live links can never race into two
 // accounts. Superseded rows stay counted, so the send throttle measures every
 // link actually issued rather than only the survivors.
-func CreateMagicLink(email, clientIP string) (string, string, time.Time, error) {
+func CreateMagicLink(email, clientIP, aff string) (string, string, time.Time, error) {
 	email = NormalizeEmail(email)
 	if email == "" || len(email) > MagicLinkEmailMaxLen {
 		return "", "", time.Time{}, ErrAuthFlowInvalid
+	}
+	aff = strings.TrimSpace(aff)
+	if len(aff) > MagicLinkAffMaxLen {
+		aff = ""
 	}
 	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("generate magic link code: %w", err)
 	}
 	code := fmt.Sprintf("%0*d", MagicLinkCodeDigits, n.Int64())
-	payload, err := common.Marshal(MagicLinkState{Email: email, IP: clientIP, CodeHash: magicLinkCodeHash(email, code)})
+	payload, err := common.Marshal(MagicLinkState{Email: email, IP: clientIP, CodeHash: magicLinkCodeHash(email, code), Aff: aff})
 	if err != nil {
 		return "", "", time.Time{}, err
 	}
@@ -115,57 +126,59 @@ func magicLinkCodeHash(email, code string) string {
 }
 
 // ConsumeMagicLinkCode spends the live link of an address when code matches the
-// one mailed with it, and returns the address. A wrong code counts against the
-// link, and the last allowed miss spends it.
+// one mailed with it, and returns the link's state with the address
+// normalized. A wrong code counts against the link, and the last allowed miss
+// spends it.
 //
 // Every write is a compare-and-swap on the payload that was read, so concurrent
 // guesses cannot share one attempt: a guess whose write loses counts as wrong.
 // No live link, a link without a code, a wrong code, and a lost race all return
 // ErrAuthFlowInvalid.
-func ConsumeMagicLinkCode(email, code string) (string, error) {
+func ConsumeMagicLinkCode(email, code string) (MagicLinkState, error) {
 	email = NormalizeEmail(email)
 	code = strings.TrimSpace(code)
 	if email == "" || len(email) > MagicLinkEmailMaxLen || len(code) != MagicLinkCodeDigits {
-		return "", ErrAuthFlowInvalid
+		return MagicLinkState{}, ErrAuthFlowInvalid
 	}
 	now := time.Now()
 	var flow AuthFlow
 	err := DB.Where("purpose = ? AND provider = ? AND consumed_at IS NULL AND expires_at > ?", MagicLinkPurpose, email, now).
 		Order("id desc").First(&flow).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", ErrAuthFlowInvalid
+		return MagicLinkState{}, ErrAuthFlowInvalid
 	}
 	if err != nil {
-		return "", err
+		return MagicLinkState{}, err
 	}
 	var state MagicLinkState
 	if err := common.UnmarshalJsonStr(flow.Payload, &state); err != nil || state.CodeHash == "" {
-		return "", ErrAuthFlowInvalid
+		return MagicLinkState{}, ErrAuthFlowInvalid
 	}
 	live := DB.Model(&AuthFlow{}).Where("id = ? AND payload = ? AND consumed_at IS NULL", flow.Id, flow.Payload)
 	if hmac.Equal([]byte(state.CodeHash), []byte(magicLinkCodeHash(email, code))) {
 		result := live.Update("consumed_at", now)
 		if result.Error != nil {
-			return "", result.Error
+			return MagicLinkState{}, result.Error
 		}
 		if result.RowsAffected != 1 {
-			return "", ErrAuthFlowInvalid
+			return MagicLinkState{}, ErrAuthFlowInvalid
 		}
-		return email, nil
+		state.Email = email
+		return state, nil
 	}
 	state.Attempts++
 	payload, err := common.Marshal(state)
 	if err != nil {
-		return "", err
+		return MagicLinkState{}, err
 	}
 	updates := map[string]any{"payload": string(payload)}
 	if state.Attempts >= MagicLinkCodeMaxAttempts {
 		updates["consumed_at"] = now
 	}
 	if err := live.Updates(updates).Error; err != nil {
-		return "", err
+		return MagicLinkState{}, err
 	}
-	return "", ErrAuthFlowInvalid
+	return MagicLinkState{}, ErrAuthFlowInvalid
 }
 
 // MagicLinkLastSentAt reports when a link was last issued for an address; the
@@ -201,24 +214,25 @@ func CountMagicLinksSince(since time.Time, email, clientIP string) (int64, error
 	return count, nil
 }
 
-// ConsumeMagicLink marks a link as used and returns the address it was issued
-// for. A link is valid once, before its deadline, and only for its own purpose;
-// an unknown, tampered, replayed, expired, or superseded token yields the same
-// error family, so no response distinguishes them.
-func ConsumeMagicLink(token string) (string, error) {
+// ConsumeMagicLink marks a link as used and returns its state, with the
+// address it was issued for normalized. A link is valid once, before its
+// deadline, and only for its own purpose; an unknown, tampered, replayed,
+// expired, or superseded token yields the same error family, so no response
+// distinguishes them.
+func ConsumeMagicLink(token string) (MagicLinkState, error) {
 	flow, err := ConsumeAuthFlow(strings.TrimSpace(token), AuthFlowMatch{Purpose: MagicLinkPurpose})
 	if err != nil {
-		return "", err
+		return MagicLinkState{}, err
 	}
 	var state MagicLinkState
 	if err := common.UnmarshalJsonStr(flow.Payload, &state); err != nil {
-		return "", ErrAuthFlowInvalid
+		return MagicLinkState{}, ErrAuthFlowInvalid
 	}
-	email := NormalizeEmail(state.Email)
-	if email == "" || len(email) > MagicLinkEmailMaxLen {
-		return "", ErrAuthFlowInvalid
+	state.Email = NormalizeEmail(state.Email)
+	if state.Email == "" || len(state.Email) > MagicLinkEmailMaxLen {
+		return MagicLinkState{}, ErrAuthFlowInvalid
 	}
-	return email, nil
+	return state, nil
 }
 
 // SafeMagicLinkRedirect keeps only an in-app continuation path: one leading

@@ -276,8 +276,7 @@ func Register(c *gin.Context) {
 		common.ApiErrorT(c, "Username already exists or has been deleted")
 		return
 	}
-	affCode := user.AffCode // this code is the inviter's code, not the user's own code
-	inviterId, _ := model.GetUserIdByAffCode(affCode)
+	inviterId := model.InviterIdForAffCode(user.AffCode) // the inviter's code, not the user's own
 	cleanUser := model.User{
 		Username:    user.Username,
 		Password:    user.Password,

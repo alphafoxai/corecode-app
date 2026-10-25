@@ -22,6 +22,7 @@ type magicLinkRequest struct {
 	Token    string `json:"token"`
 	Code     string `json:"code"`
 	Redirect string `json:"redirect"`
+	Aff      string `json:"aff"`
 }
 
 func magicLinkSendEnabled() bool {
@@ -120,7 +121,7 @@ func SendMagicLink(c *gin.Context) {
 		})
 		return
 	}
-	token, code, expiresAt, err := model.CreateMagicLink(email, c.ClientIP())
+	token, code, expiresAt, err := model.CreateMagicLink(email, c.ClientIP(), req.Aff)
 	if err != nil {
 		common.SysError(common.LogText("failed to create magic link: %v", err))
 		common.ApiErrorT(c, "Failed to send sign-in email, please contact the administrator")
@@ -178,12 +179,12 @@ func LoginWithMagicLink(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	email, err := model.ConsumeMagicLink(req.Token)
+	state, err := model.ConsumeMagicLink(req.Token)
 	if err != nil {
 		writeMagicLinkError(c, err)
 		return
 	}
-	signInMagicLinkAddress(c, email)
+	signInMagicLinkAddress(c, state)
 }
 
 // LoginWithMagicLinkCode signs in with the code mailed beside the link, for a
@@ -200,7 +201,7 @@ func LoginWithMagicLinkCode(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	email, err := model.ConsumeMagicLinkCode(req.Email, req.Code)
+	state, err := model.ConsumeMagicLinkCode(req.Email, req.Code)
 	if errors.Is(err, model.ErrAuthFlowInvalid) {
 		common.ApiErrorT(c, "Code is incorrect or has expired")
 		return
@@ -209,16 +210,16 @@ func LoginWithMagicLinkCode(c *gin.Context) {
 		writeMagicLinkError(c, err)
 		return
 	}
-	signInMagicLinkAddress(c, email)
+	signInMagicLinkAddress(c, state)
 }
 
 // signInMagicLinkAddress issues the session for an address whose mailbox was
 // just proven, registering it when registration is open.
-func signInMagicLinkAddress(c *gin.Context, email string) {
+func signInMagicLinkAddress(c *gin.Context, state model.MagicLinkState) {
 	c.Set("login_method", "magic_link")
-	user, err := model.GetUniqueUserByEmail(email)
+	user, err := model.GetUniqueUserByEmail(state.Email)
 	if errors.Is(err, model.ErrEmailNotFound) {
-		user, err = registerMagicLinkUser(c, email)
+		user, err = registerMagicLinkUser(c, state.Email, state.Aff)
 	}
 	if err != nil {
 		writeMagicLinkError(c, err)
@@ -227,7 +228,7 @@ func signInMagicLinkAddress(c *gin.Context, email string) {
 	setupLogin(user, nil, c)
 }
 
-func registerMagicLinkUser(c *gin.Context, email string) (*model.User, error) {
+func registerMagicLinkUser(c *gin.Context, email string, aff string) (*model.User, error) {
 	if !magicLinkRegisterAllowed() {
 		return nil, model.ErrMagicLinkRegistrationDisabled
 	}
@@ -238,7 +239,7 @@ func registerMagicLinkUser(c *gin.Context, email string) (*model.User, error) {
 		Role:        common.RoleCommonUser,
 		Status:      common.UserStatusEnabled,
 	}
-	if err := cleanUser.Insert(0); err != nil {
+	if err := cleanUser.Insert(model.InviterIdForAffCode(aff)); err != nil {
 		return nil, err
 	}
 	if err := issueDefaultAPIToken(c, &cleanUser); err != nil {
