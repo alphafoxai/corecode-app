@@ -181,6 +181,32 @@ func SetApiRouter(router *gin.Engine) {
 			}
 		}
 
+		// Invitation program: affiliate codes, commission, channel withdrawals
+		affiliateRoute := apiRouter.Group("/affiliate")
+		affiliateRoute.Use(middleware.DisableCache())
+		{
+			affiliateSelfRoute := affiliateRoute.Group("/self")
+			affiliateSelfRoute.Use(middleware.UserAuth())
+			{
+				affiliateSelfRoute.GET("", controller.GetSelfAffiliate)
+				affiliateSelfRoute.POST("/apply", middleware.UserCriticalRateLimit("affiliate"), controller.ApplySelfAffiliate)
+				affiliateSelfRoute.GET("/commissions", controller.GetSelfAffiliateCommissions)
+				affiliateSelfRoute.POST("/transfer", middleware.UserCriticalRateLimit("affiliate"), controller.TransferSelfAffiliate)
+				affiliateSelfRoute.GET("/withdrawals", controller.GetSelfAffiliateWithdrawals)
+				affiliateSelfRoute.POST("/withdrawals", middleware.UserCriticalRateLimit("affiliate"), controller.RequestSelfAffiliateWithdrawal)
+			}
+			affiliateAdminRoute := affiliateRoute.Group("/admin")
+			affiliateAdminRoute.Use(middleware.AdminAuth())
+			{
+				affiliateAdminRoute.GET("/users/:id", controller.AdminGetUserAffiliate)
+				affiliateAdminRoute.PUT("/users/:id", controller.AdminSetUserAffiliate)
+				affiliateAdminRoute.GET("/users/:id/commissions", controller.AdminGetUserAffiliateCommissions)
+				affiliateAdminRoute.GET("/withdrawals", controller.AdminGetAffiliateWithdrawals)
+				affiliateAdminRoute.POST("/withdrawals/:id/pay", controller.AdminPayAffiliateWithdrawal)
+				affiliateAdminRoute.POST("/withdrawals/:id/reject", controller.AdminRejectAffiliateWithdrawal)
+			}
+		}
+
 		// Subscription billing (plans, purchase, admin management)
 		subscriptionRoute := apiRouter.Group("/subscription")
 		subscriptionRoute.Use(middleware.UserAuth())

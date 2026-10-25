@@ -130,6 +130,20 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"PATCH /api/admin/users/:id/tokens/:token_id":  accessTokenScopeRule("api_key:write"),
 	"DELETE /api/admin/users/:id/tokens/:token_id": accessTokenScopeRule("api_key:write"),
 
+	// router/api-router.go: /api/affiliate
+	"GET /api/affiliate/self":                          accessTokenScopeRule("wallet:read"),
+	"POST /api/affiliate/self/apply":                   accessTokenScopeRule("wallet:write"),
+	"GET /api/affiliate/self/commissions":              accessTokenScopeRule("wallet:read"),
+	"POST /api/affiliate/self/transfer":                accessTokenScopeRule("wallet:write"),
+	"GET /api/affiliate/self/withdrawals":              accessTokenScopeRule("wallet:read"),
+	"POST /api/affiliate/self/withdrawals":             accessTokenScopeRule("wallet:write"),
+	"GET /api/affiliate/admin/users/:id":               accessTokenScopeRule("user:read"),
+	"PUT /api/affiliate/admin/users/:id":               accessTokenScopeRule("user:write"),
+	"GET /api/affiliate/admin/users/:id/commissions":   accessTokenScopeRule("user:read"),
+	"GET /api/affiliate/admin/withdrawals":             accessTokenScopeRule("billing:read"),
+	"POST /api/affiliate/admin/withdrawals/:id/pay":    accessTokenScopeRule("billing:write"),
+	"POST /api/affiliate/admin/withdrawals/:id/reject": accessTokenScopeRule("billing:write"),
+
 	// router/api-router.go: /api/subscription
 	"GET /api/subscription/plans":                                    accessTokenScopeRule("wallet:read"),
 	"GET /api/subscription/self":                                     accessTokenScopeRule("wallet:read"),
