@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 /*
 Copyright (C) 2023-2026 QuantumNous
@@ -123,6 +141,7 @@ beforeAll(() => {
 })
 
 afterEach(() => {
+  window.localStorage.removeItem('aff')
   cleanup()
   vi.restoreAllMocks()
   useAuthStore.getState().auth.reset('idle')
@@ -152,6 +171,76 @@ describe('MagicLinkForm', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('someone@example.com')).toBeInTheDocument()
     expect(screen.getByLabelText('Sign-in code')).toBeInTheDocument()
+  })
+
+  it('keeps the invitation code collapsed until asked for and sends the typed code', async () => {
+    window.localStorage.removeItem('aff')
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 45 } } as never)
+
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    expect(screen.queryByLabelText('Invitation code (optional)')).toBeNull()
+    await user.click(
+      await screen.findByRole('button', { name: 'Have an invitation code?' })
+    )
+    await user.type(
+      screen.getByLabelText('Invitation code (optional)'),
+      'ab12cd'
+    )
+    await submitEmail(user)
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post).toHaveBeenCalledWith(
+      '/api/magic_link/send',
+      { email: 'someone@example.com', redirect: '/pricing', aff: 'ab12cd' },
+      { skipAuthRefresh: true }
+    )
+    expect(window.localStorage.getItem('aff')).toBe('ab12cd')
+  })
+
+  it('prefills a stored invitation code and sends it', async () => {
+    window.localStorage.setItem('aff', 'stored1')
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 45 } } as never)
+
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    expect(
+      await screen.findByLabelText('Invitation code (optional)')
+    ).toHaveValue('stored1')
+    await submitEmail(user)
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1]).toMatchObject({ aff: 'stored1' })
+  })
+
+  it('captures ?aff= from the address and omits aff when none is set', async () => {
+    window.localStorage.removeItem('aff')
+    window.history.replaceState({}, '', '/sign-in?aff=fromurl')
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 45 } } as never)
+
+    renderInRouter(SignInHarness, '/')
+    const user = userEvent.setup()
+    expect(
+      await screen.findByLabelText('Invitation code (optional)')
+    ).toHaveValue('fromurl')
+    await submitEmail(user)
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1]).toMatchObject({ aff: 'fromurl' })
+
+    cleanup()
+    window.history.replaceState({}, '', '/')
+    window.localStorage.removeItem('aff')
+    post.mockClear()
+    renderInRouter(SignInHarness, '/')
+    await submitEmail(userEvent.setup())
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1]).toMatchObject({ aff: undefined })
   })
 
   it('reserves the resend button for the server-provided wait', async () => {

@@ -16,90 +16,126 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { getSelf } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
-import {
-  getServerMessage,
-  requireServerSuccess,
-} from '@/lib/server-error-message'
+import { getServerMessage } from '@/lib/server-error-message'
 
-import { getAffiliateCode, transferAffiliateQuota } from '../api'
+import {
+  applyForAffiliate,
+  createAffiliateWithdrawal,
+  getAffiliateSelf,
+  transferAffiliateCommission,
+  transferAffiliateQuota,
+} from '../api'
 import { generateAffiliateLink } from '../lib'
 
 // ============================================================================
-// Affiliate Hook
+// Invitation commission hook
 // ============================================================================
 
+export const AFFILIATE_SELF_KEY = ['affiliate', 'self'] as const
+
 export function useAffiliate() {
-  const [affiliateCode, setAffiliateCode] = useState<string>('')
-  const [affiliateLink, setAffiliateLink] = useState<string>('')
-  const [loading, setLoading] = useState(true)
-  const [transferring, setTransferring] = useState(false)
-  const { copyToClipboard } = useCopyToClipboard()
+  const queryClient = useQueryClient()
+  const [legacyTransferring, setLegacyTransferring] = useState(false)
 
-  // Fetch affiliate code
-  const fetchAffiliateCode = useCallback(async () => {
-    try {
-      setLoading(true)
-      const response = requireServerSuccess(await getAffiliateCode())
+  const query = useQuery({
+    queryKey: AFFILIATE_SELF_KEY,
+    queryFn: getAffiliateSelf,
+    meta: { errorToast: false },
+  })
+  const summary = query.data ?? null
 
-      if (response.success && response.data) {
-        setAffiliateCode(response.data)
-        const link = generateAffiliateLink(response.data)
-        setAffiliateLink(link)
+  const affiliateLink = useMemo(
+    () => (summary?.aff_code ? generateAffiliateLink(summary.aff_code) : ''),
+    [summary?.aff_code]
+  )
+
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['affiliate'] })
+  }, [queryClient])
+
+  const apply = useMutation({
+    mutationFn: applyForAffiliate,
+    onSuccess: (data) => {
+      queryClient.setQueryData(AFFILIATE_SELF_KEY, data)
+      toast.success(i18next.t('You can now invite friends'))
+    },
+    onError: (error) => handleServerError(error),
+  })
+
+  const transfer = useMutation({
+    mutationFn: transferAffiliateCommission,
+    onSuccess: async () => {
+      toast.success(i18next.t('Transfer successful'))
+      await refresh()
+    },
+    onError: (error) => handleServerError(error),
+  })
+
+  const withdraw = useMutation({
+    mutationFn: createAffiliateWithdrawal,
+    onSuccess: async () => {
+      toast.success(i18next.t('Withdrawal requested'))
+      await refresh()
+    },
+    onError: (error) => handleServerError(error),
+  })
+
+  // Rewards earned under the earlier referral program.
+  const transferLegacy = useCallback(
+    async (quota: number): Promise<boolean> => {
+      try {
+        setLegacyTransferring(true)
+        const response = await transferAffiliateQuota({ quota })
+        if (response.success) {
+          toast.success(
+            getServerMessage(response) || i18next.t('Transfer successful')
+          )
+          await getSelf()
+          return true
+        }
+        handleServerError(response, i18next.t('Transfer failed'))
+        return false
+      } catch (error) {
+        handleServerError(error, i18next.t('Transfer failed'))
+        return false
+      } finally {
+        setLegacyTransferring(false)
       }
-    } catch (error) {
-      handleServerError(error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // Copy affiliate link
-  const copyAffiliateLink = useCallback(() => {
-    copyToClipboard(affiliateLink)
-  }, [affiliateLink, copyToClipboard])
-
-  // Transfer affiliate quota to balance
-  const transferQuota = useCallback(async (quota: number): Promise<boolean> => {
-    try {
-      setTransferring(true)
-      const response = await transferAffiliateQuota({ quota })
-
-      if (response.success) {
-        toast.success(
-          getServerMessage(response) || i18next.t('Transfer successful')
-        )
-        await getSelf()
-        return true
-      }
-
-      handleServerError(response, i18next.t('Transfer failed'))
-      return false
-    } catch (_error) {
-      handleServerError(_error, i18next.t('Transfer failed'))
-      return false
-    } finally {
-      setTransferring(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchAffiliateCode()
-  }, [fetchAffiliateCode])
+    },
+    []
+  )
 
   return {
-    affiliateCode,
+    summary,
     affiliateLink,
-    loading,
-    transferring,
-    copyAffiliateLink,
-    transferQuota,
-    refetch: fetchAffiliateCode,
+    loading: query.isPending,
+    applying: apply.isPending,
+    transferring: transfer.isPending,
+    withdrawing: withdraw.isPending,
+    legacyTransferring,
+    apply: () =>
+      apply.mutateAsync().then(
+        () => true,
+        () => false
+      ),
+    transferCommission: (quota: number) =>
+      transfer.mutateAsync(quota).then(
+        () => true,
+        () => false
+      ),
+    withdraw: (quota: number, account: string) =>
+      withdraw.mutateAsync({ quota, account }).then(
+        () => true,
+        () => false
+      ),
+    transferLegacy,
+    refetch: query.refetch,
   }
 }

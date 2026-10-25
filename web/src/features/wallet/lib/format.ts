@@ -64,6 +64,15 @@ export function formatCurrency(amount: number | string): string {
 }
 
 /**
+ * Format an amount in the payment currency, such as what a customer paid or
+ * what a commission payout sends. Top-ups are charged in CNY, whatever
+ * currency the console displays quota in.
+ */
+export function formatPaymentMoney(amount: number): string {
+  return `¥${formatCurrency(amount)}`
+}
+
+/**
  * Get discount label for display (e.g., "20% OFF")
  */
 export function getDiscountLabel(discount: number, t: TFunction): string {

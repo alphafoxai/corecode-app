@@ -1,0 +1,129 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, it, vi } from 'vitest'
+
+import { api } from '@/lib/api'
+
+import { UserAffiliateDialog } from '../user-affiliate-dialog'
+
+const view = {
+  enabled: true,
+  self_serve_rate: 10,
+  self_serve_min_topup: 100,
+  second_level_rate: 5,
+  min_withdrawal: 100,
+  paid_money: 200,
+  affiliate: {
+    id: 1,
+    user_id: 9,
+    rate: 10,
+    channel: false,
+    granted_by: 0,
+    balance: 0,
+    earned: 0,
+    created_at: 1,
+    updated_at: 1,
+  },
+  aff_code: 'XY',
+  invitee_count: 2,
+  balance_money: 0,
+  earned_money: 0,
+  max_rate: 30,
+  inviter_id: 3,
+  inviter_name: 'boss',
+}
+
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+function renderDialog() {
+  vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
+    if (url.endsWith('/commissions')) {
+      return {
+        data: {
+          success: true,
+          data: { items: [], total: 0, page: 1, page_size: 10 },
+        },
+      }
+    }
+    return { data: { success: true, data: view } }
+  })
+  return render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <UserAffiliateDialog
+        open
+        onOpenChange={() => {}}
+        user={{ id: 9, username: 'alice' }}
+      />
+    </QueryClientProvider>
+  )
+}
+
+it('shows the inviter and saves the new rate and channel flag', async () => {
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        ...view,
+        affiliate: { ...view.affiliate, rate: 15, channel: true },
+      },
+    },
+  })
+  const user = userEvent.setup()
+  renderDialog()
+
+  expect(await screen.findByText('boss #3')).toBeVisible()
+  const save = screen.getByRole('button', { name: 'Save' })
+  expect(save).toBeDisabled()
+
+  const rate = screen.getByLabelText('Commission rate (%)')
+  await user.clear(rate)
+  await user.type(rate, '15')
+  await user.click(screen.getByRole('switch'))
+  await user.click(save)
+
+  await waitFor(() =>
+    expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9', {
+      rate: 15,
+      channel: true,
+    })
+  )
+})
+
+it('blocks a rate above the configured maximum', async () => {
+  const put = vi.spyOn(api, 'put')
+  const user = userEvent.setup()
+  renderDialog()
+
+  const rate = await screen.findByLabelText('Commission rate (%)')
+  await user.clear(rate)
+  await user.type(rate, '31')
+
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  expect(put).not.toHaveBeenCalled()
+})

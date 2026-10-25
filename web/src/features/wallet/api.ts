@@ -17,12 +17,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
+import { createServerError } from '@/lib/server-error-message'
 
 import type {
   RedemptionRequest,
   PaymentRequest,
   AmountRequest,
   AffiliateTransferRequest,
+  AffiliateCommission,
+  AffiliatePage,
+  AffiliatePageParams,
+  AffiliateSummary,
+  AffiliateWithdrawal,
+  AffiliateWithdrawRequest,
   ApiResponse,
   TopupInfoResponse,
   RedemptionResponse,
@@ -245,4 +252,69 @@ export async function completeOrder(
 ): Promise<ApiResponse> {
   const res = await api.post('/api/user/topup/complete', request)
   return res.data
+}
+
+// ----------------------------------------------------------------------------
+// Invitation commission program
+// ----------------------------------------------------------------------------
+
+async function unwrap<T>(
+  request: Promise<{ data: ApiResponse<T> }>,
+  fallback: string
+): Promise<T> {
+  const res = await request
+  if (!res.data.success || res.data.data === undefined) {
+    throw createServerError(res.data, fallback)
+  }
+  return res.data.data
+}
+
+export function getAffiliateSelf(): Promise<AffiliateSummary> {
+  return unwrap(
+    api.get('/api/affiliate/self'),
+    'Failed to load invitation program'
+  )
+}
+
+export function applyForAffiliate(): Promise<AffiliateSummary> {
+  return unwrap(
+    api.post('/api/affiliate/self/apply'),
+    'Failed to apply for the invitation program'
+  )
+}
+
+export function getAffiliateCommissions(
+  params: AffiliatePageParams
+): Promise<AffiliatePage<AffiliateCommission>> {
+  return unwrap(
+    api.get('/api/affiliate/self/commissions', { params }),
+    'Failed to load commission records'
+  )
+}
+
+export async function transferAffiliateCommission(
+  quota: number
+): Promise<void> {
+  const res = await api.post('/api/affiliate/self/transfer', { quota })
+  if (!res.data.success) {
+    throw createServerError(res.data, 'Transfer failed')
+  }
+}
+
+export function getAffiliateWithdrawals(
+  params: AffiliatePageParams
+): Promise<AffiliatePage<AffiliateWithdrawal>> {
+  return unwrap(
+    api.get('/api/affiliate/self/withdrawals', { params }),
+    'Failed to load withdrawal records'
+  )
+}
+
+export function createAffiliateWithdrawal(
+  request: AffiliateWithdrawRequest
+): Promise<AffiliateWithdrawal> {
+  return unwrap(
+    api.post('/api/affiliate/self/withdrawals', request),
+    'Withdrawal request failed'
+  )
 }

@@ -18,10 +18,19 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { AxiosRequestConfig } from 'axios'
 
+import type {
+  AffiliateAdminView,
+  AffiliateCommission,
+  AffiliatePage,
+  AffiliatePageParams,
+} from '@/features/wallet/types'
 import type { PermissionCatalog } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import type { CustomOAuthBinding } from '@/lib/oauth'
-import { requireServerSuccess } from '@/lib/server-error-message'
+import {
+  createServerError,
+  requireServerSuccess,
+} from '@/lib/server-error-message'
 
 import type {
   User,
@@ -266,4 +275,48 @@ export async function adminUnbindCustomOAuth(
     securityProofConfig(proofToken)
   )
   return res.data
+}
+
+// ============================================================================
+// Invitation program (per user)
+// ============================================================================
+
+export async function getUserAffiliate(
+  userId: number
+): Promise<AffiliateAdminView> {
+  const res = await api.get<ApiResponse<AffiliateAdminView>>(
+    `/api/affiliate/admin/users/${userId}`
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load invitation settings')
+  }
+  return res.data.data
+}
+
+export async function updateUserAffiliate(
+  userId: number,
+  body: { rate: number; channel: boolean }
+): Promise<AffiliateAdminView> {
+  const res = await api.put<ApiResponse<AffiliateAdminView>>(
+    `/api/affiliate/admin/users/${userId}`,
+    body
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to save invitation settings')
+  }
+  return res.data.data
+}
+
+export async function getUserAffiliateCommissions(
+  userId: number,
+  params: AffiliatePageParams
+): Promise<AffiliatePage<AffiliateCommission>> {
+  const res = await api.get<ApiResponse<AffiliatePage<AffiliateCommission>>>(
+    `/api/affiliate/admin/users/${userId}/commissions`,
+    { params }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load commission records')
+  }
+  return res.data.data
 }

@@ -50,6 +50,12 @@ import {
   MAGIC_LINK_COUNTDOWN,
 } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
+import {
+  AFFILIATE_CODE_MAX_LENGTH,
+  captureAffiliateCodeFromUrl,
+  getAffiliateCode,
+  saveAffiliateCode,
+} from '@/features/auth/lib/storage'
 import { useCountdown } from '@/hooks/use-countdown'
 import { useStatus } from '@/hooks/use-status'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -80,6 +86,14 @@ export function MagicLinkForm({
   const [isLoading, setIsLoading] = useState(false)
   const [sentTo, setSentTo] = useState('')
   const [agreedToLegal, setAgreedToLegal] = useState(false)
+  // An invitation link (?aff=CODE) lands here; keep its code for the send below.
+  const [inviteCode, setInviteCode] = useState(() =>
+    typeof window === 'undefined'
+      ? ''
+      : captureAffiliateCodeFromUrl(window.location.search)
+  )
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const inviteId = useId()
 
   const { status } = useStatus()
   const requiresLegalConsent = Boolean(
@@ -108,7 +122,11 @@ export function MagicLinkForm({
 
     setIsLoading(true)
     try {
-      const res = await requestMagicLink(email, redirectTo)
+      const res = await requestMagicLink(
+        email,
+        redirectTo,
+        getAffiliateCode() || undefined
+      )
       if (res?.success) {
         setSentTo(email)
         countdown.start(res.resend_after)
@@ -188,6 +206,37 @@ export function MagicLinkForm({
             </FormItem>
           )}
         />
+
+        {registrationEnabled &&
+          (inviteCode || inviteOpen ? (
+            <div className='grid gap-2'>
+              <label htmlFor={inviteId} className='text-sm font-medium'>
+                {t('Invitation code (optional)')}
+              </label>
+              <Input
+                id={inviteId}
+                autoComplete='off'
+                maxLength={AFFILIATE_CODE_MAX_LENGTH}
+                className='h-11'
+                value={inviteCode}
+                onChange={(event) => {
+                  const value = event.target.value.trim()
+                  setInviteOpen(true)
+                  setInviteCode(value)
+                  saveAffiliateCode(value)
+                }}
+              />
+            </div>
+          ) : (
+            <Button
+              type='button'
+              variant='link'
+              className='text-muted-foreground hover:text-foreground h-auto justify-self-start p-0 text-sm'
+              onClick={() => setInviteOpen(true)}
+            >
+              {t('Have an invitation code?')}
+            </Button>
+          ))}
 
         <LegalConsent
           status={status}

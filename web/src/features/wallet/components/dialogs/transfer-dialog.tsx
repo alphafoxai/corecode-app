@@ -40,15 +40,13 @@ interface TransferDialogProps {
   onConfirm: (amount: number) => Promise<boolean>
   availableQuota: number
   transferring: boolean
+  title?: string
+  description?: string
+  availableLabel?: string
 }
 
-export function TransferDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  availableQuota,
-  transferring,
-}: TransferDialogProps) {
+export function TransferDialog(props: TransferDialogProps) {
+  const { open, onOpenChange, onConfirm, availableQuota, transferring } = props
   const { t } = useTranslation()
   const currencyConfig = useSystemConfigStore((state) => state.config.currency)
   const minimumQuota = Math.ceil(
@@ -85,8 +83,10 @@ export function TransferDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t('Transfer Rewards')}
-      description={t('Move affiliate rewards to your main balance')}
+      title={props.title ?? t('Transfer Rewards')}
+      description={
+        props.description ?? t('Move affiliate rewards to your main balance')
+      }
       contentClassName='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md'
       titleClassName='text-xl font-semibold'
       footerClassName='grid grid-cols-2 gap-2 sm:flex'
@@ -114,7 +114,7 @@ export function TransferDialog({
       <div className='space-y-4 py-3 sm:space-y-6 sm:py-4'>
         <div className='space-y-2'>
           <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
-            {t('Available Rewards')}
+            {props.availableLabel ?? t('Available Rewards')}
           </Label>
           <div className='text-2xl font-semibold'>
             {formatQuota(availableQuota)}

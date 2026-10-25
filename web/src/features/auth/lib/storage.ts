@@ -24,6 +24,9 @@ For commercial licensing, please contact support@quantumnous.com
 // LocalStorage Keys
 // ============================================================================
 
+/** The server rejects invitation codes longer than this. */
+export const AFFILIATE_CODE_MAX_LENGTH = 32
+
 const STORAGE_KEYS = {
   AFFILIATE: 'aff',
   STATUS: 'status',
@@ -58,4 +61,14 @@ export function saveAffiliateCode(code: string): void {
     // eslint-disable-next-line no-console
     console.error('Failed to save affiliate code:', error)
   }
+}
+
+/**
+ * Store the `?aff=` code in the address, if any, and return the code now saved.
+ * Safe to call on every render path: it only writes when the address has a code.
+ */
+export function captureAffiliateCodeFromUrl(search: string): string {
+  const aff = new URLSearchParams(search).get('aff')?.trim()
+  if (aff) saveAffiliateCode(aff.slice(0, AFFILIATE_CODE_MAX_LENGTH))
+  return getAffiliateCode()
 }
