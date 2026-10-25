@@ -33,7 +33,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatLocalCurrencyAmount } from '@/lib/currency'
 
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
-import { formatCurrency, getPaymentIcon } from '../../lib'
+import {
+  formatCurrency,
+  getPaymentIcon,
+  isBonusEligiblePayment,
+} from '../../lib'
 import type { PaymentMethod } from '../../types'
 
 interface PaymentConfirmDialogProps {
@@ -46,6 +50,8 @@ interface PaymentConfirmDialogProps {
   calculating: boolean
   processing: boolean
   discountRate?: number
+  /** Bonus fraction for this amount; shown only for epay payment methods */
+  bonusRate?: number
   usdExchangeRate?: number
 }
 
@@ -59,12 +65,21 @@ export function PaymentConfirmDialog({
   calculating,
   processing,
   discountRate = DEFAULT_DISCOUNT_RATE,
+  bonusRate = 0,
   usdExchangeRate = 1,
 }: PaymentConfirmDialogProps) {
   const { t } = useTranslation()
   const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0
   const originalAmount = hasDiscount ? paymentAmount / discountRate : 0
   const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0
+  const hasBonus = bonusRate > 0 && isBonusEligiblePayment(paymentMethod?.type)
+  const displayTopup = topupAmount * usdExchangeRate
+  const displayBonus = hasBonus ? displayTopup * bonusRate : 0
+  const currencyOptions = {
+    digitsLarge: 2,
+    digitsSmall: 2,
+    abbreviate: false,
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -84,13 +99,33 @@ export function PaymentConfirmDialog({
               {t('Topup Amount')}
             </span>
             <span className='text-lg font-semibold'>
-              {formatLocalCurrencyAmount(topupAmount * usdExchangeRate, {
-                digitsLarge: 2,
-                digitsSmall: 2,
-                abbreviate: false,
-              })}
+              {formatLocalCurrencyAmount(displayTopup, currencyOptions)}
             </span>
           </div>
+
+          {hasBonus && (
+            <>
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('Bonus')}
+                </span>
+                <span className='text-sm font-semibold text-green-600'>
+                  +{formatLocalCurrencyAmount(displayBonus, currencyOptions)}
+                </span>
+              </div>
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('Total credited')}
+                </span>
+                <span className='text-lg font-semibold'>
+                  {formatLocalCurrencyAmount(
+                    displayTopup + displayBonus,
+                    currencyOptions
+                  )}
+                </span>
+              </div>
+            </>
+          )}
 
           <div className='flex items-center justify-between'>
             <span className='text-muted-foreground text-sm'>

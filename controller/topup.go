@@ -120,6 +120,7 @@ func GetTopUpInfo(c *gin.Context) {
 		"waffo_pancake_min_topup": setting.WaffoPancakeMinTopUp,
 		"amount_options":          operation_setting.GetPaymentSetting().AmountOptions,
 		"discount":                operation_setting.GetPaymentSetting().AmountDiscount,
+		"bonus":                   operation_setting.GetPaymentSetting().AmountBonus,
 		"topup_link":              common.TopUpLink,
 	}
 	common.ApiSuccess(c, data)
@@ -201,6 +202,21 @@ func getTopUpQuota(amount int64) (int, error) {
 		quota = quota.Mul(decimal.NewFromFloat(common.QuotaPerUnit))
 	}
 	return common.WalletQuotaFromDecimalStrict(quota)
+}
+
+// topUpBonusQuota is the extra quota an online top-up of amount earns under
+// payment_setting.amount_bonus. The order keeps it, so a tier changed while
+// the customer pays does not change what they were shown.
+func topUpBonusQuota(amount int64) (int, error) {
+	rate := operation_setting.TopUpBonusRate(amount)
+	if rate <= 0 {
+		return 0, nil
+	}
+	quota, err := getTopUpQuota(amount)
+	if err != nil {
+		return 0, err
+	}
+	return common.WalletQuotaFromDecimalStrict(decimal.NewFromInt(int64(quota)).Mul(decimal.NewFromFloat(rate)).Floor())
 }
 
 func getMaxTopUpAmount() int64 {
@@ -295,6 +311,15 @@ func RequestEpay(c *gin.Context) {
 	if rejectInvalidTopUpQuota(c, id, req.Amount) {
 		return
 	}
+	bonusQuota, err := topUpBonusQuota(req.Amount)
+	if err == nil && bonusQuota > 0 {
+		quota, _ := getTopUpQuota(req.Amount)
+		err = model.ValidateTopUpQuotaCapacity(id, quota+bonusQuota)
+	}
+	if err != nil {
+		paymentError(c, err)
+		return
+	}
 
 	group, err := model.GetUserGroup(id, true)
 	if err != nil {
@@ -349,6 +374,7 @@ func RequestEpay(c *gin.Context) {
 		TradeNo:         tradeNo,
 		PaymentMethod:   req.PaymentMethod,
 		PaymentProvider: model.PaymentProviderEpay,
+		BonusQuota:      int64(bonusQuota),
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 	}

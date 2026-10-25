@@ -134,6 +134,8 @@ export interface TopupInfo {
   amount_options: number[]
   /** Discount rates by amount */
   discount: Record<number, number>
+  /** Bonus rates (fractions) by minimum amount; applies to epay topups only */
+  bonus?: Record<number, number>
   /** Optional topup link for purchasing codes */
   topup_link?: string
   /** Whether Creem topup is enabled */
@@ -259,6 +261,8 @@ export interface TopupRecord {
   user_id: number
   /** Topup amount (quota) */
   amount: number
+  /** Bonus quota credited on top of the payment (0 when none) */
+  bonus_quota?: number
   /** Payment amount (actual money paid) */
   money: number
   /** Trade/order number */
