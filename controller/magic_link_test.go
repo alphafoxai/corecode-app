@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -197,6 +198,42 @@ func TestMagicLinkSignsInAndRegistersUnknownAddress(t *testing.T) {
 	// console can reuse its bundle handling unchanged.
 	_, err = service.ParseAccessToken(data["access_token"].(string))
 	require.NoError(t, err)
+}
+
+// The emailed link is the only sign-up path in production, so the invite
+// code the customer arrived with has to survive the round trip through the
+// mailbox and bind the inviter when the link creates the account.
+func TestMagicLinkSignUpBindsTheInviterFromItsCode(t *testing.T) {
+	messages := setupMagicLinkTest(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.Affiliate{}, &model.AffiliateReferral{}))
+	affiliateSetting := operation_setting.GetAffiliateSetting()
+	previousEnabled := affiliateSetting.Enabled
+	affiliateSetting.Enabled = true
+	t.Cleanup(func() { affiliateSetting.Enabled = previousEnabled })
+
+	inviter := &model.User{Username: "magic_inviter", DisplayName: "magic_inviter", Role: common.RoleCommonUser, Status: common.UserStatusEnabled}
+	require.NoError(t, inviter.Insert(0))
+	require.NoError(t, model.DB.First(inviter, inviter.Id).Error)
+	_, err := model.SetAffiliate(inviter.Id, 10, false, 1)
+	require.NoError(t, err)
+
+	sent := magicLinkPost(t, "/api/magic_link/send", `{"email":"`+magicLinkTestEmail+`","aff":"`+inviter.AffCode+`"}`, SendMagicLink)
+	require.Equal(t, http.StatusOK, sent.Code)
+	var raw string
+	select {
+	case raw = <-messages:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no sign-in email was delivered")
+	}
+	recorder := magicLinkPost(t, "/api/magic_link/login", `{"token":"`+extractMagicLinkToken(t, raw)+`"}`, LoginWithMagicLink)
+	require.Equal(t, true, decodeMagicLinkResponse(t, recorder)["success"])
+
+	user, err := model.GetUniqueUserByEmail(magicLinkTestEmail)
+	require.NoError(t, err)
+	assert.Equal(t, inviter.Id, user.InviterId)
+	var referrals int64
+	require.NoError(t, model.DB.Model(&model.AffiliateReferral{}).Where("user_id = ?", user.Id).Count(&referrals).Error)
+	assert.EqualValues(t, 1, referrals, "the new invitee starts counting toward commission at once")
 }
 
 func serviceIsAuthBundle(data map[string]any) bool {
