@@ -21,6 +21,7 @@ import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { CacheMissTooltip } from '@/features/usage-logs/components/cache-miss-tooltip'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
 import {
   getInputCacheTokens,
@@ -87,6 +88,15 @@ export function RecentRequestsPanel(props: {
           const other = parseLogOther(log.other)
           const { totalInput } = getInputCacheTokens(log, other)
           const missed = isCostlyCacheMiss(log, other)
+          const cacheText =
+            cache === null
+              ? ''
+              : t('Cache {{rate}}', {
+                  rate: Intl.NumberFormat(locale, {
+                    style: 'percent',
+                    maximumFractionDigits: 0,
+                  }).format(cache),
+                })
           return (
             <li
               key={log.id}
@@ -117,28 +127,23 @@ export function RecentRequestsPanel(props: {
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              <span
-                className={cn(
-                  'text-muted-foreground text-right text-xs tabular-nums',
-                  missed && 'text-warning font-medium'
-                )}
-                title={
-                  missed
-                    ? t(
-                        'Long context, almost no cache hit: billed as a fresh cache write'
-                      )
-                    : undefined
-                }
-              >
-                {cache === null
-                  ? ''
-                  : t('Cache {{rate}}', {
-                      rate: Intl.NumberFormat(locale, {
-                        style: 'percent',
-                        maximumFractionDigits: 0,
-                      }).format(cache),
-                    })}
-              </span>
+              {missed ? (
+                <CacheMissTooltip
+                  isStream={log.is_stream}
+                  render={
+                    <span
+                      className='text-warning cursor-help text-right text-xs font-medium tabular-nums'
+                      tabIndex={0}
+                    >
+                      {cacheText}
+                    </span>
+                  }
+                />
+              ) : (
+                <span className='text-muted-foreground text-right text-xs tabular-nums'>
+                  {cacheText}
+                </span>
+              )}
             </li>
           )
         })}

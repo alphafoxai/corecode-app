@@ -131,6 +131,20 @@ export function isCostlyCacheMiss(
   )
 }
 
+/**
+ * A costly miss on a request that did not stream. Claude Code streams every
+ * main-conversation turn; in auto permission mode its classifier also sends
+ * the transcript as a non-streaming request before tool calls, and only the
+ * classifier's fixed prefix caches. The logs do not record request bodies, so
+ * this is a likely cause, not a certain one.
+ */
+export function isNonStreamCacheMiss(
+  log: Pick<UsageLog, 'prompt_tokens' | 'type' | 'is_stream'>,
+  other: LogOtherData | null
+): boolean {
+  return !log.is_stream && isCostlyCacheMiss(log, other)
+}
+
 export function buildCostCheck(
   log: UsageLog,
   other: LogOtherData | null

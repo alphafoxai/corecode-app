@@ -7513,6 +7513,8 @@
     "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.",
     "Daily cache hit rate": "Daily cache hit rate",
     "Long context, almost no cache hit: billed as a fresh cache write": "Long context, almost no cache hit: billed as a fresh cache write",
+    "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.",
+    "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.": "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.",
     "No cache data in this period yet": "No cache data in this period yet",
     "No spend in this range.": "No spend in this range.",
     "Show logs for {{name}}": "Show logs for {{name}}",

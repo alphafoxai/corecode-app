@@ -7513,6 +7513,8 @@
     "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Khi hết số dư, yêu cầu Claude Code sẽ lỗi 403. Hãy nạp thêm để phiên không bị gián đoạn.",
     "Daily cache hit rate": "Tỷ lệ trúng cache theo ngày",
     "Long context, almost no cache hit: billed as a fresh cache write": "Ngữ cảnh dài gần như không trúng cache: tính như ghi cache mới",
+    "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "Trong {{count}} yêu cầu gần nhất. Phần lớn không dùng streaming, khớp với chế độ auto của Claude Code: trước mỗi lần gọi công cụ, bộ phân loại gửi cuộc hội thoại cho mô hình để quyết định có cho phép hay không, và phần này hầu như không được cache. Nếu bạn bật chế độ auto (--permission-mode auto hoặc Shift+Tab), đây là chi phí bình thường, không phải lỗi của relay.",
+    "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.": "Không streaming, ngữ cảnh dài, gần như không trúng cache. Có thể là bước kiểm tra của chế độ auto trong Claude Code: trước khi gọi công cụ, nó gửi cuộc hội thoại cho mô hình, và phần này hầu như không được cache.",
     "No cache data in this period yet": "Chưa có dữ liệu cache trong khoảng này",
     "No spend in this range.": "Không có chi tiêu trong khoảng này.",
     "Show logs for {{name}}": "Xem nhật ký của {{name}}",

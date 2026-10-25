@@ -7513,6 +7513,8 @@
     "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "餘額用完後 Claude Code 請求會回傳 403。及時儲值，避免工作階段中斷。",
     "Daily cache hit rate": "每日快取命中率",
     "Long context, almost no cache hit: billed as a fresh cache write": "長上下文幾乎沒命中快取：按重新寫入快取計費",
+    "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "最近 {{count}} 個請求中的統計。其中多數是非串流請求，符合 Claude Code auto 模式的特徵：每次工具呼叫前，分類器會把對話記錄送給模型判斷是否放行，這部分幾乎無法快取。如果你開著 auto 模式（--permission-mode auto 或 Shift+Tab），這是它的正常開銷，不是中轉的問題。",
+    "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.": "非串流請求，上下文長且幾乎沒命中快取。多半是 Claude Code auto 模式的權限檢查：工具呼叫前會把對話記錄送給模型判斷，這部分幾乎無法快取。",
     "No cache data in this period yet": "這段時間還沒有快取資料",
     "No spend in this range.": "這段時間沒有消費。",
     "Show logs for {{name}}": "查看 {{name}} 的日誌",

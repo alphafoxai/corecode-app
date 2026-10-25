@@ -25,6 +25,7 @@ import {
   getCacheGrade,
   getInputCacheTokens,
   isCostlyCacheMiss,
+  isNonStreamCacheMiss,
 } from '../cost-check'
 
 function log(fields: Partial<UsageLog>): UsageLog {
@@ -263,5 +264,27 @@ describe('isCostlyCacheMiss', () => {
         claude: true,
       })
     ).toBe(false)
+  })
+})
+
+describe('isNonStreamCacheMiss', () => {
+  const miss = { claude: true, cache_creation_tokens: 65_000, cache_tokens: 0 }
+
+  test.each([
+    ['non-streaming costly miss', false, miss, true],
+    ['streaming costly miss', true, miss, false],
+    [
+      'non-streaming request that hit the cache',
+      false,
+      { ...miss, cache_tokens: 60_000 },
+      false,
+    ],
+  ])('%s → %s', (_name, isStream, other, expected) => {
+    expect(
+      isNonStreamCacheMiss(
+        log({ prompt_tokens: 10, is_stream: isStream }),
+        other
+      )
+    ).toBe(expected)
   })
 })

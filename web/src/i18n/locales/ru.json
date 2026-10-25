@@ -7513,6 +7513,8 @@
     "Claude Code requests fail with 403 once the balance is empty. Add credits to keep sessions running.": "Когда баланс закончится, запросы Claude Code будут получать 403. Пополните баланс, чтобы сессии не прерывались.",
     "Daily cache hit rate": "Попадания в кэш по дням",
     "Long context, almost no cache hit: billed as a fresh cache write": "Длинный контекст почти без попаданий в кэш: оплачен как новая запись в кэш",
+    "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "Из последних {{count}} запросов. Большинство из них были без стриминга, что похоже на режим auto в Claude Code: перед вызовом инструмента его классификатор отправляет переписку модели, чтобы решить, разрешать ли вызов, и эта часть почти не кэшируется. Если режим auto включён (--permission-mode auto или Shift+Tab), это его обычная стоимость, а не сбой ретранслятора.",
+    "Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.": "Без стриминга, длинный контекст, почти без попаданий в кэш. Вероятно, проверка режима auto в Claude Code: перед вызовом инструмента он отправляет переписку модели, и эта часть почти не кэшируется.",
     "No cache data in this period yet": "За этот период данных о кэше пока нет",
     "No spend in this range.": "За этот период расходов нет.",
     "Show logs for {{name}}": "Показать журнал для {{name}}",
