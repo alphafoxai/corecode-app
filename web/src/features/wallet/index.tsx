@@ -44,6 +44,7 @@ import {
   useWaffoPancakePayment,
 } from './hooks'
 import {
+  findBonusTier,
   getDefaultPaymentType,
   getMinTopupAmount,
   dispatchSelectedPayment,
@@ -276,6 +277,12 @@ export function Wallet(props: WalletProps) {
     return topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
   }, [topupInfo, topupAmount])
 
+  // Bonus tier rate for the current topup amount; the dialog only applies it
+  // to epay payment methods.
+  const getBonusRate = useCallback(() => {
+    return findBonusTier(topupInfo?.bonus, topupAmount)?.rate ?? 0
+  }, [topupInfo, topupAmount])
+
   const handleSubscriptionAvailabilityChange = useCallback(
     (available: boolean) => {
       setShowSubscriptionPanel(available)
@@ -365,6 +372,7 @@ export function Wallet(props: WalletProps) {
         calculating={calculating}
         processing={processing || waffoProcessing || pancakeProcessing}
         discountRate={getDiscountRate()}
+        bonusRate={getBonusRate()}
         usdExchangeRate={effectiveUsdExchangeRate}
       />
 

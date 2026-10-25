@@ -34,12 +34,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import {
+  bonusRateToPercent,
+  findBonusTier,
+  findNextBonusTier,
   formatCurrency,
+  getBonusLabel,
   getDiscountLabel,
+  isBonusEligiblePayment,
   getPaymentIcon,
   getMinTopupAmount,
   calculatePresetPricing,
@@ -112,7 +118,8 @@ export function RechargeFormCard({
   onWaffoMethodSelect,
   enableWaffoPancakeTopup,
 }: RechargeFormCardProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
 
   useEffect(() => {
@@ -141,6 +148,21 @@ export function RechargeFormCard({
   const hasWaffoPaymentMethods =
     Array.isArray(waffoPayMethods) && waffoPayMethods.length > 0
   const minTopup = getMinTopupAmount(topupInfo)
+  // Bonus tiers only reward online epay orders, so they are shown only when the
+  // customer can pay that way.
+  const bonusTiers = topupInfo?.bonus
+  const bonusAvailable =
+    !!bonusTiers &&
+    Object.keys(bonusTiers).length > 0 &&
+    !!topupInfo?.pay_methods?.some((method) =>
+      isBonusEligiblePayment(method.type)
+    )
+  const customBonusTier = bonusAvailable
+    ? findBonusTier(bonusTiers, topupAmount)
+    : null
+  const nextBonusTier = bonusAvailable
+    ? findNextBonusTier(bonusTiers, topupAmount)
+    : null
   const redemptionEnabled = topupInfo?.enable_redemption !== false
 
   // CoreCode fork: say what this card can do today instead of describing a
@@ -252,12 +274,15 @@ export function RechargeFormCard({
                         discount,
                         usdExchangeRate
                       )
+                      const bonusTier = bonusAvailable
+                        ? findBonusTier(bonusTiers, preset.value)
+                        : null
                       return (
                         <Button
                           key={preset.value}
                           variant='outline'
                           className={cn(
-                            'flex min-h-16 flex-col items-start rounded-lg px-3 py-2.5 text-left whitespace-normal sm:min-h-[72px] sm:p-4',
+                            'flex h-auto min-h-16 flex-col items-start rounded-lg px-3 py-2.5 text-left whitespace-normal sm:min-h-[72px] sm:p-4',
                             selectedPreset === preset.value
                               ? 'border-foreground bg-foreground/5 dark:border-foreground dark:bg-foreground/10'
                               : 'border-muted'
@@ -266,11 +291,18 @@ export function RechargeFormCard({
                         >
                           <div className='flex w-full items-center justify-between'>
                             <div className='text-base font-semibold sm:text-lg'>
-                              {formatNumber(displayValue)}
+                              {formatNumber(displayValue, locale)}
                             </div>
-                            {hasDiscount && (
-                              <div className='text-xs font-medium text-green-600'>
-                                {getDiscountLabel(discount, t)}
+                            {(hasDiscount || bonusTier) && (
+                              <div className='flex flex-col items-end text-xs font-medium text-green-600'>
+                                {hasDiscount && (
+                                  <span>{getDiscountLabel(discount, t)}</span>
+                                )}
+                                {bonusTier && (
+                                  <span>
+                                    {getBonusLabel(bonusTier.rate, t)}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -293,6 +325,16 @@ export function RechargeFormCard({
                               })
                             )}
                           </div>
+                          {bonusTier && (
+                            <div className='mt-0.5 w-full text-xs text-green-600'>
+                              {t('Bonus {{amount}}', {
+                                amount: formatNumber(
+                                  displayValue * bonusTier.rate,
+                                  locale
+                                ),
+                              })}
+                            </div>
+                          )}
                         </Button>
                       )
                     })}
@@ -330,6 +372,34 @@ export function RechargeFormCard({
                     )}
                   </div>
                 </div>
+                {customBonusTier && (
+                  <p className='text-xs font-medium text-green-600'>
+                    {t('Bonus {{amount}}', {
+                      amount: formatNumber(
+                        topupAmount * usdExchangeRate * customBonusTier.rate,
+                        locale
+                      ),
+                    })}{' '}
+                    ({getBonusLabel(customBonusTier.rate, t)})
+                  </p>
+                )}
+                {nextBonusTier && (
+                  <p className='text-muted-foreground text-xs'>
+                    {t('Top up {{amount}} more to get {{rate}}% bonus', {
+                      amount: formatNumber(
+                        (nextBonusTier.threshold - topupAmount) *
+                          usdExchangeRate,
+                        locale
+                      ),
+                      rate: bonusRateToPercent(nextBonusTier.rate),
+                    })}
+                  </p>
+                )}
+                {bonusAvailable && (
+                  <p className='text-muted-foreground text-xs'>
+                    {t('Bonus applies to online payments only.')}
+                  </p>
+                )}
               </div>
 
               <div className='space-y-2.5 sm:space-y-3'>

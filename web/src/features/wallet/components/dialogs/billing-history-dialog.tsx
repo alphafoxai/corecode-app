@@ -46,7 +46,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatCurrencyFromUSD } from '@/lib/currency'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatQuota } from '@/lib/format'
 
 import { useBillingHistory } from '../../hooks/use-billing-history'
 import {
@@ -264,6 +264,17 @@ export function BillingHistoryDialog({
                           </div>
                         </div>
                       </div>
+
+                      {record.bonus_quota != null && record.bonus_quota > 0 && (
+                        <div className='mt-3 flex items-center gap-2 text-xs sm:mt-4'>
+                          <Label className='text-muted-foreground text-xs'>
+                            {t('Bonus')}
+                          </Label>
+                          <span className='font-semibold text-green-600'>
+                            +{formatQuota(record.bonus_quota)}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Admin Actions */}
                       {isAdmin && record.status === 'pending' && (
