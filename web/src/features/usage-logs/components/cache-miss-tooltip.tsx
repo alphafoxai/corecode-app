@@ -39,13 +39,23 @@ export function CacheMissTooltip(props: {
     <Tooltip>
       <TooltipTrigger render={props.render} />
       <TooltipContent>
-        {props.isStream
-          ? t(
-              'Long context, almost no cache hit: billed as a fresh cache write'
-            )
-          : t(
+        {props.isStream ? (
+          t('Long context, almost no cache hit: billed as a fresh cache write')
+        ) : (
+          <>
+            {t(
               'Did not stream, long context, almost no cache hit. Likely a Claude Code auto mode check: before a tool call, it sends the conversation to the model, and little of that is cached.'
-            )}
+            )}{' '}
+            <a
+              href='/docs/cache/#auto-mode'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='underline underline-offset-2'
+            >
+              {t('Learn more')}
+            </a>
+          </>
+        )}
       </TooltipContent>
     </Tooltip>
   )

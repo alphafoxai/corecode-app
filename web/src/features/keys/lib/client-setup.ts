@@ -118,9 +118,77 @@ export function buildClientSetupSnippet(
   }
 }
 
+/** Minutes between the balance refreshes CC Switch makes for each customer. */
+export const CC_SWITCH_USAGE_INTERVAL_MINUTES = 10
+
+/**
+ * Usage-query script CC Switch stores on the imported provider card. CC Switch
+ * runs it in a sandbox: `request` is sent from the customer's machine and must
+ * stay on the provider's origin; `extractor` turns the JSON into the card's
+ * balance. `{{baseUrl}}` carries `/v1` for Codex, so the script strips it.
+ * 500000 quota is 1 USD, the unit the console shows.
+ *
+ * `/api/usage/token/` answers to the sk- key itself. `user_quota` only appears
+ * when the key allows querying user quota; a limited key can still show its
+ * own remaining quota, an unlimited one has nothing to show without it.
+ */
+export const CC_SWITCH_USAGE_SCRIPT = `({
+  request: {
+    url: "{{baseUrl}}".replace(/\\/+$/, "").replace(/\\/v1$/, "") + "/api/usage/token/",
+    method: "GET",
+    headers: {
+      "Authorization": "Bearer {{apiKey}}"
+    }
+  },
+  extractor: function (response) {
+    var data = response && response.data;
+    if (!data) {
+      return {
+        isValid: false,
+        invalidMessage: (response && response.message) || "查询失败"
+      };
+    }
+    var perUnit = 500000;
+    var account = data.user_quota;
+    if (account) {
+      return {
+        isValid: true,
+        planName: "账户余额",
+        remaining: account.total_available / perUnit,
+        used: account.total_used / perUnit,
+        total: (account.total_available + account.total_used) / perUnit,
+        unit: "USD"
+      };
+    }
+    if (!data.unlimited_quota) {
+      return {
+        isValid: true,
+        planName: "密钥额度",
+        remaining: data.total_available / perUnit,
+        used: data.total_used / perUnit,
+        total: data.total_granted / perUnit,
+        unit: "USD"
+      };
+    }
+    return {
+      isValid: true,
+      planName: "无限额度密钥",
+      extra: "要显示账户余额，请在 CoreCode 控制台编辑此密钥，开启“允许查询用户额度”"
+    };
+  }
+})`
+
+function toBase64(text: string): string {
+  let binary = ''
+  for (const byte of new TextEncoder().encode(text)) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+}
+
 /**
  * Deep link that CC Switch registers. The app shows a confirmation with the
- * address before it imports anything.
+ * address and the usage script before it imports anything.
  */
 export function buildCCSwitchURL(args: {
   app: string
@@ -142,5 +210,9 @@ export function buildCCSwitchURL(args: {
   }
   params.set('homepage', args.serverAddress)
   params.set('enabled', 'true')
+  params.set('usageScript', toBase64(CC_SWITCH_USAGE_SCRIPT))
+  // Versions before 4.0.10 only start the script when this is set.
+  params.set('usageEnabled', 'true')
+  params.set('usageAutoInterval', String(CC_SWITCH_USAGE_INTERVAL_MINUTES))
   return `ccswitch://v1/import?${params.toString()}`
 }
