@@ -239,9 +239,16 @@ export function ApiKeysMutateDrawer({
         setInitializedTarget(target)
       }
     } else {
-      form.reset(
-        getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
+      const defaults = getApiKeyFormDefaultValues(
+        defaultUseAutoGroup && backendHasAuto
       )
+      // CoreCode fork: when Auto is the default but not offered to this user,
+      // a blank group would fall back to the user's own group, which may have
+      // no channel. Start from the first Auto group instead.
+      if (defaultUseAutoGroup && !backendHasAuto && globalAutoGroups[0]) {
+        defaults.group = globalAutoGroups[0]
+      }
+      form.reset(defaults)
       setInitializedTarget(target)
     }
   }, [
@@ -260,6 +267,7 @@ export function ApiKeysMutateDrawer({
     apiKeyFetched,
     apiKeyFetching,
     availableAutoGroupNames,
+    globalAutoGroups,
     maxAutoGroups,
     initializedTarget,
   ])
@@ -269,12 +277,15 @@ export function ApiKeysMutateDrawer({
   const isFormInitialized = initializedTarget === formTarget
   const selectedGroup = form.watch('group')
 
-  // Correct group after groups load: if the form value is not in available groups, fall back
+  // Correct group after groups load: if the form value is not in available groups, fall back.
+  // CoreCode fork: prefer the first Auto group, the operator's routing order,
+  // over `default`, which may have no channel.
   useEffect(() => {
     if (groups.length === 0) return
     const currentGroup = selectedGroup
     if (currentGroup && !groups.some((g) => g.value === currentGroup)) {
       const fallback =
+        globalAutoGroups[0] ??
         groups.find((g) => g.value === 'default')?.value ??
         groups[0]?.value ??
         ''
@@ -285,7 +296,7 @@ export function ApiKeysMutateDrawer({
         form.setValue('cross_group_retry', false)
       }
     }
-  }, [groups, form, selectedGroup])
+  }, [groups, globalAutoGroups, form, selectedGroup])
 
   const onSubmit = async (data: ApiKeyFormValues) => {
     setIsSubmitting(true)

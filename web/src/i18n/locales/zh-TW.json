@@ -3385,6 +3385,7 @@
     "Include quota": "包含額度",
     "Include Rule Name": "包含規則名",
     "Includes changes that require security verification, such as password, two-factor settings, and account deletion.": "包含需要安全驗證的變更，例如密碼、兩步驗證設定和刪除帳戶。",
+    "Includes {{amount}} left on your plan": "含訂閱剩餘 {{amount}}",
     "Includes request rules": "包含請求規則",
     "Includes tool-call surcharge": "包含工具呼叫附加費",
     "Including failed requests, 0 = unlimited": "包括失敗的請求，0 = 無限制",

@@ -80,11 +80,18 @@ export function BalanceCard(props: { daily: DailySpend[]; loading: boolean }) {
       </div>
 
       <p className='mt-2 text-[2.25rem] leading-none font-semibold tracking-tight tabular-nums'>
-        {formatQuota(balance)}
+        {formatQuota(status.available)}
       </p>
       <div className='text-muted-foreground mt-2 min-h-5 text-xs'>
         {props.loading ? <Skeleton className='h-4 w-40' /> : status.runwayText}
       </div>
+      {status.subscriptionRemaining > 0 && (
+        <div className='text-muted-foreground text-xs'>
+          {t('Includes {{amount}} left on your plan', {
+            amount: formatQuota(status.subscriptionRemaining),
+          })}
+        </div>
+      )}
 
       <div className='mt-5 flex flex-wrap gap-2'>
         <Button render={<Link to='/wallet' />}>

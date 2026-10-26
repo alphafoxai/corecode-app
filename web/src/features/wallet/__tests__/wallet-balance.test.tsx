@@ -75,3 +75,44 @@ it('marks an empty balance as depleted', async () => {
   ).toBeVisible()
   expect(screen.getByText('Balance depleted')).toBeVisible()
 })
+
+it('counts an active subscription toward the balance', async () => {
+  const now = Math.floor(Date.now() / 1000)
+  vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
+    if (url === '/api/subscription/self') {
+      return {
+        data: {
+          success: true,
+          data: {
+            billing_preference: 'subscription_first',
+            subscriptions: [
+              {
+                subscription: {
+                  status: 'active',
+                  end_time: now + 86400,
+                  amount_total: 20 * QUOTA_PER_DOLLAR,
+                  amount_used: 0,
+                },
+              },
+            ],
+          },
+        },
+      }
+    }
+    return { data: { success: true, data: [] } }
+  })
+  render(
+    <QueryClientProvider client={client}>
+      <WalletStatsCard
+        user={{ quota: 0, used_quota: 0, request_count: 0 } as UserWalletData}
+      />
+    </QueryClientProvider>
+  )
+
+  expect(
+    await screen.findByText('Includes $20 left on your plan')
+  ).toBeVisible()
+  expect(screen.getByText('$20')).toBeVisible()
+  expect(screen.getByText('Healthy')).toBeVisible()
+  expect(screen.queryByText('Balance depleted')).toBeNull()
+})

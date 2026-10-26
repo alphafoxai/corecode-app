@@ -91,7 +91,7 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
           <Skeleton className='h-9 w-36' />
         ) : (
           <p className='text-[2.25rem] leading-none font-semibold tracking-tight tabular-nums'>
-            {formatQuota(balance)}
+            {formatQuota(status.available)}
           </p>
         )}
         <div className='text-muted-foreground min-h-4 text-xs'>
@@ -101,6 +101,13 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
             status.runwayText
           )}
         </div>
+        {status.subscriptionRemaining > 0 && (
+          <div className='text-muted-foreground text-xs'>
+            {t('Includes {{amount}} left on your plan', {
+              amount: formatQuota(status.subscriptionRemaining),
+            })}
+          </div>
+        )}
       </div>
 
       <dl className='bg-border grid grid-cols-3 gap-px border-t md:border-t-0 md:border-l'>

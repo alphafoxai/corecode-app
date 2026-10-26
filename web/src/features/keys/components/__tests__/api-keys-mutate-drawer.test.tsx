@@ -93,7 +93,15 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
   }
 }
 
-async function renderCreateDrawer(): Promise<void> {
+const ALL_GROUPS = {
+  auto: { desc: 'Automatic routing', ratio: 'auto' },
+  default: { desc: 'Standard access', ratio: 1 },
+  vip: { desc: 'Priority access', ratio: 2 },
+}
+
+async function renderCreateDrawer(
+  groups: Record<string, object> = ALL_GROUPS
+): Promise<void> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -110,14 +118,7 @@ async function renderCreateDrawer(): Promise<void> {
   )
   queryClient.setQueryData(
     ['user-groups'],
-    {
-      success: true,
-      data: {
-        auto: { desc: 'Automatic routing', ratio: 'auto' },
-        default: { desc: 'Standard access', ratio: 1 },
-        vip: { desc: 'Priority access', ratio: 2 },
-      },
-    },
+    { success: true, data: groups },
     { updatedAt: freshAt }
   )
   queryClient.setQueryData(
@@ -254,6 +255,20 @@ describe('API keys mutate drawer Auto group integration', () => {
       expect(payload.auto_groups).toEqual([])
       expect(payload.cross_group_retry).toBe(true)
     }
+  })
+
+  test('starts a new key on the first Auto group when Auto is the default but not offered', async () => {
+    const createdPayloads: Array<Record<string, unknown>> = []
+    installApiFixtures(createdPayloads)
+    await renderCreateDrawer({
+      default: ALL_GROUPS.default,
+      vip: ALL_GROUPS.vip,
+    })
+
+    changeInput(getControlByLabel('Name'), 'laptop')
+    fireEvent.click(findButton('Save changes', true))
+    await waitFor(() => expect(createdPayloads).toHaveLength(1))
+    expect(createdPayloads[0]?.group).toBe('vip')
   })
 
   test('preserves an unsaved custom order and mode after Auto to ordinary to Auto changes', async () => {
