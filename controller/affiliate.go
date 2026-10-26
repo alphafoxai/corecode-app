@@ -85,7 +85,8 @@ func GetSelfAffiliateCommissions(c *gin.Context) {
 }
 
 // GetSelfAffiliateInvitees pages the users the caller invited, with totals
-// over all of them. It answers even when the program is off, because users
+// over all of them and the title of the plan they can be gifted, empty when
+// gifting is off. It answers even when the program is off, because users
 // invited earlier stay the caller's invitees.
 func GetSelfAffiliateInvitees(c *gin.Context) {
 	userId := c.GetInt("id")
@@ -100,12 +101,36 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	giftPlan, err := model.AffiliateGiftPlan()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	giftPlanTitle := ""
+	if giftPlan != nil {
+		giftPlanTitle = giftPlan.Title
+	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(invitees)
 	common.ApiSuccess(c, gin.H{
 		"page": pageInfo.Page, "page_size": pageInfo.PageSize, "total": pageInfo.Total,
-		"items": pageInfo.Items, "totals": totals,
+		"items": pageInfo.Items, "totals": totals, "gift_plan_title": giftPlanTitle,
 	})
+}
+
+// GiftSelfAffiliateInvitee gives one of the caller's invitees the gift plan.
+func GiftSelfAffiliateInvitee(c *gin.Context) {
+	inviteeId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || inviteeId <= 0 {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	plan, err := model.GiftAffiliatePlan(c.GetInt("id"), inviteeId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccessT(c, "Gave {{plan}}", nil, map[string]any{"plan": plan.Title})
 }
 
 type affiliateTransferRequest struct {
@@ -256,6 +281,41 @@ func AdminSetUserAffiliate(c *gin.Context) {
 		"affiliate_rate":    req.Rate,
 		"affiliate_channel": req.Channel,
 	})
+	view, err := buildAdminAffiliateView(user)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, view)
+}
+
+type adminInviterRequest struct {
+	InviterId int `json:"inviter_id"`
+}
+
+// AdminSetUserInviter changes who invited a user, or clears it with 0.
+func AdminSetUserInviter(c *gin.Context) {
+	user, ok := affiliateManagedUser(c)
+	if !ok {
+		return
+	}
+	var req adminInviterRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil || req.InviterId < 0 {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	if err := model.SetUserInviter(user.Id, req.InviterId); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAuditFor(c, user.Id, "user.manage", map[string]any{
+		"username":       user.Username,
+		"id":             user.Id,
+		"action":         "set_inviter",
+		"old_inviter_id": user.InviterId,
+		"inviter_id":     req.InviterId,
+	})
+	user.InviterId = req.InviterId
 	view, err := buildAdminAffiliateView(user)
 	if err != nil {
 		common.ApiError(c, err)

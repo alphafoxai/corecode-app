@@ -16,30 +16,48 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Gift } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTablePage, useDataTable } from '@/components/data-table'
 import { SectionPageLayout } from '@/components/layout'
+import { Button } from '@/components/ui/button'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
+import { handleServerError } from '@/lib/handle-server-error'
 
-import { getInvitees } from './api'
+import { getInvitees, giftInvitee } from './api'
 import { InvitationOverview } from './components/invitation-overview'
 import type { Invitee } from './types'
 
 const EMPTY: Invitee[] = []
 const NO_TOTALS = { used_quota: 0, commission: 0 }
 
-function useInviteeColumns(): ColumnDef<Invitee>[] {
+function useInviteeColumns(
+  giftPlanTitle: string,
+  onGift: (invitee: Invitee) => void
+): ColumnDef<Invitee>[] {
   const { t } = useTranslation()
-  return useMemo(
-    () => [
+  return useMemo(() => {
+    const columns: ColumnDef<Invitee>[] = [
       {
         accessorKey: 'name',
         header: t('Invitee'),
-        size: 140,
+        size: 200,
+        cell: ({ row }) => (
+          <div className='min-w-0'>
+            <div className='truncate font-medium'>{row.original.name}</div>
+            {row.original.email && (
+              <div className='text-muted-foreground truncate text-xs'>
+                {row.original.email}
+              </div>
+            )}
+          </div>
+        ),
         meta: { label: t('Invitee'), mobileTitle: true },
       },
       {
@@ -75,15 +93,46 @@ function useInviteeColumns(): ColumnDef<Invitee>[] {
         ),
         meta: { label: t('Commission earned') },
       },
-    ],
-    [t]
-  )
+    ]
+    if (giftPlanTitle) {
+      columns.push({
+        id: 'gift',
+        header: giftPlanTitle,
+        size: 130,
+        cell: ({ row }) => {
+          if (row.original.gift_plan === 'gifted') {
+            return <span className='text-muted-foreground'>{t('Gifted')}</span>
+          }
+          if (row.original.gift_plan === 'owned') {
+            return (
+              <span className='text-muted-foreground'>
+                {t('Already has it')}
+              </span>
+            )
+          }
+          return (
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => onGift(row.original)}
+            >
+              <Gift />
+              {t('Gift')}
+            </Button>
+          )
+        },
+        meta: { label: giftPlanTitle },
+      })
+    }
+    return columns
+  }, [t, giftPlanTitle, onGift])
 }
 
 export function Invitations() {
   const { t } = useTranslation()
-  const columns = useInviteeColumns()
+  const queryClient = useQueryClient()
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [giftTarget, setGiftTarget] = useState<Invitee | null>(null)
 
   const query = useQuery({
     queryKey: ['affiliate', 'invitees', pagination],
@@ -94,14 +143,24 @@ export function Invitations() {
       }),
     placeholderData: (previous) => previous,
   })
+  const giftPlanTitle = query.data?.gift_plan_title ?? ''
+  const columns = useInviteeColumns(giftPlanTitle, setGiftTarget)
+
+  const gift = useMutation({
+    mutationFn: (invitee: Invitee) => giftInvitee(invitee.id),
+    onSuccess: () => {
+      toast.success(t('Gave {{plan}}', { plan: giftPlanTitle }))
+      setGiftTarget(null)
+    },
+    onError: (error) => handleServerError(error),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ['affiliate', 'invitees'] }),
+  })
 
   const { table } = useDataTable<Invitee>({
     columns,
     data: query.data?.items ?? EMPTY,
-    // Invitees carry no id; their place in the newest-first list is stable
-    // within a page.
-    getRowId: (_row, index) =>
-      String(pagination.pageIndex * pagination.pageSize + index),
+    getRowId: (row) => String(row.id),
     totalCount: query.data?.total ?? 0,
     pagination,
     onPaginationChange: (updater) =>
@@ -141,6 +200,20 @@ export function Invitations() {
             applyHeaderSize
           />
         </div>
+        <ConfirmDialog
+          open={giftTarget !== null}
+          onOpenChange={(open) => {
+            if (!open && !gift.isPending) setGiftTarget(null)
+          }}
+          title={t('Gift {{plan}}', { plan: giftPlanTitle })}
+          desc={t(
+            'Give {{user}} the plan {{plan}} for free. Each invitee can receive it once, and cannot buy it after receiving it.',
+            { user: giftTarget?.name ?? '', plan: giftPlanTitle }
+          )}
+          confirmText={t('Gift')}
+          isLoading={gift.isPending}
+          handleConfirm={() => giftTarget && gift.mutate(giftTarget)}
+        />
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )

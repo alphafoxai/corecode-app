@@ -209,6 +209,17 @@ export function SubscriptionPlansCard({
     return map
   }, [allSubscriptions])
 
+  // A plan an inviter gave the user cannot be bought.
+  const giftedPlanIds = useMemo(() => {
+    const ids = new Set<number>()
+    for (const sub of allSubscriptions) {
+      if (sub?.subscription?.source === 'affiliate_gift') {
+        ids.add(sub.subscription.plan_id)
+      }
+    }
+    return ids
+  }, [allSubscriptions])
+
   useEffect(() => {
     onAvailabilityChange?.(isAvailable)
   }, [isAvailable, onAvailabilityChange])
@@ -535,6 +546,7 @@ export function SubscriptionPlansCard({
               const limit = Number(plan.max_purchase_per_user || 0)
               const count = planPurchaseCountMap.get(plan.id) || 0
               const reached = limit > 0 && count >= limit
+              const gifted = giftedPlanIds.has(plan.id)
 
               const benefits = [
                 `${t('Validity Period')}: ${formatDuration(plan, t)}`,
@@ -600,7 +612,12 @@ export function SubscriptionPlansCard({
 
                     <Separator className='mb-3' />
 
-                    {reached ? (
+                    {gifted && (
+                      <Button variant='outline' className='w-full' disabled>
+                        {t('Received as a gift')}
+                      </Button>
+                    )}
+                    {!gifted && reached && (
                       <Tooltip>
                         <TooltipTrigger render={<div />}>
                           <Button variant='outline' className='w-full' disabled>
@@ -611,7 +628,8 @@ export function SubscriptionPlansCard({
                           {t('Purchase limit reached')} ({count}/{limit})
                         </TooltipContent>
                       </Tooltip>
-                    ) : (
+                    )}
+                    {!gifted && !reached && (
                       <Button
                         variant='outline'
                         className='w-full'

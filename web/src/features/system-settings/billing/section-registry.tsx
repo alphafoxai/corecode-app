@@ -204,6 +204,8 @@ const BILLING_SECTIONS = [
             settings['affiliate_setting.second_level_rate'],
           'affiliate_setting.min_withdrawal':
             settings['affiliate_setting.min_withdrawal'],
+          'affiliate_setting.gift_plan_id':
+            settings['affiliate_setting.gift_plan_id'],
         }}
       />
     ),

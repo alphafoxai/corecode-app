@@ -97,6 +97,11 @@ var (
 	ErrAffiliateWithdrawalTooSmall  error = common.NewMessage("The withdrawal is below the minimum amount")
 	ErrAffiliateAccountInvalid      error = common.NewMessage("Enter the account to receive the payout")
 	ErrAffiliateWithdrawalProcessed error = common.NewMessage("This withdrawal has already been processed")
+	ErrAffiliateInviterInvalid      error = common.NewMessage("This user cannot be the inviter")
+	ErrAffiliateInviterLoop         error = common.NewMessage("This user was invited, directly or indirectly, by the user being changed")
+	ErrAffiliateGiftUnavailable     error = common.NewMessage("No plan is available to gift")
+	ErrAffiliateGiftNotInvitee      error = common.NewMessage("This user is not your invitee")
+	ErrAffiliateGiftTaken           error = common.NewMessage("This invitee already has this plan")
 )
 
 // InviterIdForAffCode resolves the account a sign-up's invite code binds to,
@@ -458,13 +463,18 @@ func CountAffiliateInvitees(userId int) (int64, error) {
 }
 
 // AffiliateInvitee is one user who signed up with the affiliate's code, as
-// the affiliate sees them: the name masked, everything they have consumed,
-// and the direct commission their consumption has earned the affiliate.
+// the affiliate sees them: who they are, everything they have consumed, the
+// direct commission their consumption has earned the affiliate, and whether
+// they hold the gift plan. GiftPlan is "gifted" when an inviter gave it,
+// "owned" when they got it another way, and empty when they can be given it.
 type AffiliateInvitee struct {
+	Id         int    `json:"id"`
 	Name       string `json:"name"`
+	Email      string `json:"email"`
 	CreatedAt  int64  `json:"created_at"`
 	UsedQuota  int64  `json:"used_quota"`
 	Commission int64  `json:"commission"`
+	GiftPlan   string `json:"gift_plan"`
 }
 
 // AffiliateInviteeTotals sums AffiliateInvitee over every invitee.
@@ -482,7 +492,7 @@ func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateI
 		return nil, 0, err
 	}
 	var users []User
-	if err := DB.Select("id", "username", "created_at", "used_quota").Where("inviter_id = ?", userId).
+	if err := DB.Select("id", "username", "email", "created_at", "used_quota").Where("inviter_id = ?", userId).
 		Order("id desc").Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
@@ -505,13 +515,31 @@ func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateI
 			commissions[row.SourceUserId] = row.Amount
 		}
 	}
+	giftPlans := make(map[int]string, len(users))
+	if planId := operation_setting.GetAffiliateSetting().GiftPlanId; planId > 0 && len(ids) > 0 {
+		var subscriptions []UserSubscription
+		if err := DB.Select("user_id", "source").Where("plan_id = ? AND user_id IN ?", planId, ids).
+			Find(&subscriptions).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, subscription := range subscriptions {
+			if subscription.Source == SubscriptionSourceAffiliateGift {
+				giftPlans[subscription.UserId] = "gifted"
+			} else if giftPlans[subscription.UserId] == "" {
+				giftPlans[subscription.UserId] = "owned"
+			}
+		}
+	}
 	invitees := make([]*AffiliateInvitee, 0, len(users))
 	for _, user := range users {
 		invitees = append(invitees, &AffiliateInvitee{
-			Name:       maskAffiliateName(user.Username),
+			Id:         user.Id,
+			Name:       user.Username,
+			Email:      user.Email,
 			CreatedAt:  user.CreatedAt,
 			UsedQuota:  int64(user.UsedQuota),
 			Commission: commissions[user.Id],
+			GiftPlan:   giftPlans[user.Id],
 		})
 	}
 	return invitees, total, nil
@@ -527,6 +555,119 @@ func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
 	err := DB.Model(&AffiliateCommission{}).Where("user_id = ? AND level = 1", userId).
 		Select("COALESCE(SUM(amount), 0)").Scan(&totals.Commission).Error
 	return totals, err
+}
+
+// AffiliateGiftPlan returns the plan inviters can gift, or nil when gifting
+// is off or the configured plan is disabled or gone.
+func AffiliateGiftPlan() (*SubscriptionPlan, error) {
+	planId := operation_setting.GetAffiliateSetting().GiftPlanId
+	if planId <= 0 {
+		return nil, nil
+	}
+	plan, err := GetSubscriptionPlanById(planId)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !plan.Enabled {
+		return nil, nil
+	}
+	return plan, nil
+}
+
+// GiftAffiliatePlan gives one of an inviter's invitees the gift plan, free.
+// An invitee who already has the plan, gifted or bought, cannot be given it,
+// and one who was given it cannot buy it; the invitee's row is locked first,
+// as purchases lock it, so a gift and a purchase cannot both pass the check.
+func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, error) {
+	plan, err := AffiliateGiftPlan()
+	if err != nil {
+		return nil, err
+	}
+	if plan == nil {
+		return nil, ErrAffiliateGiftUnavailable
+	}
+	groupChanged := false
+	var invitee User
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockForUpdate(tx).Select("id", "username", "inviter_id").Where("id = ?", inviteeId).First(&invitee).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrAffiliateGiftNotInvitee
+			}
+			return err
+		}
+		if inviterId == 0 || invitee.InviterId != inviterId {
+			return ErrAffiliateGiftNotInvitee
+		}
+		var count int64
+		if err := tx.Model(&UserSubscription{}).Where("user_id = ? AND plan_id = ?", inviteeId, plan.Id).
+			Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrAffiliateGiftTaken
+		}
+		subscription, err := CreateUserSubscriptionFromPlanTx(tx, inviteeId, plan, SubscriptionSourceAffiliateGift)
+		if err != nil {
+			return err
+		}
+		groupChanged = subscription.PrevUserGroup != ""
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if groupChanged {
+		refreshSubscriptionUserGroupCache(inviteeId, common.LogText("affiliate plan gift"))
+	}
+	RecordLog(inviteeId, LogTypeSystem, common.NewMessage("Your inviter gave you the plan {{plan}}", map[string]any{"plan": plan.Title}))
+	RecordLog(inviterId, LogTypeSystem, common.NewMessage("You gave {{user}} the plan {{plan}}", map[string]any{"user": invitee.Username, "plan": plan.Title}))
+	return plan, nil
+}
+
+// SetUserInviter is the administrator's change of who invited a user; 0
+// clears it. Commission follows the new inviter from the change on: a
+// referral already counting keeps its marks, a user without one gets one at
+// the next settlement starting from that moment, and commission already
+// credited stays with whoever earned it. The new inviter must exist and must
+// not be the user or anyone the user invited, directly or through others.
+func SetUserInviter(userId int, inviterId int) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if inviterId != 0 {
+			if inviterId == userId {
+				return ErrAffiliateInviterInvalid
+			}
+			ancestorId := inviterId
+			// The bound only stops a loop that existing data already contains.
+			for range 64 {
+				if ancestorId == 0 {
+					break
+				}
+				if ancestorId == userId {
+					return ErrAffiliateInviterLoop
+				}
+				var ancestor User
+				err := tx.Select("id", "inviter_id").Where("id = ?", ancestorId).First(&ancestor).Error
+				if errors.Is(err, gorm.ErrRecordNotFound) && ancestorId == inviterId {
+					return ErrAffiliateInviterInvalid
+				}
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					break
+				}
+				if err != nil {
+					return err
+				}
+				ancestorId = ancestor.InviterId
+			}
+		}
+		var user User
+		if err := lockForUpdate(tx).Select("id").Where("id = ?", userId).First(&user).Error; err != nil {
+			return err
+		}
+		return tx.Model(&User{}).Where("id = ?", userId).Update("inviter_id", inviterId).Error
+	})
 }
 
 // maskAffiliateName keeps the first two characters of a username, enough for

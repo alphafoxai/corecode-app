@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,7 +37,14 @@ const (
 var (
 	ErrSubscriptionOrderNotFound      = errors.New("subscription order not found")
 	ErrSubscriptionOrderStatusInvalid = errors.New("subscription order status invalid")
+
+	ErrSubscriptionPurchaseLimit error = common.NewMessage("Purchase limit for this plan has been reached")
+	ErrSubscriptionGifted        error = common.NewMessage("This plan was a gift and cannot be purchased")
 )
+
+// SubscriptionSourceAffiliateGift marks a subscription an inviter gave their
+// invitee. The invitee cannot then buy that plan.
+const SubscriptionSourceAffiliateGift = "affiliate_gift"
 
 const (
 	subscriptionPlanCacheNamespace     = "new-api:subscription_plan:v1"
@@ -410,19 +418,6 @@ func getSubscriptionPlanByIdTx(tx *gorm.DB, id int) (*SubscriptionPlan, error) {
 	return &plan, nil
 }
 
-func CountUserSubscriptionsByPlan(userId int, planId int) (int64, error) {
-	if userId <= 0 || planId <= 0 {
-		return 0, errors.New("invalid userId or planId")
-	}
-	var count int64
-	if err := DB.Model(&UserSubscription{}).
-		Where("user_id = ? AND plan_id = ?", userId, planId).
-		Count(&count).Error; err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
 func getUserGroupByIdTx(tx *gorm.DB, userId int) (string, error) {
 	if userId <= 0 {
 		return "", errors.New("invalid userId")
@@ -481,6 +476,31 @@ func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now
 	return target, nil
 }
 
+// checkSubscriptionLimitTx refuses a plan the user may not take again: one at
+// its per-user limit, or one an inviter gifted them, unless an administrator
+// is binding it.
+func checkSubscriptionLimitTx(tx *gorm.DB, userId int, plan *SubscriptionPlan, source string) error {
+	var sources []string
+	if err := tx.Model(&UserSubscription{}).
+		Where("user_id = ? AND plan_id = ?", userId, plan.Id).
+		Pluck("source", &sources).Error; err != nil {
+		return err
+	}
+	if plan.MaxPurchasePerUser > 0 && len(sources) >= plan.MaxPurchasePerUser {
+		return ErrSubscriptionPurchaseLimit
+	}
+	if source != "admin" && slices.Contains(sources, SubscriptionSourceAffiliateGift) {
+		return ErrSubscriptionGifted
+	}
+	return nil
+}
+
+// CheckSubscriptionPurchase refuses a payment for a plan the user could not
+// receive once it completes.
+func CheckSubscriptionPurchase(userId int, plan *SubscriptionPlan) error {
+	return checkSubscriptionLimitTx(DB, userId, plan, "order")
+}
+
 func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *SubscriptionPlan, source string) (*UserSubscription, error) {
 	if tx == nil {
 		return nil, errors.New("tx is nil")
@@ -491,18 +511,10 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	if userId <= 0 {
 		return nil, errors.New("invalid user id")
 	}
-	if plan.MaxPurchasePerUser > 0 {
-		var count int64
-		if err := tx.Model(&UserSubscription{}).
-			Where("user_id = ? AND plan_id = ?", userId, plan.Id).
-			Count(&count).Error; err != nil {
-			return nil, err
-		}
-		if count >= int64(plan.MaxPurchasePerUser) {
-			return nil, common.NewMessage("Purchase limit for this plan has been reached")
-		}
+	if err := checkSubscriptionLimitTx(tx, userId, plan, source); err != nil {
+		return nil, err
 	}
-	nowUnix := GetDBTimestamp()
+	nowUnix := getDBTimestampTx(tx)
 	now := time.Unix(nowUnix, 0)
 	endUnix, err := calcPlanEndTime(now, plan)
 	if err != nil {

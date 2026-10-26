@@ -39,6 +39,7 @@ import {
   getUserAffiliateCommissions,
   updateUserAffiliate,
 } from '../../api'
+import { UserInviterEditor } from './user-inviter-editor'
 
 type UserAffiliateDialogProps = {
   open: boolean
@@ -135,6 +136,12 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
               value={`${formatQuota(data.affiliate?.earned ?? 0)} (${formatPaymentMoney(data.earned_money)})`}
             />
           </div>
+
+          <UserInviterEditor
+            userId={userId}
+            view={data}
+            onSaved={(next) => queryClient.setQueryData(queryKey, next)}
+          />
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>

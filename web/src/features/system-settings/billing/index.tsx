@@ -110,6 +110,7 @@ const defaultBillingSettings: BillingSettings = {
   'affiliate_setting.max_rate': 30,
   'affiliate_setting.second_level_rate': 5,
   'affiliate_setting.min_withdrawal': 100,
+  'affiliate_setting.gift_plan_id': 0,
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
