@@ -39,26 +39,89 @@ export function resolveLocalizedText(
 ): string {
   if (value == null) return ''
   if (typeof value === 'string') return value
-  if (typeof value !== 'object' || Array.isArray(value)) return ''
+  if (!isPlainObject(value)) return ''
+  return (
+    pickLocale(
+      value,
+      language,
+      (text): text is string => typeof text === 'string' && text.trim() !== ''
+    ) ?? ''
+  )
+}
 
-  const texts = new Map<string, string>()
-  for (const [key, text] of Object.entries(value)) {
-    if (typeof text !== 'string' || text.trim() === '') continue
+/**
+ * Resolve a system option that holds either plain text or a JSON object of
+ * locale → text (`{"zh":"…","en":"…"}`), such as `HomePageContent` and
+ * `Footer`. Anything that is not such an object, including JSON of another
+ * shape, is returned unchanged so existing plain values keep rendering.
+ */
+export function resolveLocalizedOption(
+  value: string | undefined | null,
+  language: string
+): string {
+  if (!value) return ''
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('{')) return value
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return value
+  }
+  if (!isPlainObject(parsed)) return value
+  const entries = Object.values(parsed)
+  if (entries.length === 0 || entries.some((text) => typeof text !== 'string'))
+    return value
+  return resolveLocalizedText(parsed as Record<string, string>, language)
+}
+
+/**
+ * Overlay the string fields of an item's optional `i18n` translation
+ * (`{"en": {"answer": "…"}}`) that best matches `language` onto the item.
+ * Items without translations are returned as they are.
+ */
+export function localizeItem<T extends object>(item: T, language: string): T {
+  const translations = (item as { i18n?: unknown }).i18n
+  if (!isPlainObject(translations)) return item
+  const fields = pickLocale(translations, language, isPlainObject)
+  if (!fields) return item
+  const localized: Record<string, unknown> = { ...(item as Record<string, unknown>) }
+  for (const [field, text] of Object.entries(fields)) {
+    if (typeof text === 'string' && text.trim() !== '') localized[field] = text
+  }
+  return localized as T
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Fallback: exact tag → primary subtag → `en` → first key in sorted order.
+ */
+function pickLocale<V>(
+  value: Record<string, unknown>,
+  language: string,
+  accept: (entry: unknown) => entry is V
+): V | undefined {
+  const entries = new Map<string, V>()
+  for (const [key, entry] of Object.entries(value)) {
+    if (!accept(entry)) continue
     const locale = key.trim().replaceAll('_', '-').toLowerCase()
     if (!locale) continue
-    texts.set(locale, text)
+    entries.set(locale, entry)
   }
-  if (texts.size === 0) return ''
+  if (entries.size === 0) return undefined
 
   for (const candidate of localeFallbackKeys(language)) {
-    const hit = texts.get(candidate)
+    const hit = entries.get(candidate)
     if (hit !== undefined) return hit
   }
 
-  const firstKey = [...texts.keys()].sort((left, right) =>
+  const firstKey = [...entries.keys()].sort((left, right) =>
     left.localeCompare(right)
   )[0]
-  return firstKey ? (texts.get(firstKey) ?? '') : ''
+  return firstKey ? entries.get(firstKey) : undefined
 }
 
 function localeFallbackKeys(language: string): string[] {

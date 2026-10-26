@@ -18,9 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import i18next from 'i18next'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { isHttpUrl } from '@/lib/content-format'
 import { handleServerError } from '@/lib/handle-server-error'
+import { resolveLocalizedOption } from '@/lib/localized-text'
 
 import { getHomePageContent } from '../api'
 import type { HomePageContentResult } from '../types'
@@ -29,10 +31,12 @@ const STORAGE_KEY = 'home_page_content'
 
 /**
  * Hook to load and manage custom home page content
- * Supports both Markdown/HTML content and iframe URLs
+ * Supports both Markdown/HTML content and iframe URLs, either as one value or
+ * as a JSON object of locale → value resolved against the console language
  */
 export function useHomePageContent(): HomePageContentResult {
-  const [content, setContent] = useState<string>('')
+  const { i18n } = useTranslation()
+  const [rawContent, setContent] = useState<string>('')
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -76,6 +80,7 @@ export function useHomePageContent(): HomePageContentResult {
     }
   }, [])
 
+  const content = resolveLocalizedOption(rawContent, i18n.language)
   const isUrl = isHttpUrl(content)
 
   return { content, isLoaded, isUrl }

@@ -16,20 +16,33 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { useStatus } from '@/hooks/use-status'
+import { localizeItem } from '@/lib/localized-text'
 
 import type { AnnouncementItem, ApiInfoItem, FAQItem } from '../types'
 
 /**
- * Get specific list from status data
+ * Get specific list from status data, each item shown in the console
+ * language when it carries an `i18n` translation
  */
-export function useStatusData<T = unknown>(
+export function useStatusData<T extends object>(
   enabledKey: string,
   dataKey: string
 ): { items: T[]; loading: boolean } {
+  const { i18n } = useTranslation()
   const { status, loading } = useStatus()
   const enabled = status ? status[enabledKey] !== false : false
-  const items = (enabled ? status?.[dataKey] || [] : []) as T[]
+  const rawItems = enabled ? status?.[dataKey] : undefined
+  const items = useMemo(
+    () =>
+      ((rawItems || []) as T[]).map((item) =>
+        localizeItem(item, i18n.language)
+      ),
+    [rawItems, i18n.language]
+  )
 
   return { items, loading }
 }

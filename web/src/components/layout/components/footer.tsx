@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { DEFAULT_SYSTEM_NAME } from '@/lib/constants'
+import { resolveLocalizedOption } from '@/lib/localized-text'
 import { cn } from '@/lib/utils'
 
 interface FooterLink {
@@ -151,13 +152,14 @@ function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
 }
 
 export function Footer(props: FooterProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const {
     systemName,
     logo: systemLogo,
-    footerHtml,
+    footerHtml: rawFooterHtml,
     demoSiteEnabled,
   } = useSystemConfig()
+  const footerHtml = resolveLocalizedOption(rawFooterHtml, i18n.language)
 
   const displayLogo = systemLogo || props.logo || '/logo.png'
   const displayName = systemName || props.name || DEFAULT_SYSTEM_NAME

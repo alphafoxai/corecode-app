@@ -18,9 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
 import { getNotice } from '@/lib/api'
+import { localizeItem } from '@/lib/localized-text'
 import { requireServerSuccess } from '@/lib/server-error-message'
 import { useNotificationStore } from '@/stores/notification-store'
 
@@ -64,6 +66,7 @@ function getAnnouncementKey(item: Record<string, unknown>): string {
  * Provides unread counts and read status management
  */
 export function useNotifications() {
+  const { i18n } = useTranslation()
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'notice' | 'announcements'>(
     'notice'
@@ -90,6 +93,11 @@ export function useNotifications() {
       20
     )
   }, [announcementsEnabled, status?.announcements])
+  // Read state is keyed on the stored item, so switching language keeps it.
+  const localizedAnnouncements = useMemo(
+    () => announcements.map((item) => localizeItem(item, i18n.language)),
+    [announcements, i18n.language]
+  )
 
   // Notification store
   const {
@@ -169,7 +177,7 @@ export function useNotifications() {
   return {
     // Data
     notice: noticeContent,
-    announcements,
+    announcements: localizedAnnouncements,
     loading: noticeLoading || statusLoading,
 
     // Unread counts
