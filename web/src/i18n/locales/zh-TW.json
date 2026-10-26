@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "該使用者不是你邀請的使用者",
     "This invitee already has this plan": "該被邀請人已擁有此方案",
     "Your inviter gave you the plan {{plan}}": "你的邀請人贈送了你方案 {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "你贈送了 {{user}} 方案 {{plan}}"
+    "You gave {{user}} the plan {{plan}}": "你贈送了 {{user}} 方案 {{plan}}",
+    "Analytics": "訪問統計",
+    "Google Analytics measurement ID": "Google Analytics 評估 ID",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "從下一次頁面載入起，在控制台每個頁面加入 GA4 標籤。留空即移除。",
+    "Umami website ID": "Umami 網站 ID",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "從下一次頁面載入起，在控制台每個頁面加入 Umami 腳本。留空即移除。",
+    "Umami script URL": "Umami 腳本網址",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "用於自行託管的 Umami。留空則使用 Umami Cloud。",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "請輸入 GA4 評估 ID，例如 G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "請輸入 UUID 格式的 Umami 網站 ID",
+    "Enter an absolute HTTPS URL": "請輸入完整的 HTTPS 網址"
   }
 }

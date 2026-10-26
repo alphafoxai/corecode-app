@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "This user is not your invitee",
     "This invitee already has this plan": "This invitee already has this plan",
     "Your inviter gave you the plan {{plan}}": "Your inviter gave you the plan {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "You gave {{user}} the plan {{plan}}"
+    "You gave {{user}} the plan {{plan}}": "You gave {{user}} the plan {{plan}}",
+    "Analytics": "Analytics",
+    "Google Analytics measurement ID": "Google Analytics measurement ID",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.",
+    "Umami website ID": "Umami website ID",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "Adds the Umami script to every console page from the next page load. Leave empty to remove it.",
+    "Umami script URL": "Umami script URL",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "For a self-hosted Umami. Leave empty to use Umami Cloud.",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "Enter a GA4 measurement ID such as G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "Enter the Umami website ID as a UUID",
+    "Enter an absolute HTTPS URL": "Enter an absolute HTTPS URL"
   }
 }

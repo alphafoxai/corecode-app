@@ -333,6 +333,12 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "analytics_setting.google_analytics_id", "analytics_setting.umami_website_id", "analytics_setting.umami_script_url":
+		err = system_setting.ValidateAnalyticsOption(strings.TrimPrefix(option.Key, "analytics_setting."), option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "claude_code_client_setting.groups":
 		err = operation_setting.ValidateClaudeCodeClientGroups(option.Value.(string))
 		if err != nil {

@@ -36,6 +36,9 @@ const defaultSiteSettings: SiteSettings = {
   'general_setting.docs_link': '',
   'legal.user_agreement': '',
   'legal.privacy_policy': '',
+  'analytics_setting.google_analytics_id': '',
+  'analytics_setting.umami_website_id': '',
+  'analytics_setting.umami_script_url': '',
   HeaderNavModules: '',
   SidebarModulesAdmin: '',
 }

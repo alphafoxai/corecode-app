@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "Этот пользователь не ваш приглашённый",
     "This invitee already has this plan": "У этого приглашённого уже есть этот тариф",
     "Your inviter gave you the plan {{plan}}": "Пригласивший подарил вам тариф {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "Вы подарили {{user}} тариф {{plan}}"
+    "You gave {{user}} the plan {{plan}}": "Вы подарили {{user}} тариф {{plan}}",
+    "Analytics": "Аналитика",
+    "Google Analytics measurement ID": "Идентификатор потока Google Analytics",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "Добавляет тег GA4 на каждую страницу консоли со следующей загрузки. Оставьте пустым, чтобы убрать.",
+    "Umami website ID": "ID сайта Umami",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "Добавляет скрипт Umami на каждую страницу консоли со следующей загрузки. Оставьте пустым, чтобы убрать.",
+    "Umami script URL": "URL скрипта Umami",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "Для собственного сервера Umami. Оставьте пустым, чтобы использовать Umami Cloud.",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "Введите идентификатор GA4, например G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "Введите ID сайта Umami в формате UUID",
+    "Enter an absolute HTTPS URL": "Введите абсолютный HTTPS-адрес"
   }
 }

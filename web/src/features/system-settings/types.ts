@@ -152,6 +152,9 @@ export type SiteSettings = {
   'general_setting.docs_link': string
   'legal.user_agreement': string
   'legal.privacy_policy': string
+  'analytics_setting.google_analytics_id': string
+  'analytics_setting.umami_website_id': string
+  'analytics_setting.umami_script_url': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }

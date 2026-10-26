@@ -34,6 +34,7 @@ import (
 	"github.com/QuantumNous/new-api/service/authz"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
@@ -202,7 +203,6 @@ func main() {
 	server.Use(middleware.Version())
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
-	indexPage = renderIndexPage(indexPage)
 
 	// 设置路由
 	// FRONTEND_DIR is a host path wired by the deployment, like PORT, and is
@@ -257,16 +257,17 @@ func main() {
 	common.SysLog(common.LogText("server exited"))
 }
 
-// renderIndexPage writes the analytics snippets into a console index.html.
+// renderIndexPage writes the analytics snippets into a console index.html. The
+// router calls it for every index request, so analytics_setting changes apply
+// without a restart.
 func renderIndexPage(page []byte) []byte {
 	return InjectGoogleAnalytics(InjectUmamiAnalytics(page))
 }
 
 func InjectUmamiAnalytics(indexPage []byte) []byte {
 	analyticsInjectBuilder := &strings.Builder{}
-	if os.Getenv("UMAMI_WEBSITE_ID") != "" {
-		umamiSiteID := os.Getenv("UMAMI_WEBSITE_ID")
-		umamiScriptURL := os.Getenv("UMAMI_SCRIPT_URL")
+	umamiSiteID, umamiScriptURL := system_setting.UmamiAnalytics()
+	if umamiSiteID != "" {
 		if umamiScriptURL == "" {
 			umamiScriptURL = "https://analytics.umami.is/script.js"
 		}
@@ -284,8 +285,7 @@ func InjectUmamiAnalytics(indexPage []byte) []byte {
 
 func InjectGoogleAnalytics(indexPage []byte) []byte {
 	analyticsInjectBuilder := &strings.Builder{}
-	if os.Getenv("GOOGLE_ANALYTICS_ID") != "" {
-		gaID := os.Getenv("GOOGLE_ANALYTICS_ID")
+	if gaID := system_setting.GoogleAnalyticsID(); gaID != "" {
 		// Google Analytics 4 (gtag.js)
 		analyticsInjectBuilder.WriteString("<script async src=\"https://www.googletagmanager.com/gtag/js?id=")
 		analyticsInjectBuilder.WriteString(gaID)

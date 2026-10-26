@@ -22,38 +22,35 @@ type WebAssets struct {
 	// BuildFS, so a console release replaces files on disk rather than the
 	// process. IndexPage stays the fallback when Dir has no index.html.
 	Dir string
-	// RenderIndex applies the server-side snippets to an index.html read from Dir.
+	// RenderIndex applies the server-side snippets to index.html on every index
+	// request, so a change to the settings they read shows on the next page load.
 	RenderIndex func([]byte) []byte
 }
 
-// diskIndexPage serves index.html from a build on disk, rendered once per
-// release.
+// diskIndexPage reads index.html from a build on disk once per release.
 type diskIndexPage struct {
 	frontend *common.DiskFrontend
-	render   func([]byte) []byte
 	fallback []byte
-	rendered atomic.Pointer[renderedIndexPage]
+	read     atomic.Pointer[releaseIndexPage]
 }
 
-type renderedIndexPage struct {
+type releaseIndexPage struct {
 	release string
 	page    []byte
 }
 
 func (d *diskIndexPage) Bytes() []byte {
 	release := d.frontend.Release()
-	if cached := d.rendered.Load(); cached != nil && cached.release == release {
+	if cached := d.read.Load(); cached != nil && cached.release == release {
 		return cached.page
 	}
-	raw, err := d.frontend.ReadFile("index.html")
-	page := d.fallback
-	if err == nil {
-		page = d.render(raw)
-	} else {
-		// Logged once per release: the fallback is cached like a rendered page.
+	page, err := d.frontend.ReadFile("index.html")
+	if err != nil {
+		// Logged once per release: the fallback is cached like a page read.
 		common.SysError(common.LogText("frontend build has no readable index.html, serving the embedded one: %v", err))
+		page = d.fallback
 	}
-	d.rendered.Store(&renderedIndexPage{release: release, page: page})
+	d.read.Store(&releaseIndexPage{release: release, page: page})
 	return page
 }
 
@@ -65,12 +62,16 @@ func SetWebRouter(router *gin.Engine, assets WebAssets, pluginDispatcher gin.Han
 	}
 	frontendFS := common.EmbedFolder(buildFS, "web/dist")
 	indexPage := assets.IndexPage
+	render := assets.RenderIndex
+	if render == nil {
+		render = func(page []byte) []byte { return page }
+	}
 	var diskIndex *diskIndexPage
 	if assets.Dir != "" {
 		common.SysLog(common.LogText("serving the frontend build from %s", assets.Dir))
 		disk := common.DiskFolder(assets.Dir, frontendFS)
 		frontendFS = disk
-		diskIndex = &diskIndexPage{frontend: disk, render: assets.RenderIndex, fallback: assets.IndexPage}
+		diskIndex = &diskIndexPage{frontend: disk, fallback: assets.IndexPage}
 	}
 	compress := gzip.Gzip(gzip.DefaultCompression)
 
@@ -97,7 +98,7 @@ func SetWebRouter(router *gin.Engine, assets WebAssets, pluginDispatcher gin.Han
 				page = diskIndex.Bytes()
 			}
 			c.Header("Cache-Control", "no-cache")
-			c.Data(http.StatusOK, "text/html; charset=utf-8", page)
+			c.Data(http.StatusOK, "text/html; charset=utf-8", render(page))
 		},
 	)
 }
