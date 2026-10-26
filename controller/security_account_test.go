@@ -438,6 +438,8 @@ func TestSecurityAccountProfileReadsPasswordStatusInOneQuery(t *testing.T) {
 			assert.Empty(t, profile.Remark)
 			assert.Equal(t, user.AuthVersion, profile.AuthVersion)
 			assert.Equal(t, user.Group, profile.Group)
+			require.NotZero(t, user.CreatedAt)
+			assert.Equal(t, user.CreatedAt, profile.CreatedAt)
 			require.NoError(t, model.DB.Callback().Query().Remove("profile_query_count"))
 
 			response := securityEnrollmentRequest(http.MethodGet, "/api/user/self", "", "", identity, GetSelf)
@@ -448,6 +450,7 @@ func TestSecurityAccountProfileReadsPasswordStatusInOneQuery(t *testing.T) {
 			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
 			require.True(t, result.Success, response.Body.String())
 			assert.Equal(t, hasPassword, result.Data["has_password"])
+			assert.EqualValues(t, user.CreatedAt, result.Data["created_at"])
 			assert.NotContains(t, result.Data, "password")
 			assert.NotContains(t, result.Data, "access_token")
 			assert.NotContains(t, result.Data, "remark")
