@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"maps"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -19,7 +21,32 @@ import (
 var userRequestsInFlight = struct {
 	sync.Mutex
 	counts map[int]int
-}{counts: map[int]int{}}
+	// rejected counts 429s by the unix second their hour starts, kept for
+	// userConcurrencyRejectionHours, so the root dashboard can show requests
+	// turned away here, which never reach the request logs.
+	rejected map[int64]int
+}{counts: map[int]int{}, rejected: map[int64]int{}}
+
+const userConcurrencyRejectionHours = 48
+
+// UserConcurrencySnapshot returns every user's requests in flight on this
+// instance and its 429s by hour over the last two days.
+func UserConcurrencySnapshot() (inFlight map[int]int, rejectedByHour map[int64]int) {
+	userRequestsInFlight.Lock()
+	defer userRequestsInFlight.Unlock()
+	return maps.Clone(userRequestsInFlight.counts), maps.Clone(userRequestsInFlight.rejected)
+}
+
+// recordUserConcurrencyRejection must be called with userRequestsInFlight held.
+func recordUserConcurrencyRejection(now time.Time) {
+	hour := now.Truncate(time.Hour).Unix()
+	userRequestsInFlight.rejected[hour]++
+	for at := range userRequestsInFlight.rejected {
+		if at <= hour-userConcurrencyRejectionHours*3600 {
+			delete(userRequestsInFlight.rejected, at)
+		}
+	}
+}
 
 // UserConcurrencyLimit rejects a request with 429 while its user already has as
 // many requests in flight, over all of the user's tokens, as the user's group
@@ -36,6 +63,7 @@ func UserConcurrencyLimit() gin.HandlerFunc {
 
 		userRequestsInFlight.Lock()
 		if userRequestsInFlight.counts[userID] >= limit {
+			recordUserConcurrencyRejection(time.Now())
 			userRequestsInFlight.Unlock()
 			c.Header("Retry-After", "1")
 			abortWithOpenAiMessage(c, http.StatusTooManyRequests,

@@ -32,6 +32,7 @@ import {
   Radio,
   Receipt,
   ServerCog,
+  ChartNoAxesCombined,
   Settings,
   ShieldCheck,
   Ticket,
@@ -174,6 +175,12 @@ export function useSidebarData(): SidebarData {
             title: t('Enterprise Applications'),
             url: '/enterprise-applications',
             icon: Building2,
+          },
+          {
+            title: t('Site Insights'),
+            url: '/site-insights',
+            icon: ChartNoAxesCombined,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('System Info'),

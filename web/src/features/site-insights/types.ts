@@ -1,0 +1,256 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+// Mirrors the Go types in model/site_insights*.go and
+// controller/site_insights.go.
+
+export type NamedCount = { name: string; count: number }
+export type UserRef = { user_id: number; username: string }
+export type CountPoint = { at: number; count: number }
+
+export type CapacityHour = {
+  hour: number
+  requests: number
+  errors: number
+  peak_concurrency: number
+  engine_rejections: number
+  upstream_rate_limits: number
+}
+
+export type EngineAccount = {
+  credential_id: number
+  group: string
+  email_mask: string
+  plan: string
+  tier: string
+  status: string
+  five_hour: number
+  seven_day: number
+  five_hour_reset_ms: number
+  seven_day_reset_ms: number
+  cooldown_until_ms: number
+  eligible: boolean
+}
+
+export type EnginePool = {
+  configured: boolean
+  error?: string
+  credential_concurrency: number
+  five_hour_budget: number
+  seven_day_budget: number
+  eligible_accounts: number
+  effective_slots: number
+  accounts: EngineAccount[]
+}
+
+export type CapacityInsights = {
+  requests: number
+  errors: number
+  peak_concurrency: number
+  peak_at: number
+  peak_rpm: number
+  peak_rpm_at: number
+  error_categories: NamedCount[]
+  hourly: CapacityHour[]
+  user_peaks: (UserRef & { peak: number; peak_at: number; requests: number })[]
+  truncated: boolean
+  in_flight: number
+  in_flight_users: (UserRef & { in_flight: number; limit: number })[]
+  limit_rejections: CountPoint[]
+  limit_rejection_total: number
+  concurrency_limits: Record<string, number> | null
+  pool: EnginePool
+}
+
+export type BalanceUser = UserRef & { balance_usd: number }
+
+export type FinanceInsights = {
+  revenue: number
+  topup_revenue: number
+  subscription_revenue: number
+  orders: number
+  paying_users: number
+  methods: { payment_method: string; money: number; count: number }[] | null
+  daily: {
+    day: number
+    topup: number
+    subscription: number
+    consumption_usd: number
+  }[]
+  consumption_usd: number
+  revenue_per_usd: number
+  liability_usd: number
+  liability_users: number
+  debt_usd: number
+  debtors: BalanceUser[]
+  top_balances: BalanceUser[]
+  adjustments: {
+    created_at: number
+    operator: string
+    target: UserRef
+    mode: string
+    request_usd: number
+    before_usd: number
+    after_usd: number
+    delta_usd: number
+    success: boolean
+    has_snapshot: boolean
+  }[]
+  adjustment_net_usd: number
+  commission_usd: number
+  redemption_usd: number
+  bonus_usd: number
+  topup_credit_usd: number
+}
+
+export type RiskInsights = {
+  signups: number
+  signup_series: CountPoint[]
+  series_unit: 'hour' | 'day'
+  peak_signups: CountPoint
+  signup_methods: NamedCount[]
+  email_domains:
+    | { domain: string; count: number; whitelisted: boolean }[]
+    | null
+  alias_emails: number
+  off_whitelist: number
+  zero_use_accounts: number
+  shared_ips: {
+    ip: string
+    requests: number
+    subscription_buyers: number
+    users: (UserRef & {
+      requests: number
+      paid: boolean
+      subscription: boolean
+      created_at: number
+      balance_usd: number
+    })[]
+  }[]
+  debtors: BalanceUser[]
+}
+
+export type FunnelRow = {
+  segment: string
+  registered: number
+  activated: number
+  paid: number
+  repeat: number
+}
+
+export type GrowthInsights = {
+  funnel: FunnelRow
+  by_source: FunnelRow[] | null
+  by_invite: FunnelRow[]
+  daily: { day: number; registered: number; activated: number; paid: number }[]
+  subscription_buyers: number
+  subscription_to_topup: number
+}
+
+export type ActivityInsights = {
+  active_users: number
+  quota_usd: number
+  requests: number
+  daily: {
+    day: number
+    dau: number
+    wau: number
+    requests: number
+    quota_usd: number
+  }[]
+  retention: { day: number; size: number; days: number[] | null }[]
+  top_users: (UserRef & {
+    quota_usd: number
+    requests: number
+    share: number
+  })[]
+  top1_share: number
+  top3_share: number
+  top10_share: number
+}
+
+export type QualityInsights = {
+  requests: number
+  errors: number
+  error_rate: number
+  ttft_p50_ms: number
+  ttft_p95_ms: number
+  cache_share: number
+  models:
+    | {
+        model: string
+        requests: number
+        errors: number
+        error_rate: number
+        ttft_p50_ms: number
+        ttft_p95_ms: number
+        latency_p50_s: number
+        latency_p95_s: number
+        cache_share: number
+      }[]
+    | null
+  daily: {
+    day: number
+    read: number
+    write: number
+    uncached: number
+    read_share: number
+    ttft_p50_ms: number
+    error_rate: number
+    requests: number
+    errors: number
+  }[]
+  stream_ends: NamedCount[]
+  status_codes: NamedCount[]
+  error_reasons: NamedCount[]
+  truncated: boolean
+}
+
+export type BusinessInsights = {
+  inviters: number
+  invitees: number
+  invitee_spend_usd: number
+  invitee_payments: number
+  commission_usd: number
+  commission_to_spend: number
+  top_inviters: (UserRef & {
+    invitees: number
+    active_invitees: number
+    spend_usd: number
+    payments: number
+    commission_usd: number
+  })[]
+  models:
+    | {
+        model: string
+        quota_usd: number
+        share: number
+        requests: number
+        users: number
+        per_request_usd: number
+        revenue_estimate: number
+        cache_share: number
+      }[]
+    | null
+  revenue: number
+  groups: NamedCount[]
+  clients: NamedCount[]
+  clients_truncated: boolean
+}
+
+export type InsightsRange = { start_time: number; end_time: number }

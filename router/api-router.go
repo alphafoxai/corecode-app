@@ -401,6 +401,18 @@ func SetApiRouter(router *gin.Engine) {
 			systemInfoRoute.DELETE("/instances/:node_name", controller.DeleteStaleSystemInstance)
 		}
 
+		siteInsightsRoute := apiRouter.Group("/site-insights")
+		siteInsightsRoute.Use(middleware.DisableCache(), middleware.RootAuth())
+		{
+			siteInsightsRoute.GET("/capacity", controller.GetCapacityInsights)
+			siteInsightsRoute.GET("/finance", controller.GetFinanceInsights)
+			siteInsightsRoute.GET("/risk", controller.GetRiskInsights)
+			siteInsightsRoute.GET("/growth", controller.GetGrowthInsights)
+			siteInsightsRoute.GET("/activity", controller.GetActivityInsights)
+			siteInsightsRoute.GET("/quality", controller.GetQualityInsights)
+			siteInsightsRoute.GET("/business", controller.GetBusinessInsights)
+		}
+
 		dataRoute := apiRouter.Group("/data")
 		dataRoute.GET("/", middleware.AdminAuth(), controller.GetAllQuotaDates)
 		dataRoute.GET("/users", middleware.AdminAuth(), controller.GetQuotaDatesByUser)

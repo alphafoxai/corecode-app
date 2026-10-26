@@ -218,6 +218,15 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"DELETE /api/system-info/stale-instances":      accessTokenScopeRule("ops:write"),
 	"DELETE /api/system-info/instances/:node_name": accessTokenScopeRule("ops:write"),
 
+	// router/api-router.go: /api/site-insights, root only
+	"GET /api/site-insights/capacity": accessTokenScopeRule("ops:read"),
+	"GET /api/site-insights/quality":  accessTokenScopeRule("ops:read"),
+	"GET /api/site-insights/finance":  accessTokenScopeRule("billing:read"),
+	"GET /api/site-insights/business": accessTokenScopeRule("billing:read"),
+	"GET /api/site-insights/risk":     accessTokenScopeRule("user:read"),
+	"GET /api/site-insights/growth":   accessTokenScopeRule("user:read"),
+	"GET /api/site-insights/activity": accessTokenScopeRule("user:read"),
+
 	// router/api-router.go: /api/plugin/task
 	"GET /api/plugin/task":                           accessTokenScopeRule("plugin:read"),
 	"POST /api/plugin/task":                          accessTokenScopeRule("plugin:write"),

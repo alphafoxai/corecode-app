@@ -91,6 +91,8 @@ func InitOptionMap() {
 	common.OptionMap["WorkerValidKey"] = system_setting.WorkerValidKey
 	common.OptionMap["WorkerAllowHttpImageRequestEnabled"] = strconv.FormatBool(system_setting.WorkerAllowHttpImageRequestEnabled)
 	common.OptionMap["PayAddress"] = ""
+	common.OptionMap["EngineControlURL"] = ""
+	common.OptionMap["EngineControlKey"] = ""
 	common.OptionMap["CustomCallbackAddress"] = ""
 	common.OptionMap["EpayId"] = ""
 	common.OptionMap["EpayKey"] = ""
@@ -527,6 +529,10 @@ func updateOptionMap(key string, value string) (err error) {
 		system_setting.WorkerValidKey = value
 	case "PayAddress":
 		operation_setting.PayAddress = value
+	case "EngineControlURL":
+		operation_setting.EngineControlURL = value
+	case "EngineControlKey":
+		operation_setting.EngineControlKey = value
 	case "Chats":
 		err = setting.UpdateChatsByJsonString(value)
 	case "AutoGroups":
