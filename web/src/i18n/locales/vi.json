@@ -3385,6 +3385,7 @@
     "Include quota": "Bao gồm hạn mức",
     "Include Rule Name": "Bao gồm tên quy tắc",
     "Includes changes that require security verification, such as password, two-factor settings, and account deletion.": "Bao gồm các thay đổi cần xác minh bảo mật, như mật khẩu, cài đặt xác thực hai yếu tố và xóa tài khoản.",
+    "Includes {{amount}} left on your plan": "Bao gồm {{amount}} còn lại trong gói của bạn",
     "Includes request rules": "Bao gồm quy tắc yêu cầu",
     "Includes tool-call surcharge": "Bao gồm phụ phí gọi công cụ",
     "Including failed requests, 0 = unlimited": "Bao gồm các yêu cầu thất bại, 0 = không giới hạn",

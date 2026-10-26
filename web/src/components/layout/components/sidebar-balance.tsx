@@ -47,7 +47,7 @@ function SidebarBalanceButton(props: { balance: number }) {
   const { t } = useTranslation()
   const spend = useDailySpend()
   const status = useBalanceStatus(props.balance, spend.daily)
-  const amount = formatQuota(props.balance)
+  const amount = formatQuota(status.available)
   const warn = status.health !== 'healthy'
   const label = warn
     ? `${t('Balance')} ${amount}, ${status.label}`

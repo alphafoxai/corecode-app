@@ -3385,6 +3385,7 @@
     "Include quota": "クォータを含める",
     "Include Rule Name": "ルール名を含む",
     "Includes changes that require security verification, such as password, two-factor settings, and account deletion.": "パスワード、2要素認証の設定、アカウント削除など、セキュリティ確認が必要な変更を含みます。",
+    "Includes {{amount}} left on your plan": "プランの残り {{amount}} を含む",
     "Includes request rules": "リクエストルールを含む",
     "Includes tool-call surcharge": "ツール呼び出しの追加料金を含む",
     "Including failed requests, 0 = unlimited": "失敗したリクエストを含む、0 = 無制限",

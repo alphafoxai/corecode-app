@@ -3385,6 +3385,7 @@
     "Include quota": "Включить квоту",
     "Include Rule Name": "Включить имя правила",
     "Includes changes that require security verification, such as password, two-factor settings, and account deletion.": "Включает изменения, требующие подтверждения безопасности, например пароль, настройки двухфакторной аутентификации и удаление аккаунта.",
+    "Includes {{amount}} left on your plan": "Включая {{amount}} по вашему плану",
     "Includes request rules": "Включает правила запросов",
     "Includes tool-call surcharge": "Включает доплату за вызов инструмента",
     "Including failed requests, 0 = unlimited": "Включая неудачные запросы, 0 = без ограничений",

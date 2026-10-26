@@ -3385,6 +3385,7 @@
     "Include quota": "Inclure le quota",
     "Include Rule Name": "Inclure le nom de la règle",
     "Includes changes that require security verification, such as password, two-factor settings, and account deletion.": "Comprend les modifications qui nécessitent une vérification de sécurité, comme le mot de passe, les paramètres de l’authentification à deux facteurs et la suppression du compte.",
+    "Includes {{amount}} left on your plan": "Dont {{amount}} restants sur votre forfait",
     "Includes request rules": "Inclut des règles de requête",
     "Includes tool-call surcharge": "Inclut un supplément pour appel d’outil",
     "Including failed requests, 0 = unlimited": "Y compris les requêtes échouées, 0 = illimité",

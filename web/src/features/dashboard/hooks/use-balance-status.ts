@@ -16,10 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
+import { getSelfSubscriptionFull } from '@/features/subscriptions/api'
+import type { UserSubscriptionRecord } from '@/features/subscriptions/types'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
+import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { estimateRunwayDays, type DailySpend } from '../lib/customer-overview'
 
@@ -39,16 +43,52 @@ const HEALTH: Record<
 }
 
 /**
- * How healthy a balance is and how long it lasts at the last week's spend.
- * The overview and the wallet word it the same way.
+ * What the active subscriptions still cover. A subscription with no total is
+ * unlimited until it ends.
+ */
+export function summarizeSubscriptionQuota(
+  records: UserSubscriptionRecord[],
+  now = Date.now() / 1000
+) {
+  let remaining = 0
+  let unlimited = false
+  for (const { subscription } of records) {
+    if (subscription?.status !== 'active' || subscription.end_time < now) {
+      continue
+    }
+    const total = Number(subscription.amount_total || 0)
+    if (total <= 0) unlimited = true
+    else remaining += Math.max(0, total - Number(subscription.amount_used || 0))
+  }
+  return { remaining, unlimited }
+}
+
+/**
+ * How healthy the spendable quota is and how long it lasts at the last
+ * week's spend. Requests draw on the wallet and on active subscriptions, so a
+ * customer with an empty wallet and a live plan is not out of credit. The
+ * overview and the wallet word it the same way.
  */
 export function useBalanceStatus(balance: number, daily: DailySpend[]) {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  const runway = estimateRunwayDays(balance, daily.slice(-RUNWAY_WINDOW_DAYS))
+  const subscriptionsQuery = useQuery({
+    queryKey: ['subscription', 'self'],
+    queryFn: async () =>
+      requireServerSuccess(await getSelfSubscriptionFull()).data
+        ?.subscriptions ?? [],
+    staleTime: 60 * 1000,
+  })
+  const subscription = summarizeSubscriptionQuota(
+    Array.isArray(subscriptionsQuery.data) ? subscriptionsQuery.data : []
+  )
+  const available = balance + subscription.remaining
+  const runway = subscription.unlimited
+    ? null
+    : estimateRunwayDays(available, daily.slice(-RUNWAY_WINDOW_DAYS))
 
   let health: BalanceHealth = 'healthy'
-  if (balance <= 0) health = 'empty'
+  if (available <= 0 && !subscription.unlimited) health = 'empty'
   else if (runway !== null && runway < LOW_RUNWAY_DAYS) health = 'low'
 
   let runwayText = t('Runway appears after your first requests')
@@ -62,6 +102,9 @@ export function useBalanceStatus(balance: number, daily: DailySpend[]) {
   }
 
   return {
+    available,
+    subscriptionRemaining: subscription.remaining,
+    hasSubscription: subscription.unlimited || subscription.remaining > 0,
     health,
     runwayDays: runway,
     dotClassName: HEALTH[health].dotClassName,
