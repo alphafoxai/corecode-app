@@ -128,6 +128,10 @@ export function SidebarModulesSection({
         title: t('Wallet'),
         description: t('Top up balance and view billing history.'),
       },
+      invitation: {
+        title: t('Invitations'),
+        description: t('Your invitation link and what your invitees spend.'),
+      },
       personal: {
         title: t('Profile'),
         description: t('Personal settings and profile management.'),
@@ -161,6 +165,10 @@ export function SidebarModulesSection({
       subscription: {
         title: t('Subscription Management'),
         description: t('Manage subscription plans and pricing.'),
+      },
+      topup_records: {
+        title: t('Top-up Records'),
+        description: t("Every user's top-ups with totals and a daily trend."),
       },
     },
   }

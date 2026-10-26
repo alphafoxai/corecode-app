@@ -107,6 +107,30 @@ func GetSelfAffiliateCommissions(c *gin.Context) {
 	common.ApiSuccess(c, pageInfo)
 }
 
+// GetSelfAffiliateInvitees pages the users the caller invited, with totals
+// over all of them. It answers even when the program is off, because users
+// invited earlier stay the caller's invitees.
+func GetSelfAffiliateInvitees(c *gin.Context) {
+	userId := c.GetInt("id")
+	pageInfo := common.GetPageQuery(c)
+	invitees, total, err := model.ListAffiliateInvitees(userId, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	totals, err := model.SumAffiliateInvitees(userId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(invitees)
+	common.ApiSuccess(c, gin.H{
+		"page": pageInfo.Page, "page_size": pageInfo.PageSize, "total": pageInfo.Total,
+		"items": pageInfo.Items, "totals": totals,
+	})
+}
+
 type affiliateTransferRequest struct {
 	Quota int `json:"quota"`
 }

@@ -29,11 +29,13 @@ import {
   MessageSquare,
   PlugZap,
   Radio,
+  Receipt,
   ServerCog,
   Settings,
   ShieldCheck,
   Ticket,
   User,
+  UserPlus,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -101,6 +103,11 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
+            title: t('Invitations'),
+            url: '/invitations',
+            icon: UserPlus,
+          },
+          {
             title: t('Profile'),
             url: '/profile',
             icon: User,
@@ -156,6 +163,11 @@ export function useSidebarData(): SidebarData {
             title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('Top-up Records'),
+            url: '/topups',
+            icon: Receipt,
           },
           {
             title: t('System Info'),

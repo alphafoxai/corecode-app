@@ -1,0 +1,176 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, it, vi } from 'vitest'
+
+import { formatPaymentMoney } from '@/features/wallet/lib'
+import { api } from '@/lib/api'
+
+import { TopupRecords } from '..'
+import type { TopupReportRecord, TopupStats } from '../types'
+
+const stats: TopupStats = {
+  money: 60.3,
+  count: 3,
+  user_count: 2,
+  daily: [
+    { day: 1759248000, money: 30.3, count: 2 },
+    { day: 1759334400, money: 0, count: 0 },
+  ],
+  methods: [{ payment_method: 'alipay', money: 60.3, count: 3 }],
+  payment_methods: ['alipay', 'stripe'],
+}
+
+const pending: TopupReportRecord = {
+  id: 9,
+  user_id: 42,
+  username: 'alice',
+  amount: 10,
+  money: 72,
+  trade_no: 'ORD_9',
+  payment_method: 'alipay',
+  create_time: 1759248100,
+  status: 'pending',
+}
+
+function renderPage() {
+  const get = vi.spyOn(api, 'get').mockImplementation(async (url: string) => ({
+    data: {
+      success: true,
+      data:
+        url === '/api/user/topup/stats'
+          ? stats
+          : { items: [pending], total: 1, page: 1, page_size: 20 },
+    },
+  }))
+  const root = createRootRoute()
+  const auth = createRoute({ getParentRoute: () => root, id: '_authenticated' })
+  const topups = createRoute({
+    getParentRoute: () => auth,
+    path: '/topups/',
+    component: TopupRecords,
+    validateSearch: (search: Record<string, unknown>) => search,
+  })
+  const router = createRouter({
+    routeTree: root.addChildren([auth.addChildren([topups])]),
+    history: createMemoryHistory({ initialEntries: ['/topups/'] }),
+  })
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  )
+  return { get, router }
+}
+
+function lastParams(get: ReturnType<typeof renderPage>['get'], url: string) {
+  const calls = get.mock.calls.filter((call) => call[0] === url)
+  return (calls.at(-1)?.[1] as { params: Record<string, unknown> }).params
+}
+
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+it('summarizes the default thirty-day range and lists its records', async () => {
+  const { get } = renderPage()
+
+  const summary = (await screen.findByText('Top-up revenue')).closest(
+    'dl'
+  ) as HTMLElement
+  await waitFor(() =>
+    expect(within(summary).getByText(formatPaymentMoney(60.3))).toBeVisible()
+  )
+  expect(within(summary).getByText('3')).toBeVisible()
+  expect(within(summary).getByText('2')).toBeVisible()
+  expect(await screen.findByText('alice')).toBeVisible()
+
+  const params = lastParams(get, '/api/user/topup/stats')
+  const span = Number(params.end_time) - Number(params.start_time)
+  expect(span).toBe(30 * 86400)
+  expect(params.tz_offset).toBe(-new Date().getTimezoneOffset())
+  expect(lastParams(get, '/api/user/topup/records')).toMatchObject({
+    start_time: params.start_time,
+    end_time: params.end_time,
+    p: 1,
+    page_size: 20,
+  })
+})
+
+it('applies the user filter to both the records and the summary on Search', async () => {
+  const { get, router } = renderPage()
+  const user = userEvent.setup()
+  await screen.findByText('alice')
+
+  await user.type(screen.getByLabelText('User ID or username'), '  alice ')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+
+  await waitFor(() =>
+    expect(lastParams(get, '/api/user/topup/records')).toMatchObject({
+      user: 'alice',
+      p: 1,
+    })
+  )
+  expect(lastParams(get, '/api/user/topup/stats')).toMatchObject({
+    user: 'alice',
+  })
+  expect(router.state.location.search).toMatchObject({ user: 'alice', page: 1 })
+})
+
+it('completes a pending order after confirmation and reloads the report', async () => {
+  const { get } = renderPage()
+  const post = vi
+    .spyOn(api, 'post')
+    .mockResolvedValue({ data: { success: true, message: '' } })
+  const user = userEvent.setup()
+  await screen.findByText('alice')
+  const before = get.mock.calls.length
+
+  await user.click(screen.getByRole('button', { name: 'Complete Order' }))
+  const dialog = await screen.findByRole('alertdialog')
+  await user.click(
+    within(dialog).getByRole('button', { name: 'Complete Order' })
+  )
+
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith('/api/user/topup/complete', {
+      trade_no: 'ORD_9',
+    })
+  )
+  await waitFor(() => expect(get.mock.calls.length).toBeGreaterThan(before))
+})
