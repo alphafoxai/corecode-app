@@ -123,7 +123,7 @@ func TestDiskConsoleWithoutReleaseServesEmbeddedConsole(t *testing.T) {
 
 	code, body := getConsole(t, engine, "/console", false)
 	require.Equal(t, http.StatusOK, code)
-	assert.Equal(t, "embedded index", body)
+	assert.Equal(t, "rendered embedded index", body, "the embedded index is rendered like a released one")
 
 	code, body = getConsole(t, engine, "/static/js/app.js", true)
 	require.Equal(t, http.StatusOK, code)
@@ -131,4 +131,28 @@ func TestDiskConsoleWithoutReleaseServesEmbeddedConsole(t *testing.T) {
 
 	code, _ = getConsole(t, engine, "/api/unknown", false)
 	assert.Equal(t, http.StatusNotFound, code, "API paths never fall through to the console")
+}
+
+func TestIndexRenderingFollowsSettingsWithoutRestart(t *testing.T) {
+	root := t.TempDir()
+	writeConsoleBuild(t, root, "r1", map[string]string{"index.html": "index r1"})
+	pointCurrentAt(t, root, "r1")
+	gin.SetMode(gin.TestMode)
+	tag := "ga-1"
+	render := func(page []byte) []byte { return append([]byte(tag+" "), page...) }
+	engines := map[string]*gin.Engine{
+		"embedded": gin.New(),
+		"disk":     gin.New(),
+	}
+	SetWebRouter(engines["embedded"], WebAssets{IndexPage: []byte("embedded index"), RenderIndex: render}, func(c *gin.Context) {})
+	SetWebRouter(engines["disk"], WebAssets{IndexPage: []byte("embedded index"), Dir: filepath.Join(root, "current"), RenderIndex: render}, func(c *gin.Context) {})
+
+	for name, engine := range engines {
+		tag = "ga-1"
+		_, first := getConsole(t, engine, "/console", false)
+		tag = "ga-2"
+		_, second := getConsole(t, engine, "/console", false)
+		assert.Regexp(t, "^ga-1 ", first, name)
+		assert.Regexp(t, "^ga-2 ", second, name+": a settings change shows on the next page load")
+	}
 }

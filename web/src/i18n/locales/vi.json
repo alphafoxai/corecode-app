@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "Người dùng này không phải người bạn mời",
     "This invitee already has this plan": "Người được mời đã có gói này",
     "Your inviter gave you the plan {{plan}}": "Người mời đã tặng bạn gói {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "Bạn đã tặng {{user}} gói {{plan}}"
+    "You gave {{user}} the plan {{plan}}": "Bạn đã tặng {{user}} gói {{plan}}",
+    "Analytics": "Thống kê truy cập",
+    "Google Analytics measurement ID": "Mã đo lường Google Analytics",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "Thêm thẻ GA4 vào mọi trang của bảng điều khiển từ lần tải trang tiếp theo. Để trống để gỡ bỏ.",
+    "Umami website ID": "Mã trang web Umami",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "Thêm tập lệnh Umami vào mọi trang của bảng điều khiển từ lần tải trang tiếp theo. Để trống để gỡ bỏ.",
+    "Umami script URL": "URL tập lệnh Umami",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "Dành cho Umami tự lưu trữ. Để trống để dùng Umami Cloud.",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "Nhập mã đo lường GA4, ví dụ G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "Nhập mã trang web Umami dạng UUID",
+    "Enter an absolute HTTPS URL": "Nhập URL HTTPS đầy đủ"
   }
 }

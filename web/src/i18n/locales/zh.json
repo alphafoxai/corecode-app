@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "该用户不是你邀请的用户",
     "This invitee already has this plan": "该被邀请人已拥有此套餐",
     "Your inviter gave you the plan {{plan}}": "你的邀请人赠送了你套餐 {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "你赠送了 {{user}} 套餐 {{plan}}"
+    "You gave {{user}} the plan {{plan}}": "你赠送了 {{user}} 套餐 {{plan}}",
+    "Analytics": "访问统计",
+    "Google Analytics measurement ID": "Google Analytics 衡量 ID",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "从下一次页面加载起，在控制台每个页面加入 GA4 标签。留空即移除。",
+    "Umami website ID": "Umami 网站 ID",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "从下一次页面加载起，在控制台每个页面加入 Umami 脚本。留空即移除。",
+    "Umami script URL": "Umami 脚本地址",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "用于自托管的 Umami。留空则使用 Umami Cloud。",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "请输入 GA4 衡量 ID，例如 G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "请输入 UUID 格式的 Umami 网站 ID",
+    "Enter an absolute HTTPS URL": "请输入完整的 HTTPS 地址"
   }
 }

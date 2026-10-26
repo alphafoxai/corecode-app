@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "このユーザーはあなたの招待ユーザーではありません",
     "This invitee already has this plan": "この招待ユーザーはすでにこのプランを持っています",
     "Your inviter gave you the plan {{plan}}": "招待者からプラン {{plan}} が贈られました",
-    "You gave {{user}} the plan {{plan}}": "{{user}} にプラン {{plan}} を贈りました"
+    "You gave {{user}} the plan {{plan}}": "{{user}} にプラン {{plan}} を贈りました",
+    "Analytics": "アクセス解析",
+    "Google Analytics measurement ID": "Google Analytics 測定 ID",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "次回のページ読み込みから、コンソールの全ページに GA4 タグを追加します。空にすると削除されます。",
+    "Umami website ID": "Umami ウェブサイト ID",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "次回のページ読み込みから、コンソールの全ページに Umami スクリプトを追加します。空にすると削除されます。",
+    "Umami script URL": "Umami スクリプト URL",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "セルフホストの Umami 用です。空の場合は Umami Cloud を使用します。",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "G-XXXXXXXXXX のような GA4 測定 ID を入力してください",
+    "Enter the Umami website ID as a UUID": "Umami ウェブサイト ID を UUID 形式で入力してください",
+    "Enter an absolute HTTPS URL": "HTTPS の絶対 URL を入力してください"
   }
 }

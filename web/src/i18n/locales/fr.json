@@ -7819,6 +7819,16 @@
     "This user is not your invitee": "Cet utilisateur n'est pas votre invité",
     "This invitee already has this plan": "Cet invité a déjà ce forfait",
     "Your inviter gave you the plan {{plan}}": "Votre parrain vous a offert le forfait {{plan}}",
-    "You gave {{user}} the plan {{plan}}": "Vous avez offert le forfait {{plan}} à {{user}}"
+    "You gave {{user}} the plan {{plan}}": "Vous avez offert le forfait {{plan}} à {{user}}",
+    "Analytics": "Statistiques de visite",
+    "Google Analytics measurement ID": "ID de mesure Google Analytics",
+    "Adds the GA4 tag to every console page from the next page load. Leave empty to remove it.": "Ajoute la balise GA4 à chaque page de la console dès le prochain chargement. Laissez vide pour la retirer.",
+    "Umami website ID": "ID de site Umami",
+    "Adds the Umami script to every console page from the next page load. Leave empty to remove it.": "Ajoute le script Umami à chaque page de la console dès le prochain chargement. Laissez vide pour le retirer.",
+    "Umami script URL": "URL du script Umami",
+    "For a self-hosted Umami. Leave empty to use Umami Cloud.": "Pour une instance Umami auto-hébergée. Laissez vide pour utiliser Umami Cloud.",
+    "Enter a GA4 measurement ID such as G-XXXXXXXXXX": "Saisissez un ID de mesure GA4, par exemple G-XXXXXXXXXX",
+    "Enter the Umami website ID as a UUID": "Saisissez l’ID de site Umami au format UUID",
+    "Enter an absolute HTTPS URL": "Saisissez une URL HTTPS absolue"
   }
 }

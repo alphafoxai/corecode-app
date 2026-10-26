@@ -28,6 +28,7 @@ import { NoticeSection } from '../maintenance/notice-section'
 import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { AnalyticsSection } from './analytics-section'
 
 const SITE_SECTIONS = [
   {
@@ -49,6 +50,24 @@ const SITE_SECTIONS = [
           legal: {
             user_agreement: settings['legal.user_agreement'],
             privacy_policy: settings['legal.privacy_policy'],
+          },
+        }}
+      />
+    ),
+  },
+  {
+    id: 'analytics',
+    titleKey: 'Analytics',
+    build: (settings: SiteSettings) => (
+      <AnalyticsSection
+        defaultValues={{
+          analytics_setting: {
+            google_analytics_id:
+              settings['analytics_setting.google_analytics_id'] ?? '',
+            umami_website_id:
+              settings['analytics_setting.umami_website_id'] ?? '',
+            umami_script_url:
+              settings['analytics_setting.umami_script_url'] ?? '',
           },
         }}
       />
