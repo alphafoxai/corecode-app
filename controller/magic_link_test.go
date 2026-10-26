@@ -236,6 +236,35 @@ func TestMagicLinkSignUpBindsTheInviterFromItsCode(t *testing.T) {
 	assert.EqualValues(t, 1, referrals, "the new invitee starts counting toward commission at once")
 }
 
+// Two mailboxes can share a local part. The link is spent before the account
+// is inserted, so a username collision used to leave the second customer on an
+// "invalid or expired" page with no way to retry.
+func TestMagicLinkSignUpSurvivesATakenMailboxName(t *testing.T) {
+	messages := setupMagicLinkTest(t)
+	localPart, _, _ := strings.Cut(magicLinkTestEmail, "@")
+	existing := &model.User{Username: localPart, DisplayName: localPart, Email: localPart + "@example.org", Role: common.RoleCommonUser, Status: common.UserStatusEnabled}
+	require.NoError(t, existing.Insert(0))
+
+	sent := magicLinkPost(t, "/api/magic_link/send", `{"email":"`+magicLinkTestEmail+`"}`, SendMagicLink)
+	require.Equal(t, http.StatusOK, sent.Code)
+	var raw string
+	select {
+	case raw = <-messages:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no sign-in email was delivered")
+	}
+	recorder := magicLinkPost(t, "/api/magic_link/login", `{"token":"`+extractMagicLinkToken(t, raw)+`"}`, LoginWithMagicLink)
+	payload := decodeMagicLinkResponse(t, recorder)
+	require.Equal(t, true, payload["success"], payload["message"])
+
+	user, err := model.GetUniqueUserByEmail(magicLinkTestEmail)
+	require.NoError(t, err)
+	assert.NotEqual(t, existing.Id, user.Id)
+	assert.NotEqual(t, localPart, user.Username)
+	assert.LessOrEqual(t, len(user.Username), model.UserNameMaxLength)
+	assert.True(t, strings.HasPrefix(user.Username, localPart[:model.UserNameMaxLength-5]+"_"), user.Username)
+}
+
 func serviceIsAuthBundle(data map[string]any) bool {
 	_, hasToken := data["access_token"]
 	_, hasUser := data["user"]

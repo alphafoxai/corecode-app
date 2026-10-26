@@ -232,8 +232,12 @@ func registerMagicLinkUser(c *gin.Context, email string, aff string) (*model.Use
 	if !magicLinkRegisterAllowed() {
 		return nil, model.ErrMagicLinkRegistrationDisabled
 	}
+	username, err := availableMagicLinkUsername(email)
+	if err != nil {
+		return nil, err
+	}
 	cleanUser := model.User{
-		Username:    magicLinkUsername(email),
+		Username:    username,
 		DisplayName: email,
 		Email:       email,
 		Role:        common.RoleCommonUser,
@@ -261,6 +265,36 @@ func magicLinkUsername(email string) string {
 		name = name[:model.UserNameMaxLength]
 	}
 	return name
+}
+
+// magicLinkUsernameAttempts bounds the suffixed names tried after the mailbox
+// name is taken; four random characters make a repeat collision unlikely.
+const magicLinkUsernameAttempts = 5
+
+// availableMagicLinkUsername keeps the mailbox name when it is free and
+// otherwise appends a random suffix. Two addresses can share a local part
+// (a@gmail.com, a@qq.com), and the link is already spent when the insert runs,
+// so a taken name would strand the customer on an "invalid link" page. Deleted
+// accounts still hold their name in the unique index, so they count as taken.
+func availableMagicLinkUsername(email string) (string, error) {
+	base := magicLinkUsername(email)
+	candidate := base
+	for range magicLinkUsernameAttempts {
+		taken, err := model.CheckUserExistOrDeleted(candidate, "")
+		if err != nil {
+			return "", model.ErrDatabase
+		}
+		if !taken {
+			return candidate, nil
+		}
+		const suffixLen = 5 // "_" and four characters
+		prefix := base
+		if len(prefix) > model.UserNameMaxLength-suffixLen {
+			prefix = prefix[:model.UserNameMaxLength-suffixLen]
+		}
+		candidate = prefix + "_" + common.GetRandomString(suffixLen-1)
+	}
+	return "", model.ErrDatabase
 }
 
 func writeMagicLinkError(c *gin.Context, err error) {
