@@ -194,8 +194,9 @@ jobs:
   # This repository is public, and the org's self-hosted runner group does not
   # admit public repositories, so this job uses a hosted runner. The symptom of
   # getting that wrong is not an error: the job queues forever with no runner
-  # assigned. `environment: production` still makes every rollout a deliberate
-  # act rather than a side effect of merging.
+  # assigned. A merge to main deploys without approval: the `production`
+  # environment has no required reviewers and admits only the main branch, so
+  # it records each rollout and keeps other refs from deploying.
   deploy:
     needs: [check, web, publish]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
