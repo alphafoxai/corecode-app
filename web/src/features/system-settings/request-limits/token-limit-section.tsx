@@ -39,7 +39,7 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
-// Mirrors ValidateTokenConcurrencyLimits on the server.
+// Mirrors ValidateConcurrencyLimits on the server.
 function isConcurrencyLimits(value: string): boolean {
   try {
     const parsed: unknown = JSON.parse(value)
@@ -165,7 +165,7 @@ export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
             name='token_setting.concurrency_limits'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('Concurrent requests per token')}</FormLabel>
+                <FormLabel>{t('Concurrent requests per user')}</FormLabel>
                 <FormControl>
                   <Textarea
                     rows={3}
@@ -176,7 +176,7 @@ export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
                 </FormControl>
                 <FormDescription>
                   {t(
-                    "How many requests one token may have in progress at once, by the owner's user group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited."
+                    "How many requests one user may have in progress at once across all of their tokens, by the user's group. A further request gets a 429 and Claude Code retries it. A group that is missing or set to 0 is not limited."
                   )}
                 </FormDescription>
                 <FormMessage />

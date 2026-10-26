@@ -346,7 +346,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "token_setting.concurrency_limits":
-		err = operation_setting.ValidateTokenConcurrencyLimits(option.Value.(string))
+		err = operation_setting.ValidateConcurrencyLimits(option.Value.(string))
 		if err != nil {
 			common.ApiError(c, err)
 			return

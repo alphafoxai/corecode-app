@@ -2,6 +2,9 @@
 
 Status: implemented
 
+The limit now counts per user, not per token; see
+[2026-10-27-user-concurrency-limit.md](2026-10-27-user-concurrency-limit.md).
+
 ## Problem
 
 One customer token could run any number of requests at once. Nothing in the
