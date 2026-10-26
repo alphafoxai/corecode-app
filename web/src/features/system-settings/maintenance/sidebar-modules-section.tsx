@@ -170,6 +170,10 @@ export function SidebarModulesSection({
         title: t('Top-up Records'),
         description: t("Every user's top-ups with totals and a daily trend."),
       },
+      enterprise_application: {
+        title: t('Enterprise Applications'),
+        description: t('Requests for enterprise pricing from the public page.'),
+      },
     },
   }
   const formDefaults = useMemo(() => config, [config])

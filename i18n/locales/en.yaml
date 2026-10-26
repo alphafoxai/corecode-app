@@ -101,3 +101,5 @@ channel.upstream_update_added_models: "Added model examples (showing {{.Shown}}/
 channel.upstream_update_removed_models: "Removed model examples (showing {{.Shown}}/{{.Total}}): {{.Models}}"
 channel.upstream_update_failed_channels: "Failed channel IDs (showing {{.Shown}}/{{.Total}}): {{.Ids}}"
 channel.upstream_update_more_omitted: " ({{.Count}} more omitted)"
+enterprise.application_subject: "New enterprise pricing application from {{.Company}}"
+enterprise.application_content: "Company: {{.Company}}<br>Contact: {{.ContactName}}<br>Email: {{.Email}}<br>Other contact: {{.OtherContact}}<br>Monthly spend: {{.MonthlySpend}}<br>Models and use case: {{.UseCase}}<br>Message: {{.Message}}<br><br>Review it under Enterprise Applications in the console."

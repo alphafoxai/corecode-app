@@ -129,3 +129,9 @@ const (
 	MsgChannelUpstreamUpdateFailedChannels  = "channel.upstream_update_failed_channels"
 	MsgChannelUpstreamUpdateMoreOmitted     = "channel.upstream_update_more_omitted"
 )
+
+// Enterprise pricing applications sent to administrators
+const (
+	MsgEnterpriseApplicationSubject = "enterprise.application_subject"
+	MsgEnterpriseApplicationContent = "enterprise.application_content"
+)

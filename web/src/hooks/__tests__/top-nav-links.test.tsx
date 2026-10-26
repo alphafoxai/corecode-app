@@ -76,3 +76,15 @@ describe('rankings nav link', () => {
     ).not.toContain('/rankings')
   })
 })
+
+describe('enterprise nav link', () => {
+  it('is shown to visitors by default', () => {
+    expect(linkHrefsFor()).toContain('/enterprise')
+  })
+
+  it('is hidden when the module is disabled', () => {
+    expect(
+      linkHrefsFor(undefined, JSON.stringify({ enterprise: false }))
+    ).not.toContain('/enterprise')
+  })
+})

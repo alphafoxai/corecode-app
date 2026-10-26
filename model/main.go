@@ -383,6 +383,7 @@ func migrateDB() error {
 		&AffiliateReferral{},
 		&AffiliateCommission{},
 		&AffiliateWithdrawal{},
+		&EnterpriseApplication{},
 	)
 	if err != nil {
 		return err
