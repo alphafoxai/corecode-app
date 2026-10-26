@@ -55,10 +55,6 @@ jobs:
           # later run recompiled what had changed since. The steps below replace it.
           cache: false
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.0
-
       # Modules change with go.sum; compiled packages and cached test results
       # change with any Go source, so the key hashes both and a miss restores the
       # closest earlier entry. Pull requests only read this cache; main and
@@ -75,15 +71,15 @@ jobs:
             go-check-${{ runner.os }}-${{ hashFiles('go.sum') }}-
             go-check-${{ runner.os }}-
 
-      # main.go embeds web/dist, so the Go toolchain will not even parse the
-      # module until the console bundle exists. Building it here is a build
-      # prerequisite, not a duplicate of the publish job's image build.
-      - name: Build the console bundle the Go build embeds
-        working-directory: web
+      # main.go embeds web/dist, so the Go toolchain will not parse the module
+      # until web/dist/index.html exists. Vet and the tests never serve the
+      # console, so a placeholder satisfies the embed; the web job builds the
+      # real bundle.
+      - name: Stand in for the console bundle the Go build embeds
         run: |
           set -eu
-          bun install --frozen-lockfile
-          DISABLE_ESLINT_PLUGIN='true' bun run build
+          mkdir -p web/dist
+          : > web/dist/index.html
 
       - name: Vet and test the Go module
         run: |
@@ -101,8 +97,30 @@ jobs:
             ~/.cache/go-build
           key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
+  # The console build is the only check of the frontend a pull request gets: the
+  # publish job, which builds it again inside the image, never runs on one.
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Build the console bundle
+        working-directory: web
+        run: |
+          set -eu
+          bun install --frozen-lockfile
+          DISABLE_ESLINT_PLUGIN='true' bun run build
+
+  # Publish runs alongside check and web rather than after them: pushing an image
+  # changes nothing in production, and deploy waits for all three.
   publish:
-    needs: [check]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -152,7 +170,9 @@ jobs:
       # intermediate stages too: this image builds the web bundle before the Go
       # binary, and both stages are worth reusing. The Dockerfile's cache mounts
       # start empty here: carrying them over in the Actions cache cost more than
-      # it saved (.agents/notes/implemented/process/2026-10-23-reuse-ci-caches-across-runs.md).
+      # it saved (.agents/notes/implemented/process/2026-10-23-reuse-ci-caches-across-runs.md),
+      # so the Dockerfile compiles the Go packages while the console builds
+      # (.agents/notes/implemented/process/2026-10-26-run-ci-jobs-in-parallel.md).
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -168,7 +188,8 @@ jobs:
           provenance: false
           sbom: false
 
-  # Production deploys from main only, after the image is published.
+  # Production deploys from main only, once the checks pass and the image is
+  # published.
   #
   # This repository is public, and the org's self-hosted runner group does not
   # admit public repositories, so this job uses a hosted runner. The symptom of
@@ -176,7 +197,7 @@ jobs:
   # assigned. `environment: production` still makes every rollout a deliberate
   # act rather than a side effect of merging.
   deploy:
-    needs: [publish]
+    needs: [check, web, publish]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
