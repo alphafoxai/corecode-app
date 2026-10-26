@@ -102,3 +102,5 @@ channel.upstream_update_added_models: "新增模型範例（顯示 {{.Shown}}/{{
 channel.upstream_update_removed_models: "刪除模型範例（顯示 {{.Shown}}/{{.Total}}）：{{.Models}}"
 channel.upstream_update_failed_channels: "失敗管道 ID（顯示 {{.Shown}}/{{.Total}}）：{{.Ids}}"
 channel.upstream_update_more_omitted: "（其餘 {{.Count}} 個已省略）"
+enterprise.application_subject: "新的企業服務申請：{{.Company}}"
+enterprise.application_content: "公司：{{.Company}}<br>聯絡人：{{.ContactName}}<br>信箱：{{.Email}}<br>其他聯絡方式：{{.OtherContact}}<br>預計月消費：{{.MonthlySpend}}<br>主要模型與用途：{{.UseCase}}<br>補充說明：{{.Message}}<br><br>請在控制台的「企業申請」中處理。"

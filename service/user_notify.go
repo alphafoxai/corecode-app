@@ -37,6 +37,15 @@ func NotifyUpstreamModelUpdateWatchers(render func(lang string) (subject string,
 	common.SysLog(common.LogText("upstream model update notifications sent: %d", sentCount))
 }
 
+// NotifyEnterpriseApplicationWatchers tells every enabled administrator that a
+// team applied for enterprise pricing. Each application has its own notify
+// type, so a burst of applications is not cut by the per-type notice limit.
+func NotifyEnterpriseApplicationWatchers(applicationId int, render func(lang string) (subject string, content string)) {
+	notifyAdmins(fmt.Sprintf("enterprise_application_%d", applicationId), func(int, dto.UserSetting) bool {
+		return true
+	}, render)
+}
+
 // notifyAdmins sends a notice to each enabled administrator for whom receives
 // returns true, and returns how many notices it sent.
 func notifyAdmins(notifyType string, receives func(role int, setting dto.UserSetting) bool, render func(lang string) (subject string, content string)) int {

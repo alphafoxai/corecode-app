@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Activity,
   Box,
+  Building2,
   ClipboardList,
   CreditCard,
   FileText,
@@ -168,6 +169,11 @@ export function useSidebarData(): SidebarData {
             title: t('Top-up Records'),
             url: '/topups',
             icon: Receipt,
+          },
+          {
+            title: t('Enterprise Applications'),
+            url: '/enterprise-applications',
+            icon: Building2,
           },
           {
             title: t('System Info'),

@@ -41,7 +41,8 @@ export type TopNavLink = {
  *   pricing: { enabled: true, requireAuth: false },
  *   rankings: { enabled: true, requireAuth: false },
  *   docs: true,
- *   about: true
+ *   about: true,
+ *   enterprise: true
  * }
  */
 export function useTopNavLinks(): TopNavLink[] {
@@ -94,6 +95,11 @@ export function useTopNavLinks(): TopNavLink[] {
     } else {
       links.push({ title: t('Docs'), href: '/docs' })
     }
+  }
+
+  // Enterprise pricing application
+  if (modules?.enterprise !== false) {
+    links.push({ title: t('Enterprise'), href: '/enterprise' })
   }
 
   // About
