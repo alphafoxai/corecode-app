@@ -106,6 +106,19 @@ export function OverviewAlerts(props: {
                     'Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.',
                     { count: props.recent.requests }
                   )}
+              {mostlyNonStream && (
+                <>
+                  {' '}
+                  <a
+                    href='/docs/cache/#auto-mode'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='underline underline-offset-2'
+                  >
+                    {t('Learn more')}
+                  </a>
+                </>
+              )}
             </span>
             <Button
               variant='outline'
