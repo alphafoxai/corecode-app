@@ -85,8 +85,8 @@ func GetSelfAffiliateCommissions(c *gin.Context) {
 }
 
 // GetSelfAffiliateInvitees pages the users the caller invited, with totals
-// over all of them and the title of the plan they can be gifted, empty when
-// gifting is off. It answers even when the program is off, because users
+// over all of them and the title of the plan the caller can gift them, empty
+// when gifting is off or the caller is not a promotion channel. It answers even when the program is off, because users
 // invited earlier stay the caller's invitees.
 func GetSelfAffiliateInvitees(c *gin.Context) {
 	userId := c.GetInt("id")
@@ -101,7 +101,7 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	giftPlan, err := model.AffiliateGiftPlan()
+	giftPlan, err := model.AffiliateGiftPlan(userId)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -118,7 +118,8 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 	})
 }
 
-// GiftSelfAffiliateInvitee gives one of the caller's invitees the gift plan.
+// GiftSelfAffiliateInvitee gives one of a promotion channel's invitees the
+// gift plan.
 func GiftSelfAffiliateInvitee(c *gin.Context) {
 	inviteeId, err := strconv.Atoi(c.Param("id"))
 	if err != nil || inviteeId <= 0 {

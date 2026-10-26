@@ -439,6 +439,16 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "no gift plan is configured")
 			operation_setting.GetAffiliateSetting().GiftPlanId = plan.Id
 
+			// Only a promotion channel with invite rights can gift.
+			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "A is an ordinary inviter")
+			_, err = SetAffiliate(a.Id, 0, true, 1)
+			require.NoError(t, err)
+			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "a channel at rate 0 has lost its invite rights")
+			_, err = SetAffiliate(a.Id, 10, true, 1)
+			require.NoError(t, err)
+
 			_, err = GiftAffiliatePlan(a.Id, c.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee)
 			_, err = GiftAffiliatePlan(a.Id, d.Id)
@@ -478,6 +488,8 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, "gifted", invitees[1].GiftPlan, "a gift outranks the administrator's later binding")
 
 			// A disabled plan cannot be gifted.
+			_, err = SetAffiliate(b.Id, 10, true, 1)
+			require.NoError(t, err)
 			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", plan.Id).Update("enabled", false).Error)
 			InvalidateSubscriptionPlanCache(plan.Id)
 			_, err = GiftAffiliatePlan(b.Id, d.Id)

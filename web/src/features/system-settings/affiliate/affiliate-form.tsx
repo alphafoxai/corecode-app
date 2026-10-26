@@ -254,7 +254,7 @@ export function AffiliateForm(props: AffiliateFormProps) {
                 </Select>
                 <FormDescription>
                   {t(
-                    'Inviters can give each invitee this plan once, free. An invitee who received it cannot buy it.'
+                    'Promotion channels can give each of their invitees this plan once, free. An invitee who received it cannot buy it.'
                   )}
                 </FormDescription>
               </FormItem>
