@@ -24,7 +24,14 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -93,17 +100,29 @@ it('lists each invitee with their spend and commission, and totals over all invi
     {
       items: [
         {
-          name: 'al***',
+          id: 3,
+          name: 'alice',
+          email: 'alice@example.com',
           created_at: 1,
           used_quota: 7 * QUOTA,
           commission: QUOTA,
+          gift_plan: '',
         },
-        { name: 'bo***', created_at: 2, used_quota: 0, commission: 0 },
+        {
+          id: 2,
+          name: 'bob',
+          email: '',
+          created_at: 2,
+          used_quota: 0,
+          commission: 0,
+          gift_plan: '',
+        },
       ],
       total: 12,
       page: 1,
       page_size: 20,
       totals: { used_quota: 100 * QUOTA, commission: 30 * QUOTA },
+      gift_plan_title: '',
     },
     {
       affiliate: {
@@ -121,13 +140,17 @@ it('lists each invitee with their spend and commission, and totals over all invi
     }
   )
 
-  const row = (await screen.findByText('al***')).closest('tr')
+  const row = (await screen.findByText('alice')).closest('tr')
   expect(row).not.toBeNull()
+  expect(
+    within(row as HTMLElement).getByText('alice@example.com')
+  ).toBeVisible()
   expect(
     within(row as HTMLElement).getByText(formatQuota(7 * QUOTA))
   ).toBeVisible()
   expect(within(row as HTMLElement).getByText(formatQuota(QUOTA))).toBeVisible()
-  expect(screen.getByText('bo***')).toBeVisible()
+  expect(screen.getByText('bob')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Gift' })).toBeNull()
 
   const stats = screen.getByText('Invites').closest('dl') as HTMLElement
   expect(within(stats).getByText('12')).toBeVisible()
@@ -151,6 +174,7 @@ it('says invitations are unavailable when the user has no rate and shows the emp
     page: 1,
     page_size: 20,
     totals: { used_quota: 0, commission: 0 },
+    gift_plan_title: '',
   })
 
   expect(await screen.findByText('No invitees yet')).toBeVisible()
@@ -158,4 +182,49 @@ it('says invitations are unavailable when the user has no rate and shows the emp
     screen.getByText('Invitations are not available for your account.')
   ).toBeVisible()
   expect(screen.queryByLabelText('Referral link')).toBeNull()
+})
+
+it('gifts the plan to an invitee who can receive it, after confirming', async () => {
+  const invitee = (
+    id: number,
+    name: string,
+    gift_plan: '' | 'gifted' | 'owned'
+  ) => ({
+    id,
+    name,
+    email: '',
+    created_at: id,
+    used_quota: 0,
+    commission: 0,
+    gift_plan,
+  })
+  renderPage({
+    items: [
+      invitee(3, 'carol', ''),
+      invitee(2, 'bob', 'gifted'),
+      invitee(1, 'alice', 'owned'),
+    ],
+    total: 3,
+    page: 1,
+    page_size: 20,
+    totals: { used_quota: 0, commission: 0 },
+    gift_plan_title: 'Trial pack',
+  })
+  const post = vi
+    .spyOn(api, 'post')
+    .mockResolvedValue({ data: { success: true, data: null } })
+
+  const carol = (await screen.findByText('carol')).closest('tr') as HTMLElement
+  expect(screen.getByText('Gifted')).toBeVisible()
+  expect(screen.getByText('Already has it')).toBeVisible()
+  expect(screen.getAllByRole('button', { name: 'Gift' })).toHaveLength(1)
+
+  fireEvent.click(within(carol).getByRole('button', { name: 'Gift' }))
+  const dialog = await screen.findByRole('alertdialog')
+  expect(within(dialog).getByText('Gift Trial pack')).toBeVisible()
+  expect(post).not.toHaveBeenCalled()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Gift' }))
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith('/api/affiliate/self/invitees/3/gift')
+  )
 })

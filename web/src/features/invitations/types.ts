@@ -20,13 +20,21 @@ import type { AffiliatePage } from '../wallet/types'
 
 /** A user who signed up with the caller's invitation code. */
 export interface Invitee {
-  /** Username with all but the first two characters masked */
+  id: number
+  /** Username */
   name: string
+  /** Empty when the account has no email */
+  email: string
   created_at: number
   /** Everything the invitee has consumed, in quota */
   used_quota: number
   /** Direct commission the invitee's consumption earned the caller, in quota */
   commission: number
+  /**
+   * The invitee's hold on the gift plan: 'gifted' when an inviter gave it,
+   * 'owned' when they got it another way, '' when they can be given it
+   */
+  gift_plan: '' | 'gifted' | 'owned'
 }
 
 export interface InviteeTotals {
@@ -36,4 +44,6 @@ export interface InviteeTotals {
 
 export interface InviteePage extends AffiliatePage<Invitee> {
   totals: InviteeTotals
+  /** Title of the plan the caller can gift invitees; empty when gifting is off */
+  gift_plan_title: string
 }

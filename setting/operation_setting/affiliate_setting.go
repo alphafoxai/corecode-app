@@ -22,6 +22,9 @@ type AffiliateSetting struct {
 	SecondLevelRate int `json:"second_level_rate"`
 	// MinWithdrawal is the smallest payout a channel can request.
 	MinWithdrawal int `json:"min_withdrawal"`
+	// GiftPlanId is the subscription plan an inviter can give each invitee
+	// once, free; 0 turns gifting off.
+	GiftPlanId int `json:"gift_plan_id"`
 }
 
 var affiliateSetting = AffiliateSetting{
@@ -47,7 +50,7 @@ func ValidateAffiliateOption(field string, value string) error {
 		if number, err := strconv.Atoi(value); err != nil || number < 0 || number > 100 {
 			return fmt.Errorf("Affiliate %s must be a whole percent between 0 and 100", field)
 		}
-	case "min_withdrawal":
+	case "min_withdrawal", "gift_plan_id":
 		if number, err := strconv.Atoi(value); err != nil || number < 0 {
 			return fmt.Errorf("Affiliate %s must be a non-negative whole number", field)
 		}

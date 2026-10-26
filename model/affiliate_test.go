@@ -66,7 +66,8 @@ func useAffiliateTestDB(t *testing.T, dialect string) {
 	*operation_setting.GetAffiliateSetting() = operation_setting.AffiliateSetting{
 		Enabled: true, SelfServeRate: 10, MaxRate: 30, SecondLevelRate: 5, MinWithdrawal: 100,
 	}
-	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{}}
+	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{},
+		&SubscriptionPlan{}, &SubscriptionOrder{}, &UserSubscription{}}
 	for _, table := range tables {
 		require.False(t, db.Migrator().HasTable(table), "use an empty test database")
 	}
@@ -390,8 +391,8 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			require.NoError(t, err)
 			assert.EqualValues(t, 2, total, "C is B's invitee, not A's")
 			require.Len(t, invitees, 2)
-			assert.Equal(t, AffiliateInvitee{Name: "af***", CreatedAt: d.CreatedAt, UsedQuota: dollars(7), Commission: 1050000}, *invitees[0], "newest first, the name masked")
-			assert.Equal(t, AffiliateInvitee{Name: "af***", CreatedAt: b.CreatedAt, UsedQuota: dollars(100), Commission: dollars(30)}, *invitees[1],
+			assert.Equal(t, AffiliateInvitee{Id: d.Id, Name: "aff_d", CreatedAt: d.CreatedAt, UsedQuota: dollars(7), Commission: 1050000}, *invitees[0], "newest first")
+			assert.Equal(t, AffiliateInvitee{Id: b.Id, Name: "aff_b", CreatedAt: b.CreatedAt, UsedQuota: dollars(100), Commission: dollars(30)}, *invitees[1],
 				"A's 5% on C's consumption is second-level and stays off B's row")
 
 			totals, err := SumAffiliateInvitees(a.Id)
@@ -412,6 +413,127 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			totals, err = SumAffiliateInvitees(d.Id)
 			require.NoError(t, err)
 			assert.Zero(t, totals)
+		})
+	}
+}
+
+func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useAffiliateTestDB(t, dialect)
+
+			// B and E are A's invitees, D is B's, and C signed up without a code.
+			a := registerAffiliateTestUser(t, "aff_a", "")
+			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
+			c := registerAffiliateTestUser(t, "aff_c", "")
+			d := registerAffiliateTestUser(t, "aff_d", b.AffCode)
+			e := registerAffiliateTestUser(t, "aff_e", a.AffCode)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", b.Id).Update("email", "b@example.com").Error)
+
+			plan := &SubscriptionPlan{Title: "trial", PriceAmount: 9.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true}
+			require.NoError(t, DB.Create(plan).Error)
+			InvalidateSubscriptionPlanCache(plan.Id)
+			t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
+
+			_, err := GiftAffiliatePlan(a.Id, b.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "no gift plan is configured")
+			operation_setting.GetAffiliateSetting().GiftPlanId = plan.Id
+
+			_, err = GiftAffiliatePlan(a.Id, c.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee)
+			_, err = GiftAffiliatePlan(a.Id, d.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee, "an invitee's invitee is not the caller's")
+
+			gifted, err := GiftAffiliatePlan(a.Id, b.Id)
+			require.NoError(t, err)
+			assert.Equal(t, plan.Id, gifted.Id)
+			var subscription UserSubscription
+			require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", b.Id, plan.Id).First(&subscription).Error)
+			assert.Equal(t, SubscriptionSourceAffiliateGift, subscription.Source)
+			assert.Equal(t, "active", subscription.Status)
+			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftTaken, "a plan is gifted once")
+
+			// The gifted invitee cannot buy the plan, by any payment, but an
+			// administrator can still bind it.
+			assert.ErrorIs(t, CheckSubscriptionPurchase(b.Id, plan), ErrSubscriptionGifted)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", b.Id).Update("quota", 100*affiliateDollar).Error)
+			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(b.Id, plan.Id), ErrSubscriptionGifted)
+			_, err = AdminBindSubscription(b.Id, plan.Id, "")
+			require.NoError(t, err)
+
+			// An invitee who bought the plan cannot be given it.
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", e.Id).Update("quota", 100*affiliateDollar).Error)
+			require.NoError(t, PurchaseSubscriptionWithBalance(e.Id, plan.Id))
+			_, err = GiftAffiliatePlan(a.Id, e.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftTaken)
+			assert.NoError(t, CheckSubscriptionPurchase(e.Id, plan), "a purchase does not block buying again")
+
+			invitees, _, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 1, PageSize: 10})
+			require.NoError(t, err)
+			require.Len(t, invitees, 2)
+			assert.Equal(t, "owned", invitees[0].GiftPlan)
+			assert.Equal(t, "aff_b", invitees[1].Name)
+			assert.Equal(t, "b@example.com", invitees[1].Email)
+			assert.Equal(t, "gifted", invitees[1].GiftPlan, "a gift outranks the administrator's later binding")
+
+			// A disabled plan cannot be gifted.
+			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", plan.Id).Update("enabled", false).Error)
+			InvalidateSubscriptionPlanCache(plan.Id)
+			_, err = GiftAffiliatePlan(b.Id, d.Id)
+			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable)
+		})
+	}
+}
+
+func TestSetUserInviterDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useAffiliateTestDB(t, dialect)
+			dollars := func(n int) int64 { return int64(n * affiliateDollar) }
+
+			// B is A's invitee and D is B's; C signed up without a code and
+			// has already paid and consumed.
+			a := registerAffiliateTestUser(t, "aff_a", "")
+			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
+			d := registerAffiliateTestUser(t, "aff_d", b.AffCode)
+			c := registerAffiliateTestUser(t, "aff_c", "")
+			payAffiliateTestTopUp(t, c.Id, 100, PaymentProviderEpay)
+			consumeAffiliateTestQuota(t, c.Id, 50)
+
+			assert.ErrorIs(t, SetUserInviter(c.Id, c.Id), ErrAffiliateInviterInvalid)
+			assert.ErrorIs(t, SetUserInviter(c.Id, 1_000_000), ErrAffiliateInviterInvalid)
+			assert.ErrorIs(t, SetUserInviter(a.Id, b.Id), ErrAffiliateInviterLoop)
+			assert.ErrorIs(t, SetUserInviter(a.Id, d.Id), ErrAffiliateInviterLoop, "D was invited through B")
+
+			require.NoError(t, SetUserInviter(c.Id, a.Id))
+			count, err := CountAffiliateInvitees(a.Id)
+			require.NoError(t, err)
+			assert.EqualValues(t, 2, count)
+
+			// What C paid and consumed before the change earns A nothing; what
+			// C pays for and consumes after it does.
+			_, err = StartMissingAffiliateReferrals(10)
+			require.NoError(t, err)
+			consumeAffiliateTestQuota(t, c.Id, 10)
+			settleAffiliateTestUser(t, c.Id)
+			assert.Empty(t, affiliateTestCredits(t, c.Id))
+			payAffiliateTestTopUp(t, c.Id, 100, PaymentProviderEpay)
+			consumeAffiliateTestQuota(t, c.Id, 10)
+			settleAffiliateTestUser(t, c.Id)
+			assert.Equal(t, []affiliateTestCredit{{a.Id, 1, 10, dollars(1)}}, affiliateTestCredits(t, c.Id))
+
+			// Moving C to B sends later commission to B; clearing it sends none.
+			require.NoError(t, SetUserInviter(c.Id, b.Id))
+			consumeAffiliateTestQuota(t, c.Id, 10)
+			settleAffiliateTestUser(t, c.Id)
+			require.NoError(t, SetUserInviter(c.Id, 0))
+			consumeAffiliateTestQuota(t, c.Id, 10)
+			settleAffiliateTestUser(t, c.Id)
+			assert.Equal(t, []affiliateTestCredit{{a.Id, 1, 10, dollars(1)}, {b.Id, 1, 10, dollars(1)}}, affiliateTestCredits(t, c.Id))
+			var cleared User
+			require.NoError(t, DB.Select("inviter_id").Where("id = ?", c.Id).First(&cleared).Error)
+			assert.Zero(t, cleared.InviterId)
 		})
 	}
 }

@@ -34,3 +34,12 @@ export async function getInvitees(
   }
   return res.data.data
 }
+
+export async function giftInvitee(inviteeId: number): Promise<void> {
+  const res = await api.post<ApiResponse<null>>(
+    `/api/affiliate/self/invitees/${inviteeId}/gift`
+  )
+  if (!res.data.success) {
+    throw createServerError(res.data, 'Failed to gift the plan')
+  }
+}

@@ -57,6 +57,22 @@ afterEach(() => {
 
 function renderDialog() {
   vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
+    if (url.startsWith('/api/user/search')) {
+      return {
+        data: {
+          success: true,
+          data: {
+            items: [
+              { id: 9, username: 'alice', email: 'alice@example.com' },
+              { id: 5, username: 'carol', email: 'carol@example.com' },
+            ],
+            total: 2,
+            page: 1,
+            page_size: 6,
+          },
+        },
+      }
+    }
     if (url.endsWith('/commissions')) {
       return {
         data: {
@@ -124,4 +140,48 @@ it('blocks a rate above the configured maximum', async () => {
 
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   expect(put).not.toHaveBeenCalled()
+})
+
+it('finds a new inviter by email and binds the user to them', async () => {
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: {
+      success: true,
+      data: { ...view, inviter_id: 5, inviter_name: 'carol' },
+    },
+  })
+  const user = userEvent.setup()
+  renderDialog()
+
+  const setInviter = await screen.findByRole('button', { name: 'Set inviter' })
+  expect(setInviter).toBeDisabled()
+  await user.type(screen.getByLabelText('Change inviter'), 'carol@example')
+  const carol = await screen.findByRole('button', { name: /carol/ })
+  expect(screen.queryByRole('button', { name: /alice/ })).toBeNull()
+  await user.click(carol)
+  await user.click(setInviter)
+
+  await waitFor(() =>
+    expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9/inviter', {
+      inviter_id: 5,
+    })
+  )
+  expect(await screen.findByText('carol #5')).toBeVisible()
+})
+
+it('removes the inviter', async () => {
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: { success: true, data: { ...view, inviter_id: 0, inviter_name: '' } },
+  })
+  const user = userEvent.setup()
+  renderDialog()
+
+  await user.click(
+    await screen.findByRole('button', { name: 'Remove inviter' })
+  )
+
+  await waitFor(() =>
+    expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9/inviter', {
+      inviter_id: 0,
+    })
+  )
 })

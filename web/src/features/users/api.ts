@@ -307,6 +307,20 @@ export async function updateUserAffiliate(
   return res.data.data
 }
 
+export async function updateUserInviter(
+  userId: number,
+  inviterId: number
+): Promise<AffiliateAdminView> {
+  const res = await api.put<ApiResponse<AffiliateAdminView>>(
+    `/api/affiliate/admin/users/${userId}/inviter`,
+    { inviter_id: inviterId }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to change the inviter')
+  }
+  return res.data.data
+}
+
 export async function getUserAffiliateCommissions(
   userId: number,
   params: AffiliatePageParams

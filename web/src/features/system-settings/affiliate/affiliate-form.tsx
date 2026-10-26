@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -32,7 +33,16 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { getAdminPlans } from '@/features/subscriptions/api'
 
 import {
   SettingsForm,
@@ -51,6 +61,7 @@ const affiliateSchema = z
     max_rate: z.number().int().min(0).max(100),
     second_level_rate: z.number().int().min(0).max(100),
     min_withdrawal: z.number().int().min(0),
+    gift_plan_id: z.number().int().min(0),
   })
   .refine((v) => v.self_serve_rate <= v.max_rate, {
     path: ['self_serve_rate'],
@@ -65,6 +76,7 @@ export type AffiliateValues = {
   'affiliate_setting.max_rate': number
   'affiliate_setting.second_level_rate': number
   'affiliate_setting.min_withdrawal': number
+  'affiliate_setting.gift_plan_id': number
 }
 
 type AffiliateFormProps = {
@@ -77,6 +89,7 @@ const toFormValues = (d: AffiliateValues): AffiliateFormValues => ({
   max_rate: d['affiliate_setting.max_rate'],
   second_level_rate: d['affiliate_setting.second_level_rate'],
   min_withdrawal: d['affiliate_setting.min_withdrawal'],
+  gift_plan_id: d['affiliate_setting.gift_plan_id'],
 })
 
 const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
@@ -85,9 +98,10 @@ const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
   'affiliate_setting.max_rate': v.max_rate,
   'affiliate_setting.second_level_rate': v.second_level_rate,
   'affiliate_setting.min_withdrawal': v.min_withdrawal,
+  'affiliate_setting.gift_plan_id': v.gift_plan_id,
 })
 
-type NumberName = Exclude<keyof AffiliateFormValues, 'enabled'>
+type NumberName = Exclude<keyof AffiliateFormValues, 'enabled' | 'gift_plan_id'>
 
 export function AffiliateForm(props: AffiliateFormProps) {
   const { t } = useTranslation()
@@ -101,6 +115,18 @@ export function AffiliateForm(props: AffiliateFormProps) {
   useEffect(() => {
     form.reset(toFormValues(props.defaultValues))
   }, [props.defaultValues, form])
+
+  const plans = useQuery({
+    queryKey: ['subscription', 'admin-plans'],
+    queryFn: async () => (await getAdminPlans()).data ?? [],
+  })
+  const giftPlanItems = [
+    { value: '0', label: t('Off') },
+    ...(plans.data ?? []).map(({ plan }) => ({
+      value: String(plan.id),
+      label: plan.enabled ? plan.title : `${plan.title} (${t('Disabled')})`,
+    })),
+  ]
 
   const onSubmit = async (values: AffiliateFormValues) => {
     const normalized = toOptionValues(values)
@@ -200,6 +226,40 @@ export function AffiliateForm(props: AffiliateFormProps) {
               'The smallest cash payout a promotion channel can request, in the payment currency.'
             )
           )}
+          <FormField
+            control={form.control}
+            name='gift_plan_id'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Gift plan')}</FormLabel>
+                <Select
+                  items={giftPlanItems}
+                  onValueChange={(value) => field.onChange(Number(value))}
+                  value={String(field.value)}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {giftPlanItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {t(
+                    'Inviters can give each invitee this plan once, free. An invitee who received it cannot buy it.'
+                  )}
+                </FormDescription>
+              </FormItem>
+            )}
+          />
         </SettingsFormGrid>
       </SettingsForm>
     </Form>
