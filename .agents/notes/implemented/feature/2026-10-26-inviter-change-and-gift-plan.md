@@ -8,8 +8,9 @@ Status: implemented
   administrator could see a user's inviter but not change it.
 - The operators want inviters to see who their invitees are. The invitation
   page showed masked usernames and no email.
-- The operators want inviters to give their invitees the 新人体验包 plan
-  once, free, and a user who received it must not be able to buy it.
+- The operators want promotion channels to give their invitees the
+  新人体验包 plan once, free, and a user who received it must not be able to
+  buy it.
 
 ## Decision
 
@@ -32,10 +33,14 @@ Status: implemented
 - **`affiliate_setting.gift_plan_id`** names the plan inviters can gift. `0`,
   the default, turns gifting off. A plan that is disabled or deleted turns it
   off too. The option is set in the invitation program settings.
+- **Only a promotion channel can gift:** an `affiliates` row with
+  `channel = true` and `rate > 0`. Rate 0 removes invite rights, so a revoked
+  channel loses gifting too. `AffiliateGiftPlan(userId)` answers nil for
+  anyone else, so the invitation page shows ordinary inviters no gift column.
 - **`POST /api/affiliate/self/invitees/:id/gift`** creates the subscription
-  with source `affiliate_gift`. The caller must be the invitee's direct
-  inviter, and the invitee must hold no subscription to that plan from any
-  source. The invitee's row is locked first, as purchases lock it. The
+  with source `affiliate_gift`. The caller must be a channel and the
+  invitee's direct inviter, and the invitee must hold no subscription to
+  that plan from any source. The invitee's row is locked first, as purchases lock it. The
   platform bears the cost; the inviter pays nothing. Both users get a log
   entry.
 - **A user with an `affiliate_gift` subscription to a plan cannot buy that
@@ -54,7 +59,11 @@ Status: implemented
 - **Charge the gift to the inviter's wallet or commission balance.** It
   would stop an inviter from farming free plans through accounts they invite
   themselves, but the operators chose a free gift. Each invitee can still
-  receive it only once.
+  receive it only once, and only channels, which an administrator grants,
+  can gift.
+- **Let every inviter gift.** The first release did, with gifting still off
+  because no plan was configured. The operators then limited it to channels
+  before any plan was set.
 - **Find the plan by its title.** Renaming the plan would silently turn
   gifting off.
 - **Rely on `MaxPurchasePerUser = 1`.** It blocks a purchase after a gift only
@@ -74,7 +83,8 @@ Status: implemented
 
 ## Verification
 
-- `TestAffiliateGiftDatabaseMatrix` covers gifting off, a non-invitee, an
+- `TestAffiliateGiftDatabaseMatrix` covers gifting off, an ordinary
+  inviter, a channel at rate 0, a non-invitee, an
   invitee's invitee, a successful gift, a second gift, buying after a gift
   (pre-check and wallet purchase), an administrator binding after a gift, an
   invitee who bought the plan, the list's `gifted`/`owned` states, and a

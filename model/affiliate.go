@@ -557,11 +557,20 @@ func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
 	return totals, err
 }
 
-// AffiliateGiftPlan returns the plan inviters can gift, or nil when gifting
-// is off or the configured plan is disabled or gone.
-func AffiliateGiftPlan() (*SubscriptionPlan, error) {
+// AffiliateGiftPlan returns the plan a user can gift their invitees, or nil
+// when gifting is off, the configured plan is disabled or gone, or the user
+// is not a promotion channel with invite rights.
+func AffiliateGiftPlan(userId int) (*SubscriptionPlan, error) {
 	planId := operation_setting.GetAffiliateSetting().GiftPlanId
 	if planId <= 0 {
+		return nil, nil
+	}
+	var channels int64
+	if err := DB.Model(&Affiliate{}).Where("user_id = ? AND channel = ? AND rate > 0", userId, true).
+		Count(&channels).Error; err != nil {
+		return nil, err
+	}
+	if channels == 0 {
 		return nil, nil
 	}
 	plan, err := GetSubscriptionPlanById(planId)
@@ -577,12 +586,12 @@ func AffiliateGiftPlan() (*SubscriptionPlan, error) {
 	return plan, nil
 }
 
-// GiftAffiliatePlan gives one of an inviter's invitees the gift plan, free.
-// An invitee who already has the plan, gifted or bought, cannot be given it,
+// GiftAffiliatePlan gives one of a promotion channel's invitees the gift
+// plan, free. An invitee who already has the plan, gifted or bought, cannot be given it,
 // and one who was given it cannot buy it; the invitee's row is locked first,
 // as purchases lock it, so a gift and a purchase cannot both pass the check.
 func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, error) {
-	plan, err := AffiliateGiftPlan()
+	plan, err := AffiliateGiftPlan(inviterId)
 	if err != nil {
 		return nil, err
 	}
