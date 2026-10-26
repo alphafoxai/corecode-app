@@ -18,6 +18,7 @@ import (
 )
 
 type deploymentState struct {
+	Cordoned bool `json:"cordoned"`
 	Draining bool `json:"draining"`
 	Active   int  `json:"active"`
 }
@@ -127,6 +128,8 @@ func TestControlAccessAndMethods(t *testing.T) {
 		{"public peer", "203.0.113.1:9000", http.MethodPost, "/drain", 404, false},
 		{"container proxy", "172.18.0.2:9000", http.MethodPost, "/drain", 404, false},
 		{"private BFF", "10.0.0.2:9000", http.MethodPost, "/resume", 404, false},
+		{"container cordon", "172.18.0.2:9000", http.MethodPost, "/cordon", 404, false},
+		{"public uncordon", "203.0.113.1:9000", http.MethodPost, "/uncordon", 404, false},
 		{"nonlocal status", "192.168.0.2:9000", http.MethodGet, "", 404, false},
 		{"nonlocal descendant", "203.0.113.1:9000", http.MethodGet, "/unknown", 404, false},
 		{"hostname", "localhost:9000", http.MethodPost, "/drain", 404, false},
@@ -136,6 +139,7 @@ func TestControlAccessAndMethods(t *testing.T) {
 		{"wrong status method", "127.0.0.1:9000", http.MethodPost, "", 405, false},
 		{"wrong drain method", "127.0.0.1:9000", http.MethodGet, "/drain", 405, false},
 		{"wrong resume method", "127.0.0.1:9000", http.MethodGet, "/resume", 405, false},
+		{"wrong cordon method", "127.0.0.1:9000", http.MethodGet, "/cordon", 405, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -196,9 +200,56 @@ func TestDrainHealthResumeAndTerminalShutdown(t *testing.T) {
 	assert.Equal(t, 2, calls)
 	gate.BeginShutdown()
 	resumed := request(http.MethodPost, "/_internal/deployment/resume")
-	assert.JSONEq(t, `{"draining":true,"active":0}`, resumed.Body.String())
+	assert.JSONEq(t, `{"cordoned":false,"draining":true,"active":0}`, resumed.Body.String())
 	assert.Equal(t, 503, request(http.MethodGet, "/v1/messages").Code)
 	assert.Equal(t, 2, calls)
+}
+
+func TestCordonFailsReadinessButKeepsServing(t *testing.T) {
+	calls := 0
+	gate := New(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	request := func(method, path, remote string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, nil)
+		req.RemoteAddr = remote
+		res := httptest.NewRecorder()
+		gate.ServeHTTP(res, req)
+		return res
+	}
+	const loopback, proxy = "127.0.0.1:9000", "172.18.0.2:9000"
+	ready := func() int {
+		return request(http.MethodGet, "/_internal/deployment/ready", proxy).Code
+	}
+	served := func() int {
+		return request(http.MethodPost, "/v1/messages", proxy).Code
+	}
+
+	res := request(http.MethodGet, "/_internal/deployment/ready", proxy)
+	assert.Equal(t, http.StatusOK, res.Code, "the proxy reads readiness from another container")
+	assert.JSONEq(t, `{"ready":true}`, res.Body.String())
+	assert.Equal(t, http.StatusMethodNotAllowed, request(http.MethodPost, "/_internal/deployment/ready", proxy).Code)
+
+	assert.JSONEq(t, `{"cordoned":true,"draining":false,"active":0}`,
+		request(http.MethodPost, "/_internal/deployment/cordon", loopback).Body.String())
+	res = request(http.MethodGet, "/_internal/deployment/ready", proxy)
+	assert.Equal(t, http.StatusServiceUnavailable, res.Code)
+	assert.JSONEq(t, `{"ready":false}`, res.Body.String())
+	assert.Equal(t, http.StatusNoContent, served(), "a cordoned instance serves requests that still reach it")
+
+	request(http.MethodPost, "/_internal/deployment/drain", loopback)
+	assert.Equal(t, http.StatusServiceUnavailable, served())
+	request(http.MethodPost, "/_internal/deployment/resume", loopback)
+	assert.Equal(t, http.StatusNoContent, served())
+	assert.Equal(t, http.StatusServiceUnavailable, ready(), "resume reopens admission but keeps the cordon")
+
+	request(http.MethodPost, "/_internal/deployment/uncordon", loopback)
+	assert.Equal(t, http.StatusOK, ready())
+	gate.BeginShutdown()
+	request(http.MethodPost, "/_internal/deployment/uncordon", loopback)
+	assert.Equal(t, http.StatusServiceUnavailable, ready(), "a shutting-down instance is never ready")
+	assert.Equal(t, 2, calls, "the drained request never entered the handler")
 }
 
 func TestCanceledControlCanResume(t *testing.T) {

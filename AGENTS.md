@@ -47,6 +47,10 @@ the deployment relies on.
   release separately, and the server goes first when one merge changes both. Add fields
   rather than rename or remove them; drop one only after a console release has stopped
   reading it.
+- **Two servers run at once during a release**, both as master, until the old one's last
+  stream ends. Master-only background work must stay correct with two runners: claim it
+  through the database (a lease, a row lock, a conditional update), not process memory.
+  Batched quota writes are flushed on shutdown; keep it that way for any new buffer.
 - **Customers use `/v1/*`, `/docs/` and the console.** `corecode-infra`'s Caddyfile decides
   what else is reachable; this repository does not.
 - **`web/src/styles/` carries the CoreCode theme.** Light and dark only; the theme drawer
@@ -58,7 +62,9 @@ Two artifacts from one tree, released separately to the container that hosts `co
 and `www.corecode.live`:
 
 - **The server** (`new-api` image) is rebuilt and replaced only when something outside
-  `web/` changes. Replacing it closes the relay's admission and drains requests.
+  `web/` changes. The host starts the new server beside the running one, cordons the old
+  one so the proxy sends new requests to the new one, and stops the old one once its
+  admitted requests finish (`pkg/deployment`). No request is turned away.
 - **The console** (`docker build --target console`) is rebuilt only when `web/` changes. The
   host unpacks it into a release directory and repoints the `current` symlink that
   `FRONTEND_DIR` names; the server serves the new build on the next request, without a

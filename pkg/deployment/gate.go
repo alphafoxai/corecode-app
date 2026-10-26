@@ -1,4 +1,10 @@
 // Package deployment controls admission while an instance waits for handlers to finish.
+//
+// A release that runs the new version beside the old one cordons the old
+// instance: it keeps serving every request that reaches it, but its readiness
+// check fails, so the proxy sends new requests to the other instance. Draining
+// then rejects whatever still arrives, and the active count shows when the
+// admitted requests have finished.
 package deployment
 
 import (
@@ -10,13 +16,20 @@ import (
 	"sync"
 )
 
-const controlPath = "/_internal/deployment"
+const (
+	controlPath = "/_internal/deployment"
+	// readyPath is polled by the proxy, which reaches the instance from another
+	// container, so it answers any peer. It reports readiness only; every state
+	// change stays loopback-only. The public proxy refuses the whole prefix.
+	readyPath = controlPath + "/ready"
+)
 
 // Gate wraps the entire HTTP handler, including its deferred cleanup. It must be
 // installed outside normal middleware and must not be copied after first use.
 type Gate struct {
 	next     http.Handler
 	mu       sync.Mutex
+	cordoned bool
 	draining bool
 	terminal bool
 	active   int
@@ -36,6 +49,10 @@ func (g *Gate) BeginShutdown() {
 }
 
 func (g *Gate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == readyPath {
+		g.serveReady(w, r)
+		return
+	}
 	if r.URL.Path == controlPath || strings.HasPrefix(r.URL.Path, controlPath+"/") {
 		g.serveControl(w, r)
 		return
@@ -68,6 +85,23 @@ func (g *Gate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.next.ServeHTTP(w, r)
 }
 
+func (g *Gate) serveReady(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	g.mu.Lock()
+	ready := !g.cordoned && !g.draining
+	g.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if !ready {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	_, _ = fmt.Fprintf(w, "{\"ready\":%t}\n", ready)
+}
+
 func (g *Gate) serveControl(w http.ResponseWriter, r *http.Request) {
 	// Never use Gin's ClientIP or forwarded headers for deployment authority.
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -80,7 +114,7 @@ func (g *Gate) serveControl(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case controlPath:
 		method = http.MethodGet
-	case controlPath + "/drain", controlPath + "/resume":
+	case controlPath + "/drain", controlPath + "/resume", controlPath + "/cordon", controlPath + "/uncordon":
 		method = http.MethodPost
 	default:
 		http.NotFound(w, r)
@@ -100,13 +134,17 @@ func (g *Gate) serveControl(w http.ResponseWriter, r *http.Request) {
 		if !g.terminal {
 			g.draining = false
 		}
+	case controlPath + "/cordon":
+		g.cordoned = true
+	case controlPath + "/uncordon":
+		g.cordoned = false
 	}
-	draining, active := g.draining, g.active
+	cordoned, draining, active := g.cordoned, g.draining, g.active
 	g.mu.Unlock()
 
 	// Mutations do not wait for handlers or depend on the caller's context.
 	// A canceled deployment can inspect state and resume with a fresh request.
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = fmt.Fprintf(w, "{\"draining\":%t,\"active\":%d}\n", draining, active)
+	_, _ = fmt.Fprintf(w, "{\"cordoned\":%t,\"draining\":%t,\"active\":%d}\n", cordoned, draining, active)
 }
