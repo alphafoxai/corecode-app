@@ -109,7 +109,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.0
+          bun-version: 1.4.4
 
       - name: Build the console bundle
         working-directory: web
