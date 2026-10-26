@@ -6,14 +6,15 @@ COPY ./VERSION /build/VERSION
 # VERSION ships empty; CI writes it before building. The fallback keeps a local
 # build from stamping an empty version into the console bundle.
 ARG BUILD_VERSION=dev
-# Install and build in one step, so node_modules (over 300 MB) never becomes a
-# layer: a registry cache hit on a separate install layer still has to pull and
-# unpack it, which took longer than a fresh install. The mount speeds up local
-# rebuilds; CI starts with it empty.
+# Install, build and remove node_modules (over 300 MB) in one step, so it never
+# becomes a layer: the registry cache would otherwise compress and push it on
+# every build, and pull and unpack it on a hit, which took longer than a fresh
+# install. The mount speeds up local rebuilds; CI starts with it empty.
 RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
     if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
     && bun install --frozen-lockfile \
-    && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
+    && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build \
+    && rm -rf node_modules
 
 FROM golang:1.26.10-alpine@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca AS builder2
 ENV GO111MODULE=on CGO_ENABLED=0 GOWORK=off
@@ -44,6 +45,16 @@ RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
     && echo "build: PGO profile copied from $pgo_dir"
 
 COPY . .
+# Only the main package embeds web/dist, so every other package compiles here,
+# alongside the console stage instead of after it. The flags match the final
+# build (-ldflags only affect linking), so that build finds these packages in
+# the build cache and compiles just the main package. `go list -e` tolerates the
+# main package's embed pattern having nothing to match yet.
+RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
+    --mount=type=cache,id=new-api-go-build,target=/root/.cache/go-build \
+    set -eu; \
+    go build -pgo=/build/default.pgo \
+      $(go list -e -deps . | grep -vx 'github.com/QuantumNous/new-api')
 COPY --from=builder /build/web/dist ./web/dist
 # Same fallback as the console stage: the Go binary stamps the version too.
 ARG BUILD_VERSION=dev
