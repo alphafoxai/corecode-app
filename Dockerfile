@@ -67,8 +67,17 @@ RUN --mount=type=cache,id=new-api-go-mod,target=/go/pkg/mod \
     go build -pgo=/build/default.pgo \
       -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
 
+# The console alone, for a deployment that serves it from disk (FRONTEND_DIR)
+# and releases it without replacing the server: `docker build --target console`.
+FROM scratch AS console
+COPY --from=builder /build/web/dist /console
+
 FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
-LABEL live.corecode.deployment-drain="1"
+# The relay host checks these before a release: drain lets it wait for admitted
+# requests, and cordon lets it run a new instance beside this one and move new
+# requests over first (pkg/deployment).
+LABEL live.corecode.deployment-drain="1" \
+      live.corecode.deployment-cordon="1"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates tzdata libasan8 wget \

@@ -202,13 +202,16 @@ func main() {
 	server.Use(middleware.Version())
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
-	InjectUmamiAnalytics()
-	InjectGoogleAnalytics()
+	indexPage = renderIndexPage(indexPage)
 
 	// 设置路由
+	// FRONTEND_DIR is a host path wired by the deployment, like PORT, and is
+	// needed before any option is read, so it is an environment variable.
 	router.SetRouter(server, router.WebAssets{
-		BuildFS:   buildFS,
-		IndexPage: indexPage,
+		BuildFS:     buildFS,
+		IndexPage:   indexPage,
+		Dir:         os.Getenv("FRONTEND_DIR"),
+		RenderIndex: renderIndexPage,
 	})
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -244,6 +247,9 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		common.SysError(common.LogText("server forced to shutdown: %v", err))
 	}
+	if common.BatchUpdateEnabled {
+		model.FlushBatchUpdates()
+	}
 	// 内存中的看板数据保存入库，避免重启丢失未落库数据 (issue #5679)
 	if common.DataExportEnabled {
 		model.SaveQuotaDataCache()
@@ -251,7 +257,12 @@ func main() {
 	common.SysLog(common.LogText("server exited"))
 }
 
-func InjectUmamiAnalytics() {
+// renderIndexPage writes the analytics snippets into a console index.html.
+func renderIndexPage(page []byte) []byte {
+	return InjectGoogleAnalytics(InjectUmamiAnalytics(page))
+}
+
+func InjectUmamiAnalytics(indexPage []byte) []byte {
 	analyticsInjectBuilder := &strings.Builder{}
 	if os.Getenv("UMAMI_WEBSITE_ID") != "" {
 		umamiSiteID := os.Getenv("UMAMI_WEBSITE_ID")
@@ -268,10 +279,10 @@ func InjectUmamiAnalytics() {
 	analyticsInjectBuilder.WriteString("<!--Umami QuantumNous-->\n")
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--umami-->\n")
-	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
+	return bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
 }
 
-func InjectGoogleAnalytics() {
+func InjectGoogleAnalytics(indexPage []byte) []byte {
 	analyticsInjectBuilder := &strings.Builder{}
 	if os.Getenv("GOOGLE_ANALYTICS_ID") != "" {
 		gaID := os.Getenv("GOOGLE_ANALYTICS_ID")
@@ -291,7 +302,7 @@ func InjectGoogleAnalytics() {
 	analyticsInjectBuilder.WriteString("<!--Google Analytics QuantumNous-->\n")
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--Google Analytics-->\n")
-	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
+	return bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
 }
 
 func InitResources() error {

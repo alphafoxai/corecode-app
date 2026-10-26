@@ -151,6 +151,32 @@ func TestBatchUpdateAccumulatesTwoMaximumRequestCharges(t *testing.T) {
 	assert.Equal(t, 100, getUserQuotaFromDB(t, user.Id))
 }
 
+// Shutdown relies on the flush to write every pending kind; anything left in
+// memory is lost with the process.
+func TestFlushBatchUpdatesWritesPendingCharges(t *testing.T) {
+	truncateTables(t)
+	resetBatchUpdateTestState(t)
+	common.BatchUpdateEnabled = true
+
+	user := createReserveTestUser(t, 1000)
+	token := createReserveTestToken(t, 500)
+	require.NoError(t, DecreaseUserQuota(user.Id, 30, false))
+	require.NoError(t, DecreaseTokenQuota(token.Id, token.Key, 30))
+	UpdateUserUsedQuotaAndRequestCount(user.Id, 30)
+	assert.Equal(t, 1000, getUserQuotaFromDB(t, user.Id), "batched charges wait in memory")
+
+	FlushBatchUpdates()
+
+	var reloaded User
+	require.NoError(t, DB.Select("quota", "used_quota", "request_count").First(&reloaded, user.Id).Error)
+	assert.Equal(t, 970, reloaded.Quota)
+	assert.Equal(t, 30, reloaded.UsedQuota)
+	assert.Equal(t, 1, reloaded.RequestCount)
+	reloadedToken := getTokenFromDB(t, token.Id)
+	assert.Equal(t, 470, reloadedToken.RemainQuota)
+	assert.Equal(t, 30, reloadedToken.UsedQuota)
+}
+
 func TestBatchUpdateAccumulatorSaturatesOverflow(t *testing.T) {
 	resetBatchUpdateTestState(t)
 

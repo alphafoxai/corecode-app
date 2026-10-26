@@ -43,6 +43,14 @@ the deployment relies on.
 - **Password login stays available to root when the switch is off.** `corecode-infra`'s
   `init-relay.sh` signs in as root on every deploy to write its options, so removing that
   door also removes the deployment and the mail-outage recovery path.
+- **A server change must keep working with the console already in production.** The two
+  release separately, and the server goes first when one merge changes both. Add fields
+  rather than rename or remove them; drop one only after a console release has stopped
+  reading it.
+- **Two servers run at once during a release**, both as master, until the old one's last
+  stream ends. Master-only background work must stay correct with two runners: claim it
+  through the database (a lease, a row lock, a conditional update), not process memory.
+  Batched quota writes are flushed on shutdown; keep it that way for any new buffer.
 - **Customers use `/v1/*`, `/docs/` and the console.** `corecode-infra`'s Caddyfile decides
   what else is reachable; this repository does not.
 - **`web/src/styles/` carries the CoreCode theme.** Light and dark only; the theme drawer
@@ -50,11 +58,22 @@ the deployment relies on.
 
 ## Deployment
 
-One image, one container, hosts `corecode.live` and `www.corecode.live`. This repository does
-not build the image: on a main push its CI hands the commit to `corecode-infra`'s
-`release-app.yml`, which builds it on the org's self-hosted pool and deploys it once `check`
-and `web` pass. The pool does not admit public repositories, which is why the build lives
-there. A merge to main therefore reaches production without a further approval.
+Two artifacts from one tree, released separately to the container that hosts `corecode.live`
+and `www.corecode.live`:
+
+- **The server** (`new-api` image) is rebuilt and replaced only when something outside
+  `web/` changes. The host starts the new server beside the running one, cordons the old
+  one so the proxy sends new requests to the new one, and stops the old one once its
+  admitted requests finish (`pkg/deployment`). No request is turned away.
+- **The console** (`docker build --target console`) is rebuilt only when `web/` changes. The
+  host unpacks it into a release directory and repoints the `current` symlink that
+  `FRONTEND_DIR` names; the server serves the new build on the next request, without a
+  restart. Without `FRONTEND_DIR`, the server serves the console embedded at build time.
+
+This repository builds neither. On a main push its CI hands the commit to `corecode-infra`'s
+`release-app.yml`, which builds both on the org's self-hosted pool and deploys what changed
+once `check` and `web` pass. The pool does not admit public repositories, which is why the
+build lives there. A merge to main therefore reaches production without a further approval.
 
 ---
 
