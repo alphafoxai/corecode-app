@@ -1,10 +1,12 @@
-# Builds this component's image, pushes it to Artifact Registry, and on a main
-# push deploys it to production.
+# Checks this component, and on a main push hands the commit to corecode-infra,
+# which builds the image and deploys it to production.
 #
 # This repository is public (AGPL-3.0), and the org's self-hosted runner group
 # does not admit public repositories: a fork pull request would run arbitrary
 # code on a machine with production reach. Every job here therefore uses a
-# GitHub-hosted runner.
+# GitHub-hosted runner, and the image builds in corecode-infra's release-app.yml
+# on the self-hosted pool (corecode-infra
+# notes/workspace/implemented/process/2026-10-26-build-the-app-image-in-infra.md).
 name: ci
 
 on:
@@ -19,24 +21,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Only a pull request cancels its own older runs. A main push must not cancel
-  # an in-flight deploy: cancelling mid-rollout leaves the container created but
-  # never started.
+  # Only a pull request cancels its own older runs. Every main push dispatches
+  # its own release; corecode-infra serializes them.
   group: corecode-app-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
-  id-token: write
-
-env:
-  PROJECT: alphafox-506201
-  REGION: us-east1
-  IMAGE: us-east1-docker.pkg.dev/alphafox-506201/derouter/new-api
-  # Buildx writes an OCI build record per build; nobody imports it, and it counts
-  # against the org's Actions storage quota.
-  DOCKER_BUILD_RECORD_UPLOAD: 'false'
-  DOCKER_BUILD_SUMMARY: 'false'
 
 jobs:
   check:
@@ -98,7 +89,7 @@ jobs:
           key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   # The console build is the only check of the frontend a pull request gets: the
-  # publish job, which builds it again inside the image, never runs on one.
+  # image build in corecode-infra, which builds it again, never runs on one.
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -118,122 +109,19 @@ jobs:
           bun install --frozen-lockfile
           DISABLE_ESLINT_PLUGIN='true' bun run build
 
-  # Publish runs alongside check and web rather than after them: pushing an image
-  # changes nothing in production, and deploy waits for all three.
-  publish:
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: google-github-actions/auth@v2
-        id: auth
-        with:
-          token_format: access_token
-          workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
-          service_account: derouter-build@alphafox-506201.iam.gserviceaccount.com
-
-      - uses: docker/setup-buildx-action@v3
-      - name: Log in to Artifact Registry
-        uses: docker/login-action@v3
-        with:
-          registry: us-east1-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      # The tag is <version>-<commit>: the version from the tree, the commit for
-      # uniqueness, so a rerun of the same commit republishes the same tag.
-      # The tree carries no version: VERSION is empty and common.Version is the
-      # v0.0.0 placeholder, because upstream injects both at build time. Derive a
-      # sortable version from the commit date so a tag says when it was built,
-      # and write it into VERSION so the image and the console bundle agree.
-      - name: Resolve version
-        id: version
-        run: |
-          set -eu
-          version="$(git show -s --format=%cd --date=format:%Y.%m.%d HEAD)"
-          printf '%s' "$version" > VERSION
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "derived version $version from the commit date"
-
-      - name: Record the tag
-        id: tag
-        run: echo "tag=${{ steps.version.outputs.version }}-$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
-
-      # A hosted runner has no builder state that survives between runs, so the
-      # layer cache lives in the registry under a second tag. mode=max keeps the
-      # intermediate stages too: this image builds the web bundle before the Go
-      # binary, and both stages are worth reusing. The Dockerfile's cache mounts
-      # start empty here: carrying them over in the Actions cache cost more than
-      # it saved (.agents/notes/implemented/process/2026-10-23-reuse-ci-caches-across-runs.md),
-      # so the Dockerfile compiles the Go packages while the console builds
-      # (.agents/notes/implemented/process/2026-10-26-run-ci-jobs-in-parallel.md).
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
-            ${{ env.IMAGE }}:buildcache
-          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
-          provenance: false
-          sbom: false
-
-  # Production deploys from main only, once the checks pass and the image is
-  # published.
-  #
-  # This repository is public, and the org's self-hosted runner group does not
-  # admit public repositories, so this job uses a hosted runner. The symptom of
-  # getting that wrong is not an error: the job queues forever with no runner
-  # assigned. `environment: production` still makes every rollout a deliberate
-  # act rather than a side effect of merging.
-  deploy:
-    needs: [check, web, publish]
+  # Releases from main only. corecode-infra builds the commit while check and web
+  # run, refuses a commit that is not on main, and deploys once both pass, so
+  # this job starts with them rather than after them. The token is scoped to
+  # corecode-infra, and a fork pull request never receives it.
+  release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: production
-    concurrency:
-      group: corecode-app-deploy
-      cancel-in-progress: false
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      # The runner's metadata identity belongs to the machine, not to this
-      # repository, so the job authenticates the same way every other job does.
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: projects/158507354296/locations/global/workloadIdentityPools/github-actions-pool/providers/github-derouter
-          service_account: derouter-ci@alphafox-506201.iam.gserviceaccount.com
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      # The key exists only inside this step: written to RUNNER_TEMP with 0600,
-      # removed by the script's own trap, and never exported to another step.
-      # The target host comes from repository variables, so moving the relay is a
-      # variable change; unset variables keep the current host. The host key must
-      # also be in relay_known_hosts.
-      - name: Deploy to the relay
+      - name: Hand the commit to corecode-infra
         env:
-          RELAY_SSH_KEY_FILE: ${{ runner.temp }}/relay_key
-          RELAY_SSH_KEY_SECRET: ${{ secrets.CORECODE_RELAY_SSH_KEY }}
-          TAG: ${{ needs.publish.outputs.tag }}
-          VM: ${{ vars.RELAY_VM || 'derouter-relay' }}
-          ZONE: ${{ vars.RELAY_ZONE || 'us-east1-c' }}
-          DEST: ${{ vars.RELAY_DEST || '/opt/derouter' }}
+          GH_TOKEN: ${{ secrets.CORECODE_INFRA_DISPATCH_TOKEN }}
         run: |
           set -eu
-          umask 077
-          printf '%s\n' "$RELAY_SSH_KEY_SECRET" > "$RELAY_SSH_KEY_FILE"
-          RELAY_SSH_KEY="$RELAY_SSH_KEY_FILE" sh scripts/deploy-service.sh "$TAG" new-api
+          gh workflow run release-app.yml --repo alphafoxai/corecode-infra --ref main -f sha="$GITHUB_SHA"
+          echo "::notice title=Release::https://github.com/alphafoxai/corecode-infra/actions/workflows/release-app.yml"
