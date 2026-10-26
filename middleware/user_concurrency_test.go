@@ -62,6 +62,14 @@ func TestUserConcurrencyLimit(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rejected.Code)
 	assert.Equal(t, "1", rejected.Header().Get("Retry-After"))
 
+	inFlightNow, rejectedByHour := UserConcurrencySnapshot()
+	assert.Equal(t, 2, inFlightNow[1])
+	total := 0
+	for _, count := range rejectedByHour {
+		total += count
+	}
+	assert.Positive(t, total)
+
 	// Another user, and a group without a limit, are not affected.
 	inFlight.Go(func() { assert.Equal(t, http.StatusOK, get("/2/20/default").Code) })
 	<-started

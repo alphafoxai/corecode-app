@@ -124,12 +124,34 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	AppendRelayLogAdminInfo(ctx, relayInfo, other)
 	AppendResponseModelLogInfo(relayInfo, other)
 	appendRequestPath(ctx, relayInfo, other)
+	appendClientInfo(ctx, other)
 	appendRequestConversionChain(relayInfo, other)
 	appendFinalRequestFormat(relayInfo, other)
 	appendBillingInfo(relayInfo, other)
 	appendParamOverrideInfo(relayInfo, other)
 	appendStreamStatus(relayInfo, other)
 	return other
+}
+
+// appendClientInfo records the client's product token, such as
+// claude-cli/2.1.3, for the root dashboard's client breakdown.
+func appendClientInfo(ctx *gin.Context, other *model.LogOther) {
+	if ctx == nil || ctx.Request == nil || other == nil {
+		return
+	}
+	if client := clientProduct(ctx.Request.UserAgent()); client != "" {
+		other.SetAdmin("client", client)
+	}
+}
+
+// clientProduct returns the first product token of a User-Agent, capped so a
+// hostile header cannot bloat the log row.
+func clientProduct(userAgent string) string {
+	product, _, _ := strings.Cut(strings.TrimSpace(userAgent), " ")
+	if len(product) > 64 {
+		product = product[:64]
+	}
+	return product
 }
 
 func AppendResponseModelLogInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) {
