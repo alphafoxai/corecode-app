@@ -315,13 +315,9 @@ export interface AffiliateAccount {
 export interface AffiliateSummary {
   enabled: boolean
   self_serve_rate: number
-  /** Gateway-paid top-ups needed to apply, in payment currency */
-  self_serve_min_topup: number
   second_level_rate: number
   /** Minimum withdrawal, in payment currency */
   min_withdrawal: number
-  /** Gateway-paid top-ups so far, in payment currency */
-  paid_money: number
   affiliate: AffiliateAccount | null
   /** Non-empty only when affiliate.rate > 0 */
   aff_code: string

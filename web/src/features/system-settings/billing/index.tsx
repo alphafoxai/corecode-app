@@ -107,7 +107,6 @@ const defaultBillingSettings: BillingSettings = {
   WaffoPancakeProductID: '',
   'affiliate_setting.enabled': false,
   'affiliate_setting.self_serve_rate': 10,
-  'affiliate_setting.self_serve_min_topup': 100,
   'affiliate_setting.max_rate': 30,
   'affiliate_setting.second_level_rate': 5,
   'affiliate_setting.min_withdrawal': 100,

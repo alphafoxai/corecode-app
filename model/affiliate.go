@@ -91,9 +91,6 @@ const (
 
 // The affiliate errors reach the web console, so they carry message keys.
 var (
-	ErrAffiliateProgramDisabled     error = common.NewMessage("The invitation program is not open")
-	ErrAffiliateAlreadyExists       error = common.NewMessage("You already have an invitation code")
-	ErrAffiliateTopUpTooLow         error = common.NewMessage("Your paid top-ups have not reached the amount required to apply")
 	ErrAffiliateNotFound            error = common.NewMessage("You do not have an invitation code")
 	ErrAffiliateBalanceInsufficient error = common.NewMessage("Commission balance is insufficient")
 	ErrAffiliateNotChannel          error = common.NewMessage("Only promotion channels can withdraw commission")
@@ -103,9 +100,9 @@ var (
 )
 
 // InviterIdForAffCode resolves the account a sign-up's invite code binds to,
-// or 0. With the invitation program on, only an enabled affiliate's code
-// binds, so a code that earns nothing never creates a relationship; with it
-// off, any user's code binds as it always has.
+// or 0. With the invitation program on, an enabled user's code binds unless an
+// administrator set their rate to 0, so a code that earns nothing never
+// creates a relationship; with it off, any user's code binds as it always has.
 func InviterIdForAffCode(affCode string) int {
 	affCode = strings.TrimSpace(affCode)
 	if affCode == "" || len(affCode) > 32 {
@@ -119,6 +116,9 @@ func InviterIdForAffCode(affCode string) int {
 		return inviter.Id
 	}
 	if inviter.Status != common.UserStatusEnabled {
+		return 0
+	}
+	if err := EnsureDefaultAffiliate(inviter.Id); err != nil {
 		return 0
 	}
 	var count int64
@@ -209,6 +209,10 @@ func affiliateCreditsFor(tx *gorm.DB, inviterId int) ([]affiliateCredit, error) 
 	}
 	var credits []affiliateCredit
 	if inviter.Status == common.UserStatusEnabled {
+		// An inviter from before the default rate gets it at their first settlement.
+		if err := ensureDefaultAffiliateWithTx(tx, inviter.Id); err != nil {
+			return nil, err
+		}
 		var affiliate Affiliate
 		err := tx.Where("user_id = ?", inviter.Id).First(&affiliate).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -395,46 +399,27 @@ func ensureAffCodeWithTx(tx *gorm.DB, userId int) error {
 	return tx.Model(&User{}).Where("id = ?", userId).Update("aff_code", common.GetRandomString(4)).Error
 }
 
-// ApplyAffiliate grants the self-serve rate to a customer whose paid top-ups
-// reached the threshold. A user who already has a row, including one an
-// administrator set to rate 0, cannot apply again.
-func ApplyAffiliate(userId int) (*Affiliate, error) {
+// ensureDefaultAffiliateWithTx gives a user the default rate while the
+// program is on: every customer can invite without applying. An existing
+// row, including one an administrator set to rate 0, is left alone, so a
+// revoked user stays revoked. The rate is fixed when the row is created.
+func ensureDefaultAffiliateWithTx(tx *gorm.DB, userId int) error {
 	setting := operation_setting.GetAffiliateSetting()
-	if !setting.Enabled {
-		return nil, ErrAffiliateProgramDisabled
-	}
-	existing, err := GetAffiliate(userId)
-	if err != nil {
-		return nil, err
-	}
-	if existing != nil {
-		return nil, ErrAffiliateAlreadyExists
-	}
-	paid, err := AffiliatePaidMoney(DB, userId)
-	if err != nil {
-		return nil, err
-	}
-	if paid < float64(setting.SelfServeMinTopUp) {
-		return nil, ErrAffiliateTopUpTooLow
-	}
-	affiliate := &Affiliate{UserId: userId, Rate: setting.SelfServeRate}
-	err = DB.Transaction(func(tx *gorm.DB) error {
-		if err := ensureAffCodeWithTx(tx, userId); err != nil {
-			return err
-		}
-		result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(affiliate)
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected == 0 {
-			return ErrAffiliateAlreadyExists
-		}
+	if !setting.Enabled || setting.SelfServeRate <= 0 {
 		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	return affiliate, nil
+	if err := ensureAffCodeWithTx(tx, userId); err != nil {
+		return err
+	}
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&Affiliate{UserId: userId, Rate: setting.SelfServeRate}).Error
+}
+
+// EnsureDefaultAffiliate is ensureDefaultAffiliateWithTx in its own
+// transaction.
+func EnsureDefaultAffiliate(userId int) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		return ensureDefaultAffiliateWithTx(tx, userId)
+	})
 }
 
 // SetAffiliate is the administrator's grant: any rate up to the configured

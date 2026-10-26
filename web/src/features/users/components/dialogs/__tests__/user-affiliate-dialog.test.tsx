@@ -28,10 +28,8 @@ import { UserAffiliateDialog } from '../user-affiliate-dialog'
 const view = {
   enabled: true,
   self_serve_rate: 10,
-  self_serve_min_topup: 100,
   second_level_rate: 5,
   min_withdrawal: 100,
-  paid_money: 200,
   affiliate: {
     id: 1,
     user_id: 9,

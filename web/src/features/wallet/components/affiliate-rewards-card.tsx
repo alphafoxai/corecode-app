@@ -26,14 +26,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useStatus } from '@/hooks/use-status'
 import { formatQuota } from '@/lib/format'
 
 import { useAffiliate } from '../hooks/use-affiliate'
-import { formatPaymentMoney } from '../lib'
-import type { AffiliateSummary, UserWalletData } from '../types'
+import type { UserWalletData } from '../types'
 import { AffiliateRecordsDialog } from './dialogs/affiliate-records-dialog'
 import { TransferDialog } from './dialogs/transfer-dialog'
 import { WithdrawDialog } from './dialogs/withdraw-dialog'
@@ -92,52 +90,6 @@ function Stats(props: { stats: Stat[] }) {
         </div>
       ))}
     </div>
-  )
-}
-
-function NotAffiliate(props: {
-  summary: AffiliateSummary
-  applying: boolean
-  onApply: () => void
-}) {
-  const { t } = useTranslation()
-  const min = props.summary.self_serve_min_topup
-  const paid = props.summary.paid_money
-  const eligible = paid >= min
-  const percent = min > 0 ? Math.min(100, (paid / min) * 100) : 100
-
-  return (
-    <CardShell>
-      <CardTitle
-        title={t('Invitation commission')}
-        desc={t(
-          'Invite friends and earn {{rate}}% of what they pay for and use.',
-          { rate: props.summary.self_serve_rate }
-        )}
-      />
-      <div className='grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center'>
-        <div className='space-y-1.5'>
-          <Progress value={percent} aria-label={t('Top-up progress')} />
-          <p className='text-muted-foreground text-xs'>
-            {eligible
-              ? t('You are eligible. You will earn {{rate}}% commission.', {
-                  rate: props.summary.self_serve_rate,
-                })
-              : t('Topped up {{paid}} / {{min}}', {
-                  paid: formatPaymentMoney(paid),
-                  min: formatPaymentMoney(min),
-                })}
-          </p>
-        </div>
-        <Button
-          size='sm'
-          disabled={!eligible || props.applying}
-          onClick={props.onApply}
-        >
-          {t('Apply for invitation commission')}
-        </Button>
-      </div>
-    </CardShell>
   )
 }
 
@@ -225,22 +177,19 @@ export function AffiliateRewardsCard(props: AffiliateRewardsCardProps) {
     )
   }
 
+  // Every customer has the default rate while the program is on; no account
+  // means the default rate is 0, so the card only explains that.
   const account = summary.affiliate
   if (!account) {
     return (
-      <>
-        <NotAffiliate
-          summary={summary}
-          applying={aff.applying}
-          onApply={() => void aff.apply()}
+      <CardShell>
+        <CardTitle
+          title={t('Invitation commission')}
+          desc={t('Invitations are not available for your account.')}
         />
-        {legacyRow ? (
-          <CardShell>
-            {legacyRow}
-            {legacyDialog}
-          </CardShell>
-        ) : null}
-      </>
+        {legacyRow}
+        {legacyDialog}
+      </CardShell>
     )
   }
 
