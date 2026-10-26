@@ -75,6 +75,8 @@ function sidebarFor(admin?: object, user?: object, canConfigure = true) {
 
 describe('security sidebar visibility', () => {
   it('old configurations show Security & Access immediately after Profile and keep API Keys', () => {
+    // Modules added after the configuration was saved, such as Invitations,
+    // are visible by default.
     const { result } = sidebarFor(
       { personal: { enabled: true, personal: true, topup: true } },
       { personal: { enabled: true, personal: true } }
@@ -83,7 +85,7 @@ describe('security sidebar visibility', () => {
       result.current
         .find((group) => group.id === 'personal')
         ?.items.map((item) => item.title)
-    ).toEqual(['Wallet', 'Profile', 'Security & Access'])
+    ).toEqual(['Wallet', 'Invitations', 'Profile', 'Security & Access'])
     expect(
       result.current
         .flatMap((group) => group.items)

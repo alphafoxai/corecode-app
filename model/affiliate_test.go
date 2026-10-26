@@ -340,3 +340,58 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 		})
 	}
 }
+
+func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useAffiliateTestDB(t, dialect)
+			dollars := func(n int) int64 { return int64(n * affiliateDollar) }
+
+			// A is a channel; B and D are A's invitees, and C is B's.
+			a := registerAffiliateTestUser(t, "aff_a", "")
+			_, err := SetAffiliate(a.Id, 30, true, 1)
+			require.NoError(t, err)
+			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
+			_, err = SetAffiliate(b.Id, 10, false, 1)
+			require.NoError(t, err)
+			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
+			d := registerAffiliateTestUser(t, "aff_d", a.AffCode)
+			for _, user := range []*User{b, c, d} {
+				payAffiliateTestTopUp(t, user.Id, 1000, PaymentProviderEpay)
+			}
+			consumeAffiliateTestQuota(t, b.Id, 100)
+			consumeAffiliateTestQuota(t, c.Id, 200)
+			consumeAffiliateTestQuota(t, d.Id, 7)
+			for _, user := range []*User{b, c, d} {
+				settleAffiliateTestUser(t, user.Id)
+			}
+
+			invitees, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 1, PageSize: 10})
+			require.NoError(t, err)
+			assert.EqualValues(t, 2, total, "C is B's invitee, not A's")
+			require.Len(t, invitees, 2)
+			assert.Equal(t, AffiliateInvitee{Name: "af***", CreatedAt: d.CreatedAt, UsedQuota: dollars(7), Commission: 1050000}, *invitees[0], "newest first, the name masked")
+			assert.Equal(t, AffiliateInvitee{Name: "af***", CreatedAt: b.CreatedAt, UsedQuota: dollars(100), Commission: dollars(30)}, *invitees[1],
+				"A's 5% on C's consumption is second-level and stays off B's row")
+
+			totals, err := SumAffiliateInvitees(a.Id)
+			require.NoError(t, err)
+			assert.Equal(t, AffiliateInviteeTotals{UsedQuota: dollars(107), Commission: dollars(30) + 1050000}, totals)
+
+			page, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 2, PageSize: 1})
+			require.NoError(t, err)
+			assert.EqualValues(t, 2, total)
+			require.Len(t, page, 1)
+			assert.Equal(t, dollars(100), page[0].UsedQuota)
+
+			// A user who invited nobody gets an empty page and zero totals.
+			invitees, total, err = ListAffiliateInvitees(d.Id, &common.PageInfo{Page: 1, PageSize: 10})
+			require.NoError(t, err)
+			assert.Zero(t, total)
+			assert.Empty(t, invitees)
+			totals, err = SumAffiliateInvitees(d.Id)
+			require.NoError(t, err)
+			assert.Zero(t, totals)
+		})
+	}
+}

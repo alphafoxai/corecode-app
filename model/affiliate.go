@@ -472,6 +472,78 @@ func CountAffiliateInvitees(userId int) (int64, error) {
 	return count, err
 }
 
+// AffiliateInvitee is one user who signed up with the affiliate's code, as
+// the affiliate sees them: the name masked, everything they have consumed,
+// and the direct commission their consumption has earned the affiliate.
+type AffiliateInvitee struct {
+	Name       string `json:"name"`
+	CreatedAt  int64  `json:"created_at"`
+	UsedQuota  int64  `json:"used_quota"`
+	Commission int64  `json:"commission"`
+}
+
+// AffiliateInviteeTotals sums AffiliateInvitee over every invitee.
+type AffiliateInviteeTotals struct {
+	UsedQuota  int64 `json:"used_quota"`
+	Commission int64 `json:"commission"`
+}
+
+// ListAffiliateInvitees pages the users an affiliate invited, newest first.
+// Commission counts only first-level credits, so a channel's second-level
+// earnings are not attributed to the invitee who brought those users in.
+func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateInvitee, int64, error) {
+	total, err := CountAffiliateInvitees(userId)
+	if err != nil {
+		return nil, 0, err
+	}
+	var users []User
+	if err := DB.Select("id", "username", "created_at", "used_quota").Where("inviter_id = ?", userId).
+		Order("id desc").Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	ids := make([]int, 0, len(users))
+	for _, user := range users {
+		ids = append(ids, user.Id)
+	}
+	commissions := make(map[int]int64, len(users))
+	if len(ids) > 0 {
+		var rows []struct {
+			SourceUserId int
+			Amount       int64
+		}
+		if err := DB.Model(&AffiliateCommission{}).Select("source_user_id, COALESCE(SUM(amount), 0) AS amount").
+			Where("user_id = ? AND level = 1 AND source_user_id IN ?", userId, ids).
+			Group("source_user_id").Scan(&rows).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, row := range rows {
+			commissions[row.SourceUserId] = row.Amount
+		}
+	}
+	invitees := make([]*AffiliateInvitee, 0, len(users))
+	for _, user := range users {
+		invitees = append(invitees, &AffiliateInvitee{
+			Name:       maskAffiliateName(user.Username),
+			CreatedAt:  user.CreatedAt,
+			UsedQuota:  int64(user.UsedQuota),
+			Commission: commissions[user.Id],
+		})
+	}
+	return invitees, total, nil
+}
+
+// SumAffiliateInvitees totals the same figures ListAffiliateInvitees pages.
+func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
+	var totals AffiliateInviteeTotals
+	if err := DB.Model(&User{}).Where("inviter_id = ?", userId).
+		Select("COALESCE(SUM(used_quota), 0)").Scan(&totals.UsedQuota).Error; err != nil {
+		return totals, err
+	}
+	err := DB.Model(&AffiliateCommission{}).Where("user_id = ? AND level = 1", userId).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totals.Commission).Error
+	return totals, err
+}
+
 // maskAffiliateName keeps the first two characters of a username, enough for
 // an affiliate to recognize an invitee without exposing the account.
 func maskAffiliateName(name string) string {

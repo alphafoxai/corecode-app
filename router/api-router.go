@@ -161,6 +161,8 @@ func SetApiRouter(router *gin.Engine) {
 			{
 				adminRoute.GET("/", controller.GetAllUsers)
 				adminRoute.GET("/topup", controller.GetAllTopUps)
+				adminRoute.GET("/topup/records", controller.GetTopUpRecords)
+				adminRoute.GET("/topup/stats", controller.GetTopUpStats)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.GET("/search", controller.SearchUsers)
 				adminRoute.GET("/violations", controller.GetViolationRecords)
@@ -191,6 +193,7 @@ func SetApiRouter(router *gin.Engine) {
 				affiliateSelfRoute.GET("", controller.GetSelfAffiliate)
 				affiliateSelfRoute.POST("/apply", middleware.UserCriticalRateLimit("affiliate"), controller.ApplySelfAffiliate)
 				affiliateSelfRoute.GET("/commissions", controller.GetSelfAffiliateCommissions)
+				affiliateSelfRoute.GET("/invitees", controller.GetSelfAffiliateInvitees)
 				affiliateSelfRoute.POST("/transfer", middleware.UserCriticalRateLimit("affiliate"), controller.TransferSelfAffiliate)
 				affiliateSelfRoute.GET("/withdrawals", controller.GetSelfAffiliateWithdrawals)
 				affiliateSelfRoute.POST("/withdrawals", middleware.UserCriticalRateLimit("affiliate"), controller.RequestSelfAffiliateWithdrawal)
