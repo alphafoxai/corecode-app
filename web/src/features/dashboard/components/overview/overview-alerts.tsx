@@ -103,7 +103,7 @@ export function OverviewAlerts(props: {
                     { count: props.recent.requests }
                   )
                 : t(
-                    'Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.',
+                    'Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session or switching models mid-session.',
                     { count: props.recent.requests }
                   )}
               {mostlyNonStream && (
