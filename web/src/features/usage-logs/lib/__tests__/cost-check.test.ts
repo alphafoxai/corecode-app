@@ -131,6 +131,34 @@ describe('buildCostCheck', () => {
     expect(check?.status).toBe('match')
   })
 
+  test('prices OpenAI 12-hour cache writes apart from 30-minute writes', () => {
+    const other: LogOtherData = {
+      model_ratio: 1,
+      group_ratio: 1,
+      completion_ratio: 4,
+      cache_ratio: 0.1,
+      cache_tokens: 2000,
+      cache_creation_tokens: 1500,
+      cache_creation_ratio: 1.25,
+      cache_creation_tokens_12h: 1000,
+      cache_creation_ratio_12h: 2.5,
+    }
+    // 500 + 2000×0.1 + 500×1.25 + 1000×2.5 = 3825
+    const check = buildCostCheck(
+      log({ prompt_tokens: 4000, quota: 3825 }),
+      other
+    )
+
+    expect(check?.lines.map((line) => [line.kind, line.tokens])).toEqual([
+      ['input', 500],
+      ['cache-read', 2000],
+      ['cache-write', 500],
+      ['cache-write-12h', 1000],
+      ['output', 0],
+    ])
+    expect(check?.status).toBe('match')
+  })
+
   test('tolerates the one unit rounding can add but flags a larger gap', () => {
     const other = { ...opus }
     const base = { prompt_tokens: 10, completion_tokens: 0 }

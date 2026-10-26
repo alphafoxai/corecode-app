@@ -46,6 +46,7 @@ export type CostLineKind =
   | 'cache-write'
   | 'cache-write-5m'
   | 'cache-write-1h'
+  | 'cache-write-12h'
   | 'output'
 
 export type CacheGrade = 'good' | 'fair' | 'poor'
@@ -191,7 +192,18 @@ export function buildCostCheck(
     const base = Math.max(prompt - cacheRead - cacheWrite, 0)
     parts.push(['input', base, 1])
     parts.push(['cache-read', cacheRead, cacheRatio])
-    parts.push(['cache-write', cacheWrite, cacheWriteRatio])
+    // OpenAI 12-hour writes are part of the cache writes and have their own
+    // price; the rest are 30-minute writes at the cache write price.
+    const cacheWrite12h = Math.min(
+      other.cache_creation_tokens_12h || 0,
+      cacheWrite
+    )
+    parts.push(['cache-write', cacheWrite - cacheWrite12h, cacheWriteRatio])
+    parts.push([
+      'cache-write-12h',
+      cacheWrite12h,
+      other.cache_creation_ratio_12h ?? 0,
+    ])
   }
   parts.push(['output', completion, completionRatio])
 

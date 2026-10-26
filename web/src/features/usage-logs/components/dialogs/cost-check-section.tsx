@@ -33,6 +33,7 @@ const LINE_LABELS: Record<CostLineKind, string> = {
   'cache-write': 'Cache Write',
   'cache-write-5m': 'Cache Write (5m)',
   'cache-write-1h': 'Cache Write (1h)',
+  'cache-write-12h': 'Cache Write (12h)',
   output: 'Output',
 }
 
