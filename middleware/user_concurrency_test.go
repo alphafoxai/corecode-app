@@ -87,6 +87,60 @@ func TestUserConcurrencyLimit(t *testing.T) {
 	inFlight.Wait()
 }
 
+func TestUserConcurrencyOverride(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	setting := operation_setting.GetTokenSetting()
+	previousGroups, previousUsers := setting.ConcurrencyLimits, setting.UserConcurrencyLimits
+	// User 7 may run three at once despite the group's one; user 8 is unlimited.
+	setting.ConcurrencyLimits = map[string]int{"default": 1}
+	setting.UserConcurrencyLimits = map[string]int{"7": 3, "8": 0}
+	t.Cleanup(func() { setting.ConcurrencyLimits, setting.UserConcurrencyLimits = previousGroups, previousUsers })
+
+	release := make(chan struct{})
+	started := make(chan struct{}, 16)
+	router := userConcurrencyRouter(release, started)
+	get := func(path string) int {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		return recorder.Code
+	}
+	var inFlight sync.WaitGroup
+	for _, path := range []string{"/7/1/default", "/7/2/default", "/7/3/default", "/8/1/default", "/8/2/default", "/9/1/default"} {
+		inFlight.Go(func() { assert.Equal(t, http.StatusOK, get(path)) })
+		<-started
+	}
+	assert.Equal(t, http.StatusTooManyRequests, get("/7/4/default"), "the override is the cap")
+	assert.Equal(t, http.StatusTooManyRequests, get("/9/2/default"), "users without an override keep the group limit")
+	close(release)
+	inFlight.Wait()
+}
+
+func TestEffectiveUserConcurrencyLimit(t *testing.T) {
+	setting := operation_setting.GetTokenSetting()
+	previousGroups, previousUsers := setting.ConcurrencyLimits, setting.UserConcurrencyLimits
+	setting.ConcurrencyLimits = map[string]int{"default": 5}
+	setting.UserConcurrencyLimits = map[string]int{"7": 20, "8": 0}
+	t.Cleanup(func() { setting.ConcurrencyLimits, setting.UserConcurrencyLimits = previousGroups, previousUsers })
+
+	limit, source := operation_setting.EffectiveUserConcurrencyLimit(7, "default")
+	assert.Equal(t, 20, limit)
+	assert.Equal(t, operation_setting.ConcurrencySourceUser, source)
+	limit, source = operation_setting.EffectiveUserConcurrencyLimit(8, "default")
+	assert.Equal(t, 0, limit, "0 lifts the limit")
+	assert.Equal(t, operation_setting.ConcurrencySourceUser, source)
+	limit, source = operation_setting.EffectiveUserConcurrencyLimit(9, "default")
+	assert.Equal(t, 5, limit)
+	assert.Equal(t, operation_setting.ConcurrencySourceGroup, source)
+}
+
+func TestValidateUserConcurrencyLimits(t *testing.T) {
+	assert.NoError(t, operation_setting.ValidateUserConcurrencyLimits(`{"7":20,"8":0}`))
+	assert.NoError(t, operation_setting.ValidateUserConcurrencyLimits(`{}`))
+	for _, value := range []string{`{"abc":1}`, `{"0":1}`, `{"07":1}`, `{"7":-1}`, `{"7":1.5}`, `[1]`} {
+		assert.Error(t, operation_setting.ValidateUserConcurrencyLimits(value), value)
+	}
+}
+
 func TestValidateConcurrencyLimits(t *testing.T) {
 	assert.NoError(t, operation_setting.ValidateConcurrencyLimits(`{"default":5,"vip":0}`))
 	assert.NoError(t, operation_setting.ValidateConcurrencyLimits(`{}`))

@@ -2,6 +2,7 @@ package operation_setting
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -16,12 +17,16 @@ type TokenSetting struct {
 	// set to 0 is not limited. The key keeps its token_setting name so stored
 	// values and released consoles keep working.
 	ConcurrencyLimits map[string]int `json:"concurrency_limits"`
+	// UserConcurrencyLimits overrides the group limit for single users, keyed
+	// by user id. 0 lifts the limit for that user.
+	UserConcurrencyLimits map[string]int `json:"user_concurrency_limits"`
 }
 
 // 默认配置
 var tokenSetting = TokenSetting{
-	MaxUserTokens:     1000, // 默认每用户最多 1000 个令牌
-	ConcurrencyLimits: map[string]int{},
+	MaxUserTokens:         1000, // 默认每用户最多 1000 个令牌
+	ConcurrencyLimits:     map[string]int{},
+	UserConcurrencyLimits: map[string]int{},
 }
 
 func init() {
@@ -39,10 +44,26 @@ func GetMaxUserTokens() int {
 	return GetTokenSetting().MaxUserTokens
 }
 
+// Where an effective concurrency limit comes from.
+const (
+	ConcurrencySourceUser  = "user"
+	ConcurrencySourceGroup = "group"
+)
+
 // GetUserConcurrencyLimit returns how many requests one user in group may have
 // in flight across all of the user's tokens; 0 means unlimited.
 func GetUserConcurrencyLimit(group string) int {
 	return max(GetTokenSetting().ConcurrencyLimits[group], 0)
+}
+
+// EffectiveUserConcurrencyLimit resolves a user's limit: a per-user override
+// first, then the group's. 0 means unlimited. A rule by cumulative top-up
+// belongs between the two, so the limiter and the dashboard keep one answer.
+func EffectiveUserConcurrencyLimit(userID int, group string) (int, string) {
+	if limit, ok := GetTokenSetting().UserConcurrencyLimits[strconv.Itoa(userID)]; ok {
+		return max(limit, 0), ConcurrencySourceUser
+	}
+	return GetUserConcurrencyLimit(group), ConcurrencySourceGroup
 }
 
 // ValidateConcurrencyLimits checks the JSON value of
@@ -59,6 +80,25 @@ func ValidateConcurrencyLimits(value string) error {
 		}
 		if limit < 0 {
 			return fmt.Errorf("Concurrency limit for group %q cannot be negative", group)
+		}
+	}
+	return nil
+}
+
+// ValidateUserConcurrencyLimits checks the JSON value of
+// token_setting.user_concurrency_limits: an object of positive user ids to
+// non-negative whole numbers.
+func ValidateUserConcurrencyLimits(value string) error {
+	var limits map[string]int
+	if err := common.UnmarshalJsonStr(value, &limits); err != nil {
+		return fmt.Errorf("User concurrency limits must be a JSON object of user ids to whole numbers: %w", err)
+	}
+	for user, limit := range limits {
+		if id, err := strconv.Atoi(user); err != nil || id <= 0 || strconv.Itoa(id) != user {
+			return fmt.Errorf("User concurrency limit key %q is not a user id", user)
+		}
+		if limit < 0 {
+			return fmt.Errorf("Concurrency limit for user %s cannot be negative", user)
 		}
 	}
 	return nil

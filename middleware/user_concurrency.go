@@ -54,7 +54,7 @@ func recordUserConcurrencyRejection(now time.Time) {
 func UserConcurrencyLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetInt(string(constant.ContextKeyUserId))
-		limit := operation_setting.GetUserConcurrencyLimit(
+		limit, _ := operation_setting.EffectiveUserConcurrencyLimit(userID,
 			common.GetContextKeyString(c, constant.ContextKeyUserGroup))
 		if userID == 0 || limit == 0 {
 			c.Next()
