@@ -38,10 +38,8 @@ const QUOTA = 500_000
 const summary = {
   enabled: true,
   self_serve_rate: 10,
-  self_serve_min_topup: 100,
   second_level_rate: 5,
   min_withdrawal: 100,
-  paid_money: 0,
   affiliate: null,
   aff_code: '',
   invitee_count: 0,
@@ -146,7 +144,7 @@ it('lists each invitee with their spend and commission, and totals over all invi
   })
 })
 
-it('points a user without an invitation link to the wallet and shows the empty state', async () => {
+it('says invitations are unavailable when the user has no rate and shows the empty state', async () => {
   renderPage({
     items: [],
     total: 0,
@@ -156,9 +154,8 @@ it('points a user without an invitation link to the wallet and shows the empty s
   })
 
   expect(await screen.findByText('No invitees yet')).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Go to wallet' })).toHaveAttribute(
-    'href',
-    '/wallet'
-  )
+  expect(
+    screen.getByText('Invitations are not available for your account.')
+  ).toBeVisible()
   expect(screen.queryByLabelText('Referral link')).toBeNull()
 })

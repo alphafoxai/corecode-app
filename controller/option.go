@@ -346,7 +346,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "affiliate_setting.self_serve_rate", "affiliate_setting.max_rate", "affiliate_setting.second_level_rate",
-		"affiliate_setting.self_serve_min_topup", "affiliate_setting.min_withdrawal":
+		"affiliate_setting.min_withdrawal":
 		field := strings.TrimPrefix(option.Key, "affiliate_setting.")
 		err = operation_setting.ValidateAffiliateOption(field, option.Value.(string))
 		if err != nil {

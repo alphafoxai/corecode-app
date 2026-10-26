@@ -199,8 +199,6 @@ const BILLING_SECTIONS = [
           'affiliate_setting.enabled': settings['affiliate_setting.enabled'],
           'affiliate_setting.self_serve_rate':
             settings['affiliate_setting.self_serve_rate'],
-          'affiliate_setting.self_serve_min_topup':
-            settings['affiliate_setting.self_serve_min_topup'],
           'affiliate_setting.max_rate': settings['affiliate_setting.max_rate'],
           'affiliate_setting.second_level_rate':
             settings['affiliate_setting.second_level_rate'],

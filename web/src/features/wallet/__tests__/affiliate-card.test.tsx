@@ -18,7 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -29,10 +28,8 @@ import type { AffiliateSummary, UserWalletData } from '../types'
 const baseSummary: AffiliateSummary = {
   enabled: true,
   self_serve_rate: 10,
-  self_serve_min_topup: 100,
   second_level_rate: 5,
   min_withdrawal: 100,
-  paid_money: 0,
   affiliate: null,
   aff_code: '',
   invitee_count: 0,
@@ -92,27 +89,13 @@ it('keeps the legacy transfer when the program is off but legacy rewards remain'
   ).toBeEnabled()
 })
 
-it('shows progress and keeps Apply disabled until the threshold is paid', async () => {
-  renderCard({ paid_money: 40 })
-  expect(await screen.findByText(/Topped up .*40.* \/ .*100/)).toBeVisible()
+it('offers no apply step and explains when the user has no rate', async () => {
+  renderCard({ affiliate: null })
   expect(
-    screen.getByRole('button', { name: 'Apply for invitation commission' })
-  ).toBeDisabled()
-})
-
-it('applies once eligible', async () => {
-  const post = vi
-    .spyOn(api, 'post')
-    .mockResolvedValue({ data: { success: true, data: baseSummary } })
-  renderCard({ paid_money: 120 })
-  const apply = await screen.findByRole('button', {
-    name: 'Apply for invitation commission',
-  })
-  expect(apply).toBeEnabled()
-  await userEvent.setup().click(apply)
-  await waitFor(() =>
-    expect(post).toHaveBeenCalledWith('/api/affiliate/self/apply')
-  )
+    await screen.findByText('Invitations are not available for your account.')
+  ).toBeVisible()
+  expect(screen.queryByRole('button', { name: /apply/i })).toBeNull()
+  expect(screen.queryByLabelText('Referral link')).toBeNull()
 })
 
 it('shows the sign-in invite link, rate and stats for an affiliate', async () => {

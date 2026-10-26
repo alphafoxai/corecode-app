@@ -14,10 +14,9 @@ import (
 // the payment currency.
 type AffiliateSetting struct {
 	Enabled bool `json:"enabled"`
-	// SelfServeRate is the rate a customer receives by applying in the wallet
-	// once their paid top-ups reach SelfServeMinTopUp.
-	SelfServeRate     int `json:"self_serve_rate"`
-	SelfServeMinTopUp int `json:"self_serve_min_topup"`
+	// SelfServeRate is the default rate every user has while the program is
+	// on, unless an administrator set another; 0 gives no one a default.
+	SelfServeRate int `json:"self_serve_rate"`
 	// MaxRate bounds the rate an administrator can grant.
 	MaxRate         int `json:"max_rate"`
 	SecondLevelRate int `json:"second_level_rate"`
@@ -26,11 +25,10 @@ type AffiliateSetting struct {
 }
 
 var affiliateSetting = AffiliateSetting{
-	SelfServeRate:     10,
-	SelfServeMinTopUp: 100,
-	MaxRate:           30,
-	SecondLevelRate:   5,
-	MinWithdrawal:     100,
+	SelfServeRate:   10,
+	MaxRate:         30,
+	SecondLevelRate: 5,
+	MinWithdrawal:   100,
 }
 
 func init() {
@@ -49,7 +47,7 @@ func ValidateAffiliateOption(field string, value string) error {
 		if number, err := strconv.Atoi(value); err != nil || number < 0 || number > 100 {
 			return fmt.Errorf("Affiliate %s must be a whole percent between 0 and 100", field)
 		}
-	case "self_serve_min_topup", "min_withdrawal":
+	case "min_withdrawal":
 		if number, err := strconv.Atoi(value); err != nil || number < 0 {
 			return fmt.Errorf("Affiliate %s must be a non-negative whole number", field)
 		}

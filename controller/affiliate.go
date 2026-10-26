@@ -13,36 +13,32 @@ import (
 )
 
 // affiliateSummary is what the wallet shows about the invitation program:
-// the program terms, how far the user is from applying, and, once they are an
-// affiliate, their rate, code and commission.
+// the program terms and the user's rate, code and commission. While the
+// program is on, every user has the default rate unless an administrator
+// changed it.
 type affiliateSummary struct {
-	Enabled           bool             `json:"enabled"`
-	SelfServeRate     int              `json:"self_serve_rate"`
-	SelfServeMinTopUp int              `json:"self_serve_min_topup"`
-	SecondLevelRate   int              `json:"second_level_rate"`
-	MinWithdrawal     int              `json:"min_withdrawal"`
-	PaidMoney         float64          `json:"paid_money"`
-	Affiliate         *model.Affiliate `json:"affiliate"`
-	AffCode           string           `json:"aff_code"`
-	InviteeCount      int64            `json:"invitee_count"`
-	BalanceMoney      float64          `json:"balance_money"`
-	EarnedMoney       float64          `json:"earned_money"`
+	Enabled         bool             `json:"enabled"`
+	SelfServeRate   int              `json:"self_serve_rate"`
+	SecondLevelRate int              `json:"second_level_rate"`
+	MinWithdrawal   int              `json:"min_withdrawal"`
+	Affiliate       *model.Affiliate `json:"affiliate"`
+	AffCode         string           `json:"aff_code"`
+	InviteeCount    int64            `json:"invitee_count"`
+	BalanceMoney    float64          `json:"balance_money"`
+	EarnedMoney     float64          `json:"earned_money"`
 }
 
 func buildAffiliateSummary(userId int) (*affiliateSummary, error) {
 	setting := operation_setting.GetAffiliateSetting()
 	summary := &affiliateSummary{
-		Enabled:           setting.Enabled,
-		SelfServeRate:     setting.SelfServeRate,
-		SelfServeMinTopUp: setting.SelfServeMinTopUp,
-		SecondLevelRate:   setting.SecondLevelRate,
-		MinWithdrawal:     setting.MinWithdrawal,
+		Enabled:         setting.Enabled,
+		SelfServeRate:   setting.SelfServeRate,
+		SecondLevelRate: setting.SecondLevelRate,
+		MinWithdrawal:   setting.MinWithdrawal,
 	}
-	paid, err := model.AffiliatePaidMoney(model.DB, userId)
-	if err != nil {
+	if err := model.EnsureDefaultAffiliate(userId); err != nil {
 		return nil, err
 	}
-	summary.PaidMoney = paid
 	affiliate, err := model.GetAffiliate(userId)
 	if err != nil {
 		return nil, err
@@ -69,25 +65,6 @@ func buildAffiliateSummary(userId int) (*affiliateSummary, error) {
 
 func GetSelfAffiliate(c *gin.Context) {
 	summary, err := buildAffiliateSummary(c.GetInt("id"))
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, summary)
-}
-
-// ApplySelfAffiliate grants the self-serve invitation code once the user's
-// paid top-ups reach the threshold.
-func ApplySelfAffiliate(c *gin.Context) {
-	if !requirePaymentCompliance(c) {
-		return
-	}
-	userId := c.GetInt("id")
-	if _, err := model.ApplyAffiliate(userId); err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	summary, err := buildAffiliateSummary(userId)
 	if err != nil {
 		common.ApiError(c, err)
 		return

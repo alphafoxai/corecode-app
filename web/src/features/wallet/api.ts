@@ -276,13 +276,6 @@ export function getAffiliateSelf(): Promise<AffiliateSummary> {
   )
 }
 
-export function applyForAffiliate(): Promise<AffiliateSummary> {
-  return unwrap(
-    api.post('/api/affiliate/self/apply'),
-    'Failed to apply for the invitation program'
-  )
-}
-
 export function getAffiliateCommissions(
   params: AffiliatePageParams
 ): Promise<AffiliatePage<AffiliateCommission>> {

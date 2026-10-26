@@ -17,6 +17,8 @@ pay them for it. new-api's own invitation reward does not fit:
 The rules the operators set:
 
 - A customer whose paid top-ups reach ¥100 can apply for a 10% code.
+  Superseded on 2026-10-26: every customer has the 10% default without
+  paying or applying; see `2026-10-26-invitation-summary-and-topup-report.md`.
 - An administrator can grant any rate up to 30% and mark a user as a
   promotion channel.
 - An invitee of an invitee is recorded, but only a channel earns from it, at

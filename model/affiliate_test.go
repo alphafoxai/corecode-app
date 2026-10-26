@@ -64,7 +64,7 @@ func useAffiliateTestDB(t *testing.T, dialect string) {
 	operation_setting.Price = 1
 	common.QuotaPerUnit = affiliateDollar
 	*operation_setting.GetAffiliateSetting() = operation_setting.AffiliateSetting{
-		Enabled: true, SelfServeRate: 10, SelfServeMinTopUp: 100, MaxRate: 30, SecondLevelRate: 5, MinWithdrawal: 100,
+		Enabled: true, SelfServeRate: 10, MaxRate: 30, SecondLevelRate: 5, MinWithdrawal: 100,
 	}
 	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{}}
 	for _, table := range tables {
@@ -149,31 +149,34 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 			_, err := SetAffiliate(a.Id, 30, true, 1)
 			require.NoError(t, err)
 
-			// Only an affiliate's code binds while the program is on.
+			// Every enabled user's code binds and gives them the default rate.
 			stranger := registerAffiliateTestUser(t, "aff_stranger", "")
-			assert.Zero(t, InviterIdForAffCode(stranger.AffCode))
+			assert.Equal(t, stranger.Id, InviterIdForAffCode(stranger.AffCode))
+			strangerAffiliate, err := GetAffiliate(stranger.Id)
+			require.NoError(t, err)
+			require.NotNil(t, strangerAffiliate)
+			assert.Equal(t, 10, strangerAffiliate.Rate)
 			assert.Zero(t, InviterIdForAffCode("nope"))
+			disabled := registerAffiliateTestUser(t, "aff_disabled", "")
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", disabled.Id).Update("status", common.UserStatusDisabled).Error)
+			assert.Zero(t, InviterIdForAffCode(disabled.AffCode))
 
 			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
 			assert.Equal(t, a.Id, b.InviterId)
 			var referral AffiliateReferral
 			require.NoError(t, DB.Where("user_id = ?", b.Id).First(&referral).Error, "a sign-up with an affiliate's code starts counting at once")
 
-			// B applies for the self-serve code only after paying ¥100.
-			_, err = ApplyAffiliate(b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateTopUpTooLow)
-			payAffiliateTestTopUp(t, b.Id, 60, PaymentProviderEpay)
-			payAffiliateTestTopUp(t, b.Id, 500, PaymentProviderBalance)
-			require.NoError(t, DB.Create(&TopUp{UserId: b.Id, Money: 900, Status: common.TopUpStatusPending, TradeNo: "aff-test-pending"}).Error)
-			_, err = ApplyAffiliate(b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateTopUpTooLow, "wallet-funded and unpaid orders are not payments")
-			payAffiliateTestTopUp(t, b.Id, 40, PaymentProviderEpay)
-			bAffiliate, err := ApplyAffiliate(b.Id)
+			// B has the default 10% without paying or applying.
+			require.NoError(t, EnsureDefaultAffiliate(b.Id))
+			require.NoError(t, EnsureDefaultAffiliate(b.Id), "ensuring twice keeps one row")
+			bAffiliate, err := GetAffiliate(b.Id)
 			require.NoError(t, err)
 			assert.Equal(t, 10, bAffiliate.Rate)
 			assert.False(t, bAffiliate.Channel)
-			_, err = ApplyAffiliate(b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateAlreadyExists)
+			payAffiliateTestTopUp(t, b.Id, 60, PaymentProviderEpay)
+			payAffiliateTestTopUp(t, b.Id, 500, PaymentProviderBalance)
+			require.NoError(t, DB.Create(&TopUp{UserId: b.Id, Money: 900, Status: common.TopUpStatusPending, TradeNo: "aff-test-pending"}).Error)
+			payAffiliateTestTopUp(t, b.Id, 40, PaymentProviderEpay)
 
 			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
 			assert.Equal(t, b.Id, c.InviterId)
@@ -321,13 +324,30 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 			assert.EqualValues(t, 1, total)
 			assert.Equal(t, "aff_a", paidList[0].Username)
 
-			// An administrator's rate 0 removes invite rights and keeps the
-			// user from applying again.
+			// An administrator's rate 0 removes invite rights; the default
+			// rate does not come back.
 			_, err = SetAffiliate(b.Id, 0, false, 1)
 			require.NoError(t, err)
 			assert.Zero(t, InviterIdForAffCode(b.AffCode))
-			_, err = ApplyAffiliate(b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateAlreadyExists)
+			require.NoError(t, EnsureDefaultAffiliate(b.Id))
+			bAffiliate, err = GetAffiliate(b.Id)
+			require.NoError(t, err)
+			assert.Zero(t, bAffiliate.Rate)
+
+			// An invite made while the program was off earns the default rate
+			// from the inviter's first settlement after it is turned on.
+			operation_setting.GetAffiliateSetting().Enabled = false
+			x := registerAffiliateTestUser(t, "aff_x", "")
+			y := registerAffiliateTestUser(t, "aff_y", x.AffCode)
+			assert.Equal(t, x.Id, y.InviterId)
+			operation_setting.GetAffiliateSetting().Enabled = true
+			backfilled, err := StartMissingAffiliateReferrals(100)
+			require.NoError(t, err)
+			assert.Positive(t, backfilled)
+			payAffiliateTestTopUp(t, y.Id, 50, PaymentProviderEpay)
+			consumeAffiliateTestQuota(t, y.Id, 20)
+			settleAffiliateTestUser(t, y.Id)
+			assert.Equal(t, []affiliateTestCredit{{x.Id, 1, 10, dollars(2)}}, affiliateTestCredits(t, y.Id))
 
 			commissions, total, err := ListAffiliateCommissions(a.Id, &common.PageInfo{Page: 1, PageSize: 2}, true)
 			require.NoError(t, err)

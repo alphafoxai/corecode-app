@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
@@ -50,13 +49,7 @@ export function InvitationOverview(props: InvitationOverviewProps) {
 
   let link: React.ReactNode = (
     <p className='text-muted-foreground text-xs'>
-      {t('Apply for invitation commission in the wallet to get a link.')}{' '}
-      <Link
-        to='/wallet'
-        className='text-primary underline-offset-4 hover:underline'
-      >
-        {t('Go to wallet')}
-      </Link>
+      {t('Invitations are not available for your account.')}
     </p>
   )
   if (aff.loading) {

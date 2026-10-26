@@ -26,7 +26,6 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { getServerMessage } from '@/lib/server-error-message'
 
 import {
-  applyForAffiliate,
   createAffiliateWithdrawal,
   getAffiliateSelf,
   transferAffiliateCommission,
@@ -59,15 +58,6 @@ export function useAffiliate() {
   const refresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['affiliate'] })
   }, [queryClient])
-
-  const apply = useMutation({
-    mutationFn: applyForAffiliate,
-    onSuccess: (data) => {
-      queryClient.setQueryData(AFFILIATE_SELF_KEY, data)
-      toast.success(i18next.t('You can now invite friends'))
-    },
-    onError: (error) => handleServerError(error),
-  })
 
   const transfer = useMutation({
     mutationFn: transferAffiliateCommission,
@@ -116,15 +106,9 @@ export function useAffiliate() {
     summary,
     affiliateLink,
     loading: query.isPending,
-    applying: apply.isPending,
     transferring: transfer.isPending,
     withdrawing: withdraw.isPending,
     legacyTransferring,
-    apply: () =>
-      apply.mutateAsync().then(
-        () => true,
-        () => false
-      ),
     transferCommission: (quota: number) =>
       transfer.mutateAsync(quota).then(
         () => true,

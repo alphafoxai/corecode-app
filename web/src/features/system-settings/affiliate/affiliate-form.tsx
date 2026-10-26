@@ -48,14 +48,13 @@ const affiliateSchema = z
   .object({
     enabled: z.boolean(),
     self_serve_rate: z.number().int().min(0).max(100),
-    self_serve_min_topup: z.number().int().min(0),
     max_rate: z.number().int().min(0).max(100),
     second_level_rate: z.number().int().min(0).max(100),
     min_withdrawal: z.number().int().min(0),
   })
   .refine((v) => v.self_serve_rate <= v.max_rate, {
     path: ['self_serve_rate'],
-    message: 'Self-serve rate cannot exceed the maximum rate',
+    message: 'Default rate cannot exceed the maximum rate',
   })
 
 type AffiliateFormValues = z.output<typeof affiliateSchema>
@@ -63,7 +62,6 @@ type AffiliateFormValues = z.output<typeof affiliateSchema>
 export type AffiliateValues = {
   'affiliate_setting.enabled': boolean
   'affiliate_setting.self_serve_rate': number
-  'affiliate_setting.self_serve_min_topup': number
   'affiliate_setting.max_rate': number
   'affiliate_setting.second_level_rate': number
   'affiliate_setting.min_withdrawal': number
@@ -76,7 +74,6 @@ type AffiliateFormProps = {
 const toFormValues = (d: AffiliateValues): AffiliateFormValues => ({
   enabled: d['affiliate_setting.enabled'],
   self_serve_rate: d['affiliate_setting.self_serve_rate'],
-  self_serve_min_topup: d['affiliate_setting.self_serve_min_topup'],
   max_rate: d['affiliate_setting.max_rate'],
   second_level_rate: d['affiliate_setting.second_level_rate'],
   min_withdrawal: d['affiliate_setting.min_withdrawal'],
@@ -85,7 +82,6 @@ const toFormValues = (d: AffiliateValues): AffiliateFormValues => ({
 const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
   'affiliate_setting.enabled': v.enabled,
   'affiliate_setting.self_serve_rate': v.self_serve_rate,
-  'affiliate_setting.self_serve_min_topup': v.self_serve_min_topup,
   'affiliate_setting.max_rate': v.max_rate,
   'affiliate_setting.second_level_rate': v.second_level_rate,
   'affiliate_setting.min_withdrawal': v.min_withdrawal,
@@ -162,7 +158,7 @@ export function AffiliateForm(props: AffiliateFormProps) {
                 <FormLabel>{t('Enable invitation program')}</FormLabel>
                 <FormDescription>
                   {t(
-                    'Customers whose paid top-ups reach the threshold can apply and earn commission on what their invitees pay for and use. Turning it off hides the program; earned commission is kept.'
+                    'Every customer can invite and earns the default rate on what their invitees pay for and use. Turning it off hides the program; earned commission is kept.'
                   )}
                 </FormDescription>
               </SettingsSwitchContent>
@@ -178,14 +174,9 @@ export function AffiliateForm(props: AffiliateFormProps) {
         <SettingsFormGrid>
           {numberField(
             'self_serve_rate',
-            t('Self-serve rate (%)'),
-            t('Commission rate given to customers who apply themselves.')
-          )}
-          {numberField(
-            'self_serve_min_topup',
-            t('Top-up needed to apply'),
+            t('Default rate (%)'),
             t(
-              'Gateway-paid top-ups a customer needs before they can apply, in the payment currency.'
+              'Commission rate every customer has unless an administrator sets another. 0 gives no one a default.'
             )
           )}
           {numberField(
