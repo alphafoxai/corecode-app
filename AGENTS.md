@@ -50,9 +50,11 @@ the deployment relies on.
 
 ## Deployment
 
-One image, one container, hosts `corecode.live` and `www.corecode.live`. The tag is pinned in
-`corecode-infra`; publishing an image here changes nothing in production until that pin
-moves.
+One image, one container, hosts `corecode.live` and `www.corecode.live`. This repository does
+not build the image: on a main push its CI hands the commit to `corecode-infra`'s
+`release-app.yml`, which builds it on the org's self-hosted pool and deploys it once `check`
+and `web` pass. The pool does not admit public repositories, which is why the build lives
+there. A merge to main therefore reaches production without a further approval.
 
 ---
 

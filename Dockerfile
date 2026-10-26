@@ -9,7 +9,8 @@ ARG BUILD_VERSION=dev
 # Install, build and remove node_modules (over 300 MB) in one step, so it never
 # becomes a layer: the registry cache would otherwise compress and push it on
 # every build, and pull and unpack it on a hit, which took longer than a fresh
-# install. The mount speeds up local rebuilds; CI starts with it empty.
+# install. The mount persists on a builder that keeps its state, as the release
+# builder in corecode-infra does.
 RUN --mount=type=cache,id=new-api-bun,target=/root/.bun/install/cache \
     if [ ! -s /build/VERSION ]; then printf '%s' "$BUILD_VERSION" > /build/VERSION; fi \
     && bun install --frozen-lockfile \
