@@ -547,7 +547,7 @@
     "Also remove from all channels": "同时从所有渠道移除",
     "Also remove pricing": "同时移除定价",
     "Always matches (default tier).": "始终匹配（默认档位）。",
-    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "统计范围为最近 {{count}} 次请求。长上下文没命中缓存时，会按全价重新写入缓存。常见原因：新开会话、会话中途切换模型、停顿超过 5 分钟导致缓存过期。",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session or switching models mid-session.": "统计范围为最近 {{count}} 次请求。长上下文没命中缓存时，会按全价重新写入缓存。常见原因：新开会话、会话中途切换模型。",
     "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "最近 {{count}} 个请求中的统计。其中多数是非流式请求，符合 Claude Code auto 模式的特征：每次工具调用前，分类器会把对话记录发给模型判断是否放行，这部分基本无法缓存。如果你开着 auto 模式（--permission-mode auto 或 Shift+Tab），这是它的正常开销，不是中转的问题。",
     "Amount": "金额",
     "Amount cannot be changed when editing.": "编辑时无法更改数量。",

@@ -547,7 +547,7 @@
     "Also remove from all channels": "Đồng thời xóa khỏi tất cả các kênh",
     "Also remove pricing": "Đồng thời xóa giá",
     "Always matches (default tier).": "Luôn khớp (bậc mặc định).",
-    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "Trong {{count}} yêu cầu gần nhất. Ngữ cảnh dài không trúng cache sẽ bị ghi lại với giá đầy đủ. Nguyên nhân thường gặp: phiên mới, đổi mô hình giữa phiên, hoặc dừng quá 5 phút (thời hạn cache).",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session or switching models mid-session.": "Trong {{count}} yêu cầu gần nhất. Ngữ cảnh dài không trúng cache sẽ bị ghi lại với giá đầy đủ. Nguyên nhân thường gặp: phiên mới hoặc đổi mô hình giữa phiên.",
     "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "Trong {{count}} yêu cầu gần nhất. Phần lớn không dùng streaming, khớp với chế độ auto của Claude Code: trước mỗi lần gọi công cụ, bộ phân loại gửi cuộc hội thoại cho mô hình để quyết định có cho phép hay không, và phần này hầu như không được cache. Nếu bạn bật chế độ auto (--permission-mode auto hoặc Shift+Tab), đây là chi phí bình thường, không phải lỗi của relay.",
     "Amount": "Số lượng",
     "Amount cannot be changed when editing.": "Số tiền không thể thay đổi khi chỉnh sửa.",

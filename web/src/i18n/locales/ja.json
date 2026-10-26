@@ -547,7 +547,7 @@
     "Also remove from all channels": "すべてのチャネルからも削除",
     "Also remove pricing": "料金設定も削除",
     "Always matches (default tier).": "常に一致（デフォルト ティア）。",
-    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session, switching models mid-session, or a pause longer than the 5-minute cache lifetime.": "直近 {{count}} 件のリクエストのうちです。長いコンテキストがキャッシュに当たらないと、全額でキャッシュに書き直されます。主な原因：新しいセッション、セッション途中のモデル切り替え、5 分のキャッシュ有効期間を超える中断。",
+    "Among the last {{count}} requests. A long context that misses the cache is written again at full price. Usual causes: a new session or switching models mid-session.": "直近 {{count}} 件のリクエストのうちです。長いコンテキストがキャッシュに当たらないと、全額でキャッシュに書き直されます。主な原因：新しいセッション、セッション途中のモデル切り替え。",
     "Among the last {{count}} requests. Most of these did not stream, which matches Claude Code auto mode: before a tool call, its classifier sends the conversation to the model to decide whether to allow it, and little of that is cached. If auto mode is on (--permission-mode auto or Shift+Tab), this is its normal cost, not a relay fault.": "直近 {{count}} 件のリクエストのうちです。その多くは非ストリーミングで、Claude Code の auto モードの特徴と一致します。ツール呼び出しの前に、分類器が会話履歴をモデルに送って許可するかを判断し、その部分はほとんどキャッシュされません。auto モードを有効にしている場合（--permission-mode auto または Shift+Tab）、これは通常のコストであり、中継の不具合ではありません。",
     "Amount": "金額",
     "Amount cannot be changed when editing.": "編集時は金額を変更できません。",
