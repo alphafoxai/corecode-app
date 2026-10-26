@@ -24,6 +24,10 @@ const (
 var batchUpdateStores []map[int]int
 var batchUpdateLocks []sync.Mutex
 
+// batchUpdateWriting serializes batch writes, so a flush at shutdown waits for
+// the writes of a periodic batch already in progress.
+var batchUpdateWriting sync.Mutex
+
 func init() {
 	for range BatchUpdateTypeCount {
 		batchUpdateStores = append(batchUpdateStores, make(map[int]int))
@@ -38,6 +42,14 @@ func InitBatchUpdater() {
 			batchUpdate()
 		}
 	})
+}
+
+// FlushBatchUpdates writes the quota changes still held in memory. Shutdown
+// calls it once the server has stopped admitting requests: the periodic writer
+// leaves up to one interval of charges and refunds in memory, and they are lost
+// with the process.
+func FlushBatchUpdates() {
+	batchUpdate()
 }
 
 func addNewRecord(type_ int, id int, value int) {
@@ -62,6 +74,8 @@ func addNewRecord(type_ int, id int, value int) {
 }
 
 func batchUpdate() {
+	batchUpdateWriting.Lock()
+	defer batchUpdateWriting.Unlock()
 	// check if there's any data to update
 	hasData := false
 	for i := range BatchUpdateTypeCount {
