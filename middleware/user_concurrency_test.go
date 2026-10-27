@@ -100,6 +100,30 @@ func TestUserConcurrencyLimit(t *testing.T) {
 	inFlight.Wait()
 }
 
+// Billing reads the limit to scale its trust threshold (service.BillingSession).
+func TestUserConcurrencyLimitInContext(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	withoutConcurrencyTiers(t)
+	setting := operation_setting.GetTokenSetting()
+	previous := setting.ConcurrencyLimits
+	setting.ConcurrencyLimits = map[string]int{"default": 4}
+	t.Cleanup(func() { setting.ConcurrencyLimits = previous })
+
+	router := gin.New()
+	router.GET("/:user/:group", func(c *gin.Context) {
+		userID, _ := strconv.Atoi(c.Param("user"))
+		c.Set(string(constant.ContextKeyUserId), userID)
+		common.SetContextKey(c, constant.ContextKeyUserGroup, c.Param("group"))
+	}, UserConcurrencyLimit(), func(c *gin.Context) {
+		c.String(http.StatusOK, strconv.Itoa(common.GetContextKeyInt(c, constant.ContextKeyUserConcurrencyLimit)))
+	})
+	for path, want := range map[string]string{"/41/default": "4", "/42/vip": "0"} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, want, recorder.Body.String(), path)
+	}
+}
+
 func TestUserConcurrencyOverride(t *testing.T) {
 	require.NoError(t, i18n.Init())
 	withoutConcurrencyTiers(t)
