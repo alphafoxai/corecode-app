@@ -32,6 +32,13 @@ func abortWithOpenAiMessage(c *gin.Context, statusCode int, message string, code
 		})
 	}
 	c.Abort()
+	// A body that could not be read is logged with how far the upload got, so
+	// an aborted upload can be told apart from a slow one.
+	if read, ok := common.GetRequestBodyRead(c); ok && read.Error != "" {
+		logger.LogError(c.Request.Context(), common.LogText("user %d | %s | body read %d bytes of content-length %d in %d ms",
+			userId, message, read.Bytes, read.ContentLength, read.ReadMs))
+		return
+	}
 	logger.LogError(c.Request.Context(), common.LogText("user %d | %s", userId, message))
 }
 

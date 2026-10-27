@@ -839,6 +839,7 @@
   "user %d needs pre-consume %s (funding=%s)": "用户 %d 需要预扣费 %s (funding=%s)",
   "user %d request failed, refunding the pre-consumed quota (token_quota=%s, funding=%s)": "用户 %d 请求失败, 返还预扣费（token_quota=%s, funding=%s）",
   "user %d | %s": "用户 %d | %s",
+  "user %d | %s | body read %d bytes of content-length %d in %d ms": "用户 %d | %s | 请求体读取 %d 字节（Content-Length %d），耗时 %d ms",
   "user quota cache reserve unavailable, falling back to database: %s": "无法在缓存中预扣用户额度，改为直接扣数据库: %s",
   "using ClickHouse as log database": "日志数据库使用 ClickHouse",
   "using MySQL as database": "数据库使用 MySQL",
