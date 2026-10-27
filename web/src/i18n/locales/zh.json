@@ -8084,6 +8084,12 @@
     "User limit": "用户上限",
     "Subscription Remaining": "当前订阅剩余",
     "No active subscription": "无生效中的订阅",
-    "Paid spend": "累计真实充值消费"
+    "Paid spend": "累计真实充值消费",
+    "Registered on or after": "注册时间不早于",
+    "Registered before": "注册时间早于",
+    "No limit": "不限",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "只有在此时间范围内注册的用户可以购买该套餐。邀请赠送和管理员绑定不受此限制。",
+    "This plan is not available to your account": "该套餐不适用于您的账户",
+    "Invalid registration window": "注册时间范围无效"
   }
 }

@@ -23,6 +23,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { DateTimePicker } from '@/components/datetime-picker'
 import {
   SideDrawerSection,
   sideDrawerContentClassName,
@@ -491,6 +492,49 @@ export function SubscriptionsMutateDrawer({
                   )}
                 />
               </div>
+
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='registered_after'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Registered on or after')}</FormLabel>
+                      <FormControl>
+                        <DateTimePicker
+                          value={field.value ?? undefined}
+                          onChange={(date) => field.onChange(date ?? null)}
+                          placeholder={t('No limit')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='registered_before'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Registered before')}</FormLabel>
+                      <FormControl>
+                        <DateTimePicker
+                          value={field.value ?? undefined}
+                          onChange={(date) => field.onChange(date ?? null)}
+                          placeholder={t('No limit')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <p className='text-muted-foreground -mt-2 text-sm'>
+                {t(
+                  'Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.'
+                )}
+              </p>
 
               <FormField
                 control={form.control}

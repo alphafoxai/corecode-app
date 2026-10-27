@@ -40,6 +40,7 @@ var (
 
 	ErrSubscriptionPurchaseLimit error = common.NewMessage("Purchase limit for this plan has been reached")
 	ErrSubscriptionGifted        error = common.NewMessage("This plan was a gift and cannot be purchased")
+	ErrSubscriptionNotEligible   error = common.NewMessage("This plan is not available to your account")
 )
 
 // SubscriptionSourceAffiliateGift marks a subscription an inviter gave their
@@ -180,6 +181,12 @@ type SubscriptionPlan struct {
 	// Max purchases per user (0 = unlimited)
 	MaxPurchasePerUser int `json:"max_purchase_per_user" gorm:"type:int;default:0"`
 
+	// Only users who registered at or after RegisteredAfter, and before
+	// RegisteredBefore, may buy the plan (Unix seconds, 0 = no bound). An
+	// administrator's binding and an inviter's gift ignore both.
+	RegisteredAfter  int64 `json:"registered_after" gorm:"type:bigint;not null;default:0"`
+	RegisteredBefore int64 `json:"registered_before" gorm:"type:bigint;not null;default:0"`
+
 	// Upgrade user group after purchase (empty = no change)
 	UpgradeGroup string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
 
@@ -207,6 +214,18 @@ func (p *SubscriptionPlan) BeforeCreate(tx *gorm.DB) error {
 func (p *SubscriptionPlan) BeforeUpdate(tx *gorm.DB) error {
 	p.UpdatedAt = common.GetTimestamp()
 	return nil
+}
+
+// AdmitsRegistration reports whether a user who registered at createdAt
+// falls inside the plan's registration window.
+func (p *SubscriptionPlan) AdmitsRegistration(createdAt int64) bool {
+	if p.RegisteredAfter > 0 && createdAt < p.RegisteredAfter {
+		return false
+	}
+	if p.RegisteredBefore > 0 && createdAt >= p.RegisteredBefore {
+		return false
+	}
+	return true
 }
 
 func (p *SubscriptionPlan) NormalizeDefaults() {
@@ -476,10 +495,20 @@ func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now
 	return target, nil
 }
 
-// checkSubscriptionLimitTx refuses a plan the user may not take again: one at
-// its per-user limit, or one an inviter gifted them, unless an administrator
-// is binding it.
+// checkSubscriptionLimitTx refuses a plan the user may not take: one at its
+// per-user limit, one an inviter gifted them unless an administrator is
+// binding it, or, for a purchase, one whose registration window excludes them.
 func checkSubscriptionLimitTx(tx *gorm.DB, userId int, plan *SubscriptionPlan, source string) error {
+	if source != "admin" && source != SubscriptionSourceAffiliateGift &&
+		(plan.RegisteredAfter > 0 || plan.RegisteredBefore > 0) {
+		var createdAt int64
+		if err := tx.Model(&User{}).Where("id = ?", userId).Pluck("created_at", &createdAt).Error; err != nil {
+			return err
+		}
+		if !plan.AdmitsRegistration(createdAt) {
+			return ErrSubscriptionNotEligible
+		}
+	}
 	var sources []string
 	if err := tx.Model(&UserSubscription{}).
 		Where("user_id = ? AND plan_id = ?", userId, plan.Id).

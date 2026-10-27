@@ -8084,6 +8084,12 @@
     "User limit": "User limit",
     "Subscription Remaining": "Còn lại của gói đăng ký",
     "No active subscription": "Không có gói đăng ký đang hoạt động",
-    "Paid spend": "Chi tiêu đã thanh toán"
+    "Paid spend": "Chi tiêu đã thanh toán",
+    "Registered on or after": "Đăng ký từ",
+    "Registered before": "Đăng ký trước",
+    "No limit": "Không giới hạn",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "Chỉ người dùng đăng ký trong khoảng thời gian này mới mua được gói. Quà tặng và gán bởi quản trị viên không bị giới hạn.",
+    "This plan is not available to your account": "Gói này không áp dụng cho tài khoản của bạn",
+    "Invalid registration window": "Khoảng thời gian đăng ký không hợp lệ"
   }
 }
