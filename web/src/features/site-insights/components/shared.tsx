@@ -65,11 +65,17 @@ export function Panel(props: {
   )
 }
 
+export type Tone = 'default' | 'warning' | 'danger' | 'good'
+
 export type MetricItem = {
   label: string
   value: ReactNode
   hint?: ReactNode
-  tone?: 'default' | 'warning' | 'danger' | 'good'
+  tone?: Tone
+  /** What the figure means, shown when the label is hovered or focused. */
+  help?: string
+  /** A share from 0 to 1, drawn as a bar under the value. */
+  meter?: { value: number; tone?: Tone; label: string }
 }
 
 const TONES = {
@@ -79,34 +85,121 @@ const TONES = {
   good: 'text-emerald-600 dark:text-emerald-400',
 }
 
+const METER_TONES = {
+  default: 'bg-primary/70',
+  warning: 'bg-amber-500',
+  danger: 'bg-destructive',
+  good: 'bg-emerald-500',
+}
+
+/**
+ * A horizontal bar for a share of a whole. An optional marker, such as a
+ * quota budget, shades the track past it. Values are percentages.
+ */
+export function Meter(props: {
+  value: number
+  marker?: number
+  tone?: Tone
+  label: string
+  className?: string
+}) {
+  const value = Math.min(100, Math.max(0, props.value))
+  const marker = props.marker ?? 0
+  return (
+    <div
+      role='meter'
+      aria-label={props.label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(value)}
+      className={cn(
+        'bg-foreground/10 relative h-1.5 w-full overflow-hidden rounded-full',
+        props.className
+      )}
+    >
+      <div
+        className={cn(
+          'h-full rounded-full transition-[width] duration-500 ease-out',
+          METER_TONES[props.tone ?? 'default']
+        )}
+        style={{ width: `${value}%` }}
+      />
+      {marker > 0 && marker < 100 && (
+        <span
+          aria-hidden
+          className='border-foreground/60 bg-foreground/15 absolute inset-y-0 right-0 border-l-2'
+          style={{ left: `${marker}%` }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** A label with a dotted underline that explains itself on hover or focus. */
+export function HelpLabel(props: { label: ReactNode; help?: string }) {
+  if (!props.help) return props.label
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            tabIndex={0}
+            className='decoration-muted-foreground/50 focus-visible:ring-ring/50 cursor-help underline decoration-dotted underline-offset-4 outline-none focus-visible:rounded-sm focus-visible:ring-2'
+          />
+        }
+      >
+        {props.label}
+      </TooltipTrigger>
+      <TooltipContent className='max-w-xs leading-relaxed'>
+        {props.help}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+// Tooltips in cards and tables open quickly, so a reader scanning across
+// them is not left waiting on each one.
+const HELP_DELAY = 150
+
 export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
   return (
-    <dl className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
-      {props.items.map((item) => (
-        <Card
-          key={item.label}
-          data-card-hover='false'
-          className='bg-muted/20 gap-1 px-3 py-2.5'
-        >
-          <dt className='text-muted-foreground truncate text-xs'>
-            {item.label}
-          </dt>
-          <dd
-            className={cn(
-              'truncate text-lg font-semibold tabular-nums',
-              TONES[item.tone ?? 'default']
-            )}
+    <TooltipProvider delay={HELP_DELAY}>
+      <dl className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
+        {props.items.map((item) => (
+          <Card
+            key={item.label}
+            data-card-hover='false'
+            className='bg-muted/20 gap-1 px-3 py-2.5'
           >
-            {props.loading ? <Skeleton className='h-7 w-16' /> : item.value}
-          </dd>
-          {item.hint != null && (
-            <dd className='text-muted-foreground truncate text-xs'>
-              {item.hint}
+            <dt className='text-muted-foreground truncate text-xs'>
+              <HelpLabel label={item.label} help={item.help} />
+            </dt>
+            <dd
+              className={cn(
+                'truncate text-lg font-semibold tabular-nums',
+                TONES[item.tone ?? 'default']
+              )}
+            >
+              {props.loading ? <Skeleton className='h-7 w-16' /> : item.value}
             </dd>
-          )}
-        </Card>
-      ))}
-    </dl>
+            {item.meter && !props.loading && (
+              <dd className='py-0.5'>
+                <Meter
+                  value={item.meter.value * 100}
+                  tone={item.meter.tone}
+                  label={item.meter.label}
+                />
+              </dd>
+            )}
+            {item.hint != null && (
+              <dd className='text-muted-foreground truncate text-xs'>
+                {item.hint}
+              </dd>
+            )}
+          </Card>
+        ))}
+      </dl>
+    </TooltipProvider>
   )
 }
 
@@ -293,12 +386,16 @@ export function BarSeries(props: {
   )
 }
 
-/** Horizontal share bars for a breakdown. */
+/**
+ * Horizontal share bars for a breakdown. Hovering or focusing a row shows
+ * its full name, which the row may truncate, with its count and share.
+ */
 export function Breakdown(props: {
   items: NamedCount[] | null | undefined
   label?: (name: string) => string
   empty: string
 }) {
+  const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const items = props.items ?? []
   const total = items.reduce((sum, item) => sum + item.count, 0)
@@ -306,32 +403,60 @@ export function Breakdown(props: {
     return <p className='text-muted-foreground text-xs'>{props.empty}</p>
   }
   return (
-    <ul className='grid gap-2 text-sm'>
-      {items.map((item) => (
-        <li key={item.name} className='grid gap-1'>
-          <div className='flex items-center justify-between gap-2'>
-            <span className='truncate'>
-              {props.label ? props.label(item.name) : item.name}
-            </span>
-            <span className='text-muted-foreground shrink-0 tabular-nums'>
-              {fmt.num(item.count)} · {fmt.pct(total ? item.count / total : 0)}
-            </span>
-          </div>
-          <div className='bg-muted h-1.5 overflow-hidden rounded-full'>
-            <div
-              className='bg-primary/60 h-full rounded-full'
-              style={{ width: `${total ? (item.count / total) * 100 : 0}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <TooltipProvider delay={0}>
+      <ul className='-mx-1.5 grid gap-0.5 text-sm'>
+        {items.map((item) => {
+          const name = props.label ? props.label(item.name) : item.name
+          const share = total ? item.count / total : 0
+          return (
+            <li key={item.name}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <div
+                      tabIndex={0}
+                      aria-label={`${name}: ${fmt.num(item.count)}, ${fmt.pct(share)}`}
+                      className='group/row hover:bg-muted/50 focus-visible:ring-ring/50 grid gap-1 rounded-md px-1.5 py-1 outline-none focus-visible:ring-2'
+                    />
+                  }
+                >
+                  <div className='flex items-center justify-between gap-2'>
+                    <span className='truncate'>{name}</span>
+                    <span className='text-muted-foreground shrink-0 tabular-nums'>
+                      {fmt.num(item.count)} · {fmt.pct(share)}
+                    </span>
+                  </div>
+                  <div className='bg-muted h-1.5 overflow-hidden rounded-full'>
+                    <div
+                      className='bg-primary/60 group-hover/row:bg-primary group-focus-visible/row:bg-primary h-full rounded-full transition-colors'
+                      style={{ width: `${share * 100}%` }}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className='block max-w-sm py-2'>
+                  <p className='mb-1 font-semibold break-words'>{name}</p>
+                  <p className='tabular-nums opacity-80'>
+                    {t('{{count}} of {{total}} · {{share}}', {
+                      count: fmt.num(item.count),
+                      total: fmt.num(total),
+                      share: fmt.pct(share),
+                    })}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          )
+        })}
+      </ul>
+    </TooltipProvider>
   )
 }
 
 export type Column<T> = {
   key: string
   label: string
+  /** What the column means, shown when its header is hovered or focused. */
+  hint?: string
   align?: 'right'
   render: (row: T) => ReactNode
 }
@@ -347,42 +472,44 @@ export function SimpleTable<T>(props: {
     return <p className='text-muted-foreground text-xs'>{props.empty}</p>
   }
   return (
-    <div className='-mx-4 overflow-x-auto'>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {props.columns.map((column) => (
-              <TableHead
-                key={column.key}
-                className={cn(
-                  'first:pl-4 last:pr-4',
-                  column.align === 'right' && 'text-right'
-                )}
-              >
-                {column.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => (
-            <TableRow key={props.rowKey(row, index)}>
+    <TooltipProvider delay={HELP_DELAY}>
+      <div className='-mx-4 overflow-x-auto'>
+        <Table>
+          <TableHeader>
+            <TableRow>
               {props.columns.map((column) => (
-                <TableCell
+                <TableHead
                   key={column.key}
                   className={cn(
-                    'tabular-nums first:pl-4 last:pr-4',
+                    'first:pl-4 last:pr-4',
                     column.align === 'right' && 'text-right'
                   )}
                 >
-                  {column.render(row)}
-                </TableCell>
+                  <HelpLabel label={column.label} help={column.hint} />
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={props.rowKey(row, index)}>
+                {props.columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    className={cn(
+                      'tabular-nums first:pl-4 last:pr-4',
+                      column.align === 'right' && 'text-right'
+                    )}
+                  >
+                    {column.render(row)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </TooltipProvider>
   )
 }
 

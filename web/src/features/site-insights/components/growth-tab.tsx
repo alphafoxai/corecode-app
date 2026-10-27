@@ -18,6 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import { useInsightsFormat, useSignupMethodLabel } from '../lib'
@@ -264,48 +270,70 @@ function RetentionGrid(props: { data: ActivityInsights | undefined }) {
   }
   const width = Math.max(...cohorts.map((cohort) => cohort.days?.length ?? 0))
   return (
-    <div className='-mx-4 overflow-x-auto px-4'>
-      <table className='text-xs tabular-nums'>
-        <thead>
-          <tr className='text-muted-foreground'>
-            <th className='pr-3 text-left font-normal'>{t('Sign-up day')}</th>
-            <th className='pr-3 text-right font-normal'>{t('Users')}</th>
-            {Array.from({ length: width }, (_, day) => (
-              <th key={day} className='w-11 text-center font-normal'>
-                D{day}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {cohorts.map((cohort) => (
-            <tr key={cohort.day}>
-              <td className='pr-3 whitespace-nowrap'>{fmt.day(cohort.day)}</td>
-              <td className='pr-3 text-right'>{cohort.size}</td>
-              {Array.from({ length: width }, (_, day) => {
-                const value = cohort.days?.[day]
-                return (
-                  <td key={day} className='p-0.5'>
-                    {value == null ? null : (
-                      <span
-                        className={cn(
-                          'block rounded px-1 py-0.5 text-center',
-                          value > 0.5 && 'text-primary-foreground'
-                        )}
-                        style={{
-                          backgroundColor: `color-mix(in oklab, var(--primary) ${Math.round(value * 100)}%, transparent)`,
-                        }}
-                      >
-                        {Math.round(value * 100)}
-                      </span>
-                    )}
-                  </td>
-                )
-              })}
+    <TooltipProvider delay={0}>
+      <div className='-mx-4 overflow-x-auto px-4'>
+        <table className='text-xs tabular-nums'>
+          <thead>
+            <tr className='text-muted-foreground'>
+              <th className='pr-3 text-left font-normal'>{t('Sign-up day')}</th>
+              <th className='pr-3 text-right font-normal'>{t('Users')}</th>
+              {Array.from({ length: width }, (_, day) => (
+                <th key={day} className='w-11 text-center font-normal'>
+                  D{day}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {cohorts.map((cohort) => (
+              <tr key={cohort.day}>
+                <td className='pr-3 whitespace-nowrap'>
+                  {fmt.day(cohort.day)}
+                </td>
+                <td className='pr-3 text-right'>{cohort.size}</td>
+                {Array.from({ length: width }, (_, day) => {
+                  const value = cohort.days?.[day]
+                  return (
+                    <td key={day} className='p-0.5'>
+                      {value == null ? null : (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <span
+                                tabIndex={0}
+                                className={cn(
+                                  'hover:ring-foreground/30 focus-visible:ring-ring/50 block cursor-default rounded px-1 py-0.5 text-center outline-none hover:ring-1 focus-visible:ring-2',
+                                  value > 0.5 && 'text-primary-foreground'
+                                )}
+                                style={{
+                                  backgroundColor: `color-mix(in oklab, var(--primary) ${Math.round(value * 100)}%, transparent)`,
+                                }}
+                              />
+                            }
+                          >
+                            {Math.round(value * 100)}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t(
+                              '{{share}} of the {{size}} users who signed up {{day}} sent requests on D{{n}}',
+                              {
+                                share: fmt.pct(value),
+                                size: fmt.num(cohort.size),
+                                day: fmt.day(cohort.day),
+                                n: day,
+                              }
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </TooltipProvider>
   )
 }
