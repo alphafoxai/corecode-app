@@ -33,6 +33,7 @@ const siteInsightsSearchSchema = z.object({
       'activity',
       'quality',
       'business',
+      'pool',
     ])
     .optional()
     .catch(undefined),

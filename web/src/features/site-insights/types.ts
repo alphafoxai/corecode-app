@@ -34,28 +34,75 @@ export type CapacityHour = {
 
 export type EngineAccount = {
   credential_id: number
+  group_id: number
   group: string
   email_mask: string
   plan: string
   tier: string
   status: string
+  /** Usage in percent. */
   five_hour: number
   seven_day: number
   five_hour_reset_ms: number
   seven_day_reset_ms: number
   cooldown_until_ms: number
   eligible: boolean
+  active: number
+  sessions: number
+  observed_at_ms: number
+  observation: string
+  successes: number
+  failures: number
+  last_used_at_ms: number
+  last_failure: string
+  last_failure_at_ms: number
+  five_hour_remaining_usd: number | null
+  seven_day_remaining_usd: number | null
+  burn_usd_per_hour: number | null
+}
+
+export type EngineGroup = {
+  id: number
+  name: string
+  enabled: boolean
+  in_flight: number
+  /** 0 means no group limit. */
+  effective_limit: number
+  override_limit: number | null
+  accounts: number
+  eligible: number
+  slots: number
+  counts: Record<string, number> | null
+  quota_budget: boolean
+  five_hour_budget: number
+  seven_day_budget: number
+}
+
+export type EngineHorizon = {
+  remaining_usd: number
+  remaining_low_usd: number
+  remaining_high_usd: number
+  capacity_usd: number
+  counted: number
+  unknown: number
 }
 
 export type EnginePool = {
   configured: boolean
   error?: string
+  observed_at_ms: number
   credential_concurrency: number
   five_hour_budget: number
   seven_day_budget: number
   eligible_accounts: number
   effective_slots: number
+  in_flight: number
+  groups: EngineGroup[]
   accounts: EngineAccount[]
+  five_hour_estimate: EngineHorizon | null
+  week_estimate: EngineHorizon | null
+  refills: { credential_id: number; at_ms: number; adds_usd: number }[]
+  estimate_error?: string
 }
 
 export type CapacityInsights = {

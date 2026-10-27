@@ -32,11 +32,18 @@ import { getInsights, VIEW_MAX_DAYS, type InsightsView } from './api'
 import { CapacityTab } from './components/capacity-tab'
 import { FinanceTab } from './components/finance-tab'
 import { ActivityTab, GrowthTab } from './components/growth-tab'
+import { PoolTab } from './components/pool-tab'
 import { BusinessTab, QualityTab } from './components/quality-tab'
 import { RiskTab } from './components/risk-tab'
 import { INSIGHTS_PRESETS, INSIGHTS_VIEWS } from './lib'
 
 const route = getRouteApi('/_authenticated/site-insights/')
+
+// The capacity view carries live in-flight counts; the pool is all live.
+const REFRESH_MS: Partial<Record<InsightsView, number>> = {
+  capacity: 30_000,
+  pool: 15_000,
+}
 
 /**
  * The root-only site dashboard. Each tab reads one /api/site-insights view
@@ -56,8 +63,7 @@ export function SiteInsights() {
   const query = useQuery({
     queryKey: ['site-insights', view, range],
     queryFn: () => getInsights(view, range),
-    // The capacity view carries live in-flight counts.
-    refetchInterval: view === 'capacity' ? 30_000 : false,
+    refetchInterval: REFRESH_MS[view] ?? false,
   })
 
   const tabLabels: Record<InsightsView, string> = {
@@ -68,6 +74,7 @@ export function SiteInsights() {
     activity: t('Activity'),
     quality: t('Quality'),
     business: t('Business'),
+    pool: t('Account pool'),
   }
   const presetLabel = (preset: number) =>
     preset === 1 ? t('24 hours') : t('{{count}} days', { count: preset })
@@ -102,25 +109,27 @@ export function SiteInsights() {
               </TabsList>
             </Tabs>
             <div className='flex items-center gap-2'>
-              <ToggleGroup
-                variant='outline'
-                size='sm'
-                value={[String(days)]}
-                onValueChange={(value: string[]) => {
-                  const next = Number(value.at(-1))
-                  if (next) {
-                    navigate({ search: (prev) => ({ ...prev, days: next }) })
-                  }
-                }}
-              >
-                {INSIGHTS_PRESETS.filter(
-                  (preset) => preset <= VIEW_MAX_DAYS[view]
-                ).map((preset) => (
-                  <ToggleGroupItem key={preset} value={String(preset)}>
-                    {presetLabel(preset)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              {view !== 'pool' && (
+                <ToggleGroup
+                  variant='outline'
+                  size='sm'
+                  value={[String(days)]}
+                  onValueChange={(value: string[]) => {
+                    const next = Number(value.at(-1))
+                    if (next) {
+                      navigate({ search: (prev) => ({ ...prev, days: next }) })
+                    }
+                  }}
+                >
+                  {INSIGHTS_PRESETS.filter(
+                    (preset) => preset <= VIEW_MAX_DAYS[view]
+                  ).map((preset) => (
+                    <ToggleGroupItem key={preset} value={String(preset)}>
+                      {presetLabel(preset)}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              )}
               <Button
                 variant='outline'
                 size='icon-sm'
@@ -165,5 +174,7 @@ function InsightsView(props: { view: InsightsView; data: unknown }) {
       return <QualityTab data={props.data as never} />
     case 'business':
       return <BusinessTab data={props.data as never} />
+    case 'pool':
+      return <PoolTab data={props.data as never} />
   }
 }

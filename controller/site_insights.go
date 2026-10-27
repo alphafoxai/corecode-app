@@ -178,3 +178,9 @@ func GetQualityInsights(c *gin.Context) {
 func GetBusinessInsights(c *gin.Context) {
 	serveInsights(c, model.InsightsMaxLogDays, model.GetBusinessInsights)
 }
+
+// GetEnginePool returns corecode-engine's groups and accounts, live. It takes
+// no range: the engine reports its current state.
+func GetEnginePool(c *gin.Context) {
+	common.ApiSuccess(c, service.FetchEnginePool(c.Request.Context()))
+}

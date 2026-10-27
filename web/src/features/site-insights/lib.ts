@@ -25,6 +25,7 @@ import type { InsightsView } from './api'
 
 export const INSIGHTS_VIEWS: InsightsView[] = [
   'capacity',
+  'pool',
   'finance',
   'risk',
   'growth',
