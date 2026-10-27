@@ -41,8 +41,11 @@ the deployment relies on.
   in-memory code map is capped, per-process, and does not consume on use. Never put a
   credential that opens a session into that map.
 - **Password login stays available to root when the switch is off.** `corecode-infra`'s
-  `init-relay.sh` signs in as root on every deploy to write its options, so removing that
-  door also removes the deployment and the mail-outage recovery path.
+  `init-relay.sh` signs in as root on a fresh install, and the operator signs in by
+  password when mail is down, so removing that door removes both paths. Once a human check
+  (proof of work or Turnstile) is on, a script cannot pass password sign-in: the deploy scripts call the admin API with a
+  root PAT (`NEWAPI_ADMIN_TOKEN`), so keep `PUT /api/option/` and the channel routes
+  reachable by PAT scope.
 - **A server change must keep working with the console already in production.** The two
   release separately, and the server goes first when one merge changes both. Add fields
   rather than rename or remove them; drop one only after a console release has stopped

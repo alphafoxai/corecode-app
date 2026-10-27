@@ -44,6 +44,7 @@ import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { loginFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
+import { useProofOfWork } from '@/features/auth/hooks/use-proof-of-work'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
 import {
@@ -102,6 +103,7 @@ export function UserAuthForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const { takeProof } = useProofOfWork()
   const { handleLoginResult } = useAuthRedirect()
 
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
@@ -175,10 +177,13 @@ export function UserAuthForm({
 
     setIsLoading(true)
     try {
+      const pow = await takeProof()
+      if (pow === null) return
       const res = await login({
         username: data.username,
         password: data.password,
         turnstile: submittedTurnstileToken,
+        pow,
         passwordEncryptionEnabled: passwordLoginEncryptionEnabled,
       })
 

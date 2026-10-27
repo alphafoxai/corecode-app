@@ -28,6 +28,8 @@ export interface LoginPayload {
   username: string
   password: string
   turnstile?: string
+  // X-Pow-Solution value while the proof-of-work check is on
+  pow?: string
   passwordEncryptionEnabled?: boolean
 }
 
@@ -43,6 +45,12 @@ export interface RegisterPayload {
   verification_code?: string
   aff_code?: string
   turnstile?: string
+}
+
+export interface RegisterRequest extends RegisterPayload {
+  // X-Pow-Solution value while the proof-of-work check is on; sent as a
+  // header, never in the body
+  pow?: string
 }
 
 export interface PasswordResetPayload {

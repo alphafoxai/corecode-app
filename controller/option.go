@@ -253,6 +253,12 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorT(c, "Cannot enable Turnstile verification. Enter the Turnstile settings first.")
 			return
 		}
+	case "PowMaxNumber":
+		maxNumber, err := strconv.Atoi(option.Value.(string))
+		if err != nil || maxNumber < service.PowMinMaxNumber || maxNumber > service.PowMaxMaxNumber {
+			common.ApiErrorT(c, "Proof-of-work difficulty must be between {{min}} and {{max}}", map[string]any{"min": service.PowMinMaxNumber, "max": service.PowMaxMaxNumber})
+			return
+		}
 	case "TelegramOAuthEnabled":
 		if option.Value == "true" && !system_setting.GetTelegramSettings().IsConfigured() {
 			c.JSON(http.StatusOK, gin.H{

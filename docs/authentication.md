@@ -141,6 +141,13 @@ Redis 限流使用原子 Lua 固定窗口，替代旧的近似滑动窗口 List 
 
 开放注册仍会受 Critical IP 限流保护，但分布式 IP 多账号攻击不能仅靠 IP 限流阻止。公网开放注册的部署应同时启用 Turnstile 和邮箱验证；更强的设备或多维风控需作为独立安全项目设计。
 
+匿名入口有两种可选的人机校验，各自一个开关，可以同时开：
+
+- **工作量证明（`PowCheckEnabled`）**：浏览器先请求 `GET /api/pow/challenge`，服务端随机取一个 `[0, PowMaxNumber]` 内的秘密数 n，返回 `sha256(salt + n)`、带过期时间的 salt 和 HMAC 签名；浏览器逐个尝试找到 n，把解以 base64 JSON 放进请求头 `X-Pow-Solution`。签名密钥由 `CRYPTO_SECRET` 派生，所以服务端不存挑战，蓝绿两个实例互认。每个解只能用一次：通过校验后以签名为键记到 Redis（未启用 Redis 时记在进程内存），直到挑战过期（10 分钟）。脚本和资源都来自本站，不依赖第三方。它只提高每次请求的成本，不判断是不是人：`PowMaxNumber` 默认 100000，浏览器平均算 5 万次哈希（手机一两秒），原生代码只要约 20 毫秒，遭到攻击时调高。
+- **Turnstile（`TurnstileCheckEnabled`）**：查询参数 `turnstile` 携带 Cloudflare 令牌，服务端调用 siteverify。依赖 `challenges.cloudflare.com` 可达。
+
+两者守护同一组入口：密码登录、注册、发送邮箱验证码、发送密码重置邮件、发送登录链接（`POST /api/magic_link/send`）。兑换登录链接和登录码（`/api/magic_link/login`、`/api/magic_link/code`）不校验：邮件里的一次性凭据就是证明，客户也可能在没有做过校验的设备上打开链接。每次请求都要新的解或令牌，所以控制台每次发送后都重新求解或重新渲染组件。脚本过不了这些校验，开启后的自动化改用 PAT 调管理接口，不再用密码登录。
+
 ## PAT 调用契约
 
 面板 PAT（个人访问令牌）通过 `Authorization: Bearer <pat>` 发送，也兼容单值 `Authorization: <pat>`；不接受 URL 参数。`New-Api-User` 不参与鉴权。

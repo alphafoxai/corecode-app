@@ -19,12 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import { zodResolver } from '@hookform/resolvers/zod'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { ArrowLeft, ArrowRight, Loader2, Mail, MailCheck } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
+import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -50,6 +51,8 @@ import {
   MAGIC_LINK_COUNTDOWN,
 } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
+import { useProofOfWork } from '@/features/auth/hooks/use-proof-of-work'
+import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import {
   AFFILIATE_CODE_MAX_LENGTH,
   captureAffiliateCodeFromUrl,
@@ -107,6 +110,29 @@ export function MagicLinkForm({
 
   const countdown = useCountdown({ initialSeconds: MAGIC_LINK_COUNTDOWN })
 
+  const {
+    isTurnstileEnabled,
+    turnstileSiteKey,
+    turnstileToken,
+    setTurnstileToken,
+    validateTurnstile,
+  } = useTurnstile()
+  const { takeProof } = useProofOfWork()
+  // A token passes the server check once, so every send renders a new widget.
+  const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
+  const clearTurnstileToken = useCallback(
+    () => setTurnstileToken(''),
+    [setTurnstileToken]
+  )
+  const turnstileWidget = isTurnstileEnabled ? (
+    <Turnstile
+      key={turnstileWidgetKey}
+      siteKey={turnstileSiteKey}
+      onVerify={setTurnstileToken}
+      onExpire={clearTurnstileToken}
+    />
+  ) : null
+
   const form = useForm<z.infer<typeof forgotPasswordFormSchema>>({
     resolver: zodResolver(forgotPasswordFormSchema),
     defaultValues: { email: '' },
@@ -119,13 +145,23 @@ export function MagicLinkForm({
       toast.error(legalConsentErrorMessage)
       return
     }
+    if (!validateTurnstile()) return
+    const submittedTurnstileToken = turnstileToken
+    if (isTurnstileEnabled) {
+      setTurnstileToken('')
+      setTurnstileWidgetKey((current) => current + 1)
+    }
 
     setIsLoading(true)
     try {
+      const pow = await takeProof()
+      if (pow === null) return
       const res = await requestMagicLink(
         email,
         redirectTo,
-        getAffiliateCode() || undefined
+        getAffiliateCode() || undefined,
+        submittedTurnstileToken || undefined,
+        pow
       )
       if (res?.success) {
         setSentTo(email)
@@ -153,6 +189,7 @@ export function MagicLinkForm({
         redirectTo={redirectTo}
         isResending={isLoading}
         resendSecondsLeft={countdown.isActive ? countdown.secondsLeft : 0}
+        humanCheck={turnstileWidget}
         onResend={() => sendMail(sentTo)}
         onChangeEmail={() => setSentTo('')}
       />
@@ -244,6 +281,8 @@ export function MagicLinkForm({
           onCheckedChange={setAgreedToLegal}
         />
 
+        {turnstileWidget}
+
         <Button
           type='submit'
           size='lg'
@@ -269,6 +308,8 @@ type MagicLinkCodeStepProps = {
   redirectTo?: string
   isResending: boolean
   resendSecondsLeft: number
+  // The Turnstile widget a resend needs, shown once the resend is available.
+  humanCheck?: ReactNode
   onResend: () => void
   onChangeEmail: () => void
 }
@@ -281,6 +322,7 @@ function MagicLinkCodeStep({
   redirectTo,
   isResending,
   resendSecondsLeft,
+  humanCheck,
   onResend,
   onChangeEmail,
 }: MagicLinkCodeStepProps) {
@@ -394,6 +436,8 @@ function MagicLinkCodeStep({
       <p className='text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5 text-sm'>
         {t('You can also open the link in the email to sign in.')}
       </p>
+
+      {resendSecondsLeft === 0 && humanCheck}
 
       <div className='flex items-center justify-between gap-2 text-sm'>
         <Button

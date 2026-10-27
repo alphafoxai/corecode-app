@@ -23,7 +23,13 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { api, type RefreshOutcome } from '@/lib/api'
 import type { AuthBundle } from '@/stores/auth-store'
 
-import { executeLogout } from './api'
+import {
+  executeLogout,
+  login,
+  register,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+} from './api'
 import { useOAuthLogin } from './hooks/use-oauth-login'
 import { consumeOAuthLoginRedirect } from './lib/oauth-callback-mode'
 
@@ -177,5 +183,53 @@ describe('logout coordination', () => {
         refresh: async () => transient,
       })
     ).rejects.toBe(originalError)
+  })
+})
+
+// While the proof-of-work check is on, each guarded request carries the
+// solution as a header, and never in a body or query string.
+describe('proof-of-work solution', () => {
+  const header = { 'X-Pow-Solution': 'solved' }
+
+  test('rides on password login', async () => {
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: false } })
+    await login({ username: 'root', password: 'secret', pow: 'solved' })
+    expect(post.mock.calls[0][1]).toEqual({
+      username: 'root',
+      password: 'secret',
+    })
+    expect(post.mock.calls[0][2]).toMatchObject({ headers: header })
+  })
+
+  test('rides on registration without entering the body', async () => {
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true } })
+    await register({ username: 'new', password: 'secret', pow: 'solved' })
+    expect(post.mock.calls[0][1]).toEqual({
+      username: 'new',
+      password: 'secret',
+    })
+    expect(post.mock.calls[0][2]).toMatchObject({ headers: header })
+  })
+
+  test('rides on the verification and reset mails', async () => {
+    const get = vi
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: { success: true } })
+    await sendEmailVerification('a@example.com', undefined, 'solved')
+    await sendPasswordResetEmail('a@example.com', undefined, 'solved')
+    expect(get.mock.calls[0][1]).toMatchObject({ headers: header })
+    expect(get.mock.calls[1][1]).toMatchObject({ headers: header })
+  })
+
+  test('is absent while the check is off', async () => {
+    const get = vi
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: { success: true } })
+    await sendEmailVerification('a@example.com')
+    expect(get.mock.calls[0][1]).toMatchObject({ headers: undefined })
   })
 })
