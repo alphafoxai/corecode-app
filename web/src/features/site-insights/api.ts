@@ -24,6 +24,7 @@ import type {
   ActivityInsights,
   BusinessInsights,
   CapacityInsights,
+  EnginePool,
   FinanceInsights,
   GrowthInsights,
   InsightsRange,
@@ -39,6 +40,7 @@ export type InsightsView =
   | 'activity'
   | 'quality'
   | 'business'
+  | 'pool'
 
 export type InsightsByView = {
   capacity: CapacityInsights
@@ -48,6 +50,7 @@ export type InsightsByView = {
   activity: ActivityInsights
   quality: QualityInsights
   business: BusinessInsights
+  pool: EnginePool
 }
 
 /** The longest range, in days, each view's endpoint accepts. */
@@ -59,6 +62,8 @@ export const VIEW_MAX_DAYS: Record<InsightsView, number> = {
   activity: 366,
   quality: 92,
   business: 92,
+  // The pool is live; it takes no range.
+  pool: 1,
 }
 
 export async function getInsights<V extends InsightsView>(

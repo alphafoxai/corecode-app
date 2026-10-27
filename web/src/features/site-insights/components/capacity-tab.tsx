@@ -16,12 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { Badge } from '@/components/ui/badge'
-
 import { useErrorCategoryLabel, useInsightsFormat } from '../lib'
-import type { CapacityInsights, EngineAccount } from '../types'
+import type { CapacityInsights } from '../types'
 import { ConcurrencyLimitsPanel } from './concurrency-limits-panel'
 import {
   BarSeries,
@@ -149,68 +148,13 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
                 },
               ]}
             />
-            <SimpleTable<EngineAccount>
-              rows={pool.accounts}
-              rowKey={(row) => row.credential_id}
-              empty={t('No accounts')}
-              columns={[
-                {
-                  key: 'id',
-                  label: t('Account'),
-                  render: (row) => (
-                    <span className='font-mono text-xs'>
-                      #{row.credential_id} {row.email_mask}
-                    </span>
-                  ),
-                },
-                { key: 'group', label: t('Group'), render: (row) => row.group },
-                {
-                  key: 'tier',
-                  label: t('Tier'),
-                  render: (row) => row.tier || row.plan || '-',
-                },
-                {
-                  key: 'status',
-                  label: t('Status'),
-                  render: (row) => (
-                    <Badge variant={row.eligible ? 'outline' : 'destructive'}>
-                      {row.eligible ? t('Eligible') : row.status}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'five',
-                  label: '5h',
-                  align: 'right',
-                  render: (row) => (
-                    <QuotaCell
-                      used={row.five_hour}
-                      budget={pool.five_hour_budget}
-                    />
-                  ),
-                },
-                {
-                  key: 'seven',
-                  label: '7d',
-                  align: 'right',
-                  render: (row) => (
-                    <QuotaCell
-                      used={row.seven_day}
-                      budget={pool.seven_day_budget}
-                    />
-                  ),
-                },
-                {
-                  key: 'reset',
-                  label: t('7d resets'),
-                  align: 'right',
-                  render: (row) =>
-                    row.seven_day_reset_ms
-                      ? fmt.time(Math.floor(row.seven_day_reset_ms / 1000))
-                      : '-',
-                },
-              ]}
-            />
+            <Link
+              to='/site-insights'
+              search={(prev) => ({ ...prev, tab: 'pool' as const })}
+              className='text-primary justify-self-start text-sm font-medium hover:underline'
+            >
+              {t('See every account in the account pool')}
+            </Link>
           </div>
         )}
       </Panel>
@@ -358,14 +302,4 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
       </div>
     </div>
   )
-}
-
-function QuotaCell(props: { used: number; budget: number }) {
-  let tone: string | undefined
-  if (props.budget > 0 && props.used >= props.budget) {
-    tone = 'text-destructive font-medium'
-  } else if (props.budget > 0 && props.used >= props.budget - 10) {
-    tone = 'text-amber-600 dark:text-amber-400'
-  }
-  return <span className={tone}>{Math.round(props.used)}%</span>
 }

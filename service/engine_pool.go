@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -13,9 +14,10 @@ import (
 )
 
 // EngineAccount is one subscription account of corecode-engine's pool as the
-// root dashboard shows it. The email is the engine's own mask.
+// root dashboard shows it. Usage is in percent; the email is masked here.
 type EngineAccount struct {
 	CredentialID  int     `json:"credential_id"`
+	GroupID       int     `json:"group_id"`
 	Group         string  `json:"group"`
 	EmailMask     string  `json:"email_mask"`
 	Plan          string  `json:"plan"`
@@ -26,21 +28,80 @@ type EngineAccount struct {
 	FiveHourReset int64   `json:"five_hour_reset_ms"`
 	SevenDayReset int64   `json:"seven_day_reset_ms"`
 	CooldownUntil int64   `json:"cooldown_until_ms"`
-	// Eligible reports an available account under both quota budgets, which
-	// is what the engine's scheduler may send requests to.
+	// Eligible reports an available account in an enabled group: the engine
+	// already marks an account over a quota budget, so this is what its
+	// scheduler may send requests to.
 	Eligible bool `json:"eligible"`
+	// Active is requests in flight; Sessions the conversations the engine
+	// counts as running on the account.
+	Active        int    `json:"active"`
+	Sessions      int    `json:"sessions"`
+	ObservedAt    int64  `json:"observed_at_ms"`
+	Observation   string `json:"observation"`
+	Successes     int64  `json:"successes"`
+	Failures      int64  `json:"failures"`
+	LastUsedAt    int64  `json:"last_used_at_ms"`
+	LastFailure   string `json:"last_failure"`
+	LastFailureAt int64  `json:"last_failure_at_ms"`
+	// From the pool estimate, in USD; nil when the engine has no reading.
+	FiveHourRemainingUSD *float64 `json:"five_hour_remaining_usd"`
+	SevenDayRemainingUSD *float64 `json:"seven_day_remaining_usd"`
+	BurnUSDPerHour       *float64 `json:"burn_usd_per_hour"`
 }
 
-// EnginePool summarizes the pool for the capacity dashboard.
+// EngineGroup is one engine group with its accounts counted by status.
+type EngineGroup struct {
+	ID             int            `json:"id"`
+	Name           string         `json:"name"`
+	Enabled        bool           `json:"enabled"`
+	InFlight       int            `json:"in_flight"`
+	EffectiveLimit int            `json:"effective_limit"`
+	OverrideLimit  *int           `json:"override_limit"`
+	Accounts       int            `json:"accounts"`
+	Eligible       int            `json:"eligible"`
+	Slots          int            `json:"slots"`
+	Counts         map[string]int `json:"counts"`
+	QuotaBudget    bool           `json:"quota_budget"`
+	FiveHourBudget float64        `json:"five_hour_budget"`
+	SevenDayBudget float64        `json:"seven_day_budget"`
+}
+
+// EngineHorizon is the pool estimate's remaining dollars over one window.
+type EngineHorizon struct {
+	RemainingUSD     float64 `json:"remaining_usd"`
+	RemainingLowUSD  float64 `json:"remaining_low_usd"`
+	RemainingHighUSD float64 `json:"remaining_high_usd"`
+	CapacityUSD      float64 `json:"capacity_usd"`
+	Counted          int     `json:"counted"`
+	Unknown          int     `json:"unknown"`
+}
+
+// EngineRefill is one account's five-hour window resetting soon.
+type EngineRefill struct {
+	CredentialID int     `json:"credential_id"`
+	At           int64   `json:"at_ms"`
+	AddsUSD      float64 `json:"adds_usd"`
+}
+
+// EnginePool summarizes the pool for the root dashboard.
 type EnginePool struct {
-	Configured            bool            `json:"configured"`
-	Error                 string          `json:"error,omitempty"`
-	CredentialConcurrency int             `json:"credential_concurrency"`
-	FiveHourBudget        float64         `json:"five_hour_budget"`
-	SevenDayBudget        float64         `json:"seven_day_budget"`
-	EligibleAccounts      int             `json:"eligible_accounts"`
-	EffectiveSlots        int             `json:"effective_slots"`
-	Accounts              []EngineAccount `json:"accounts"`
+	Configured            bool    `json:"configured"`
+	Error                 string  `json:"error,omitempty"`
+	ObservedAt            int64   `json:"observed_at_ms"`
+	CredentialConcurrency int     `json:"credential_concurrency"`
+	FiveHourBudget        float64 `json:"five_hour_budget"`
+	SevenDayBudget        float64 `json:"seven_day_budget"`
+	EligibleAccounts      int     `json:"eligible_accounts"`
+	// EffectiveSlots adds up, per enabled group, eligible accounts times the
+	// per-account limit, capped by the group's own limit.
+	EffectiveSlots int             `json:"effective_slots"`
+	InFlight       int             `json:"in_flight"`
+	Groups         []EngineGroup   `json:"groups"`
+	Accounts       []EngineAccount `json:"accounts"`
+	FiveHour       *EngineHorizon  `json:"five_hour_estimate"`
+	Week           *EngineHorizon  `json:"week_estimate"`
+	Refills        []EngineRefill  `json:"refills"`
+	EstimateError  string          `json:"estimate_error,omitempty"`
 }
 
 type engineEnvelope[T any] struct {
@@ -49,68 +110,105 @@ type engineEnvelope[T any] struct {
 	Data    T      `json:"data"`
 }
 
-type engineSettings struct {
-	Values struct {
-		CredentialConcurrencyLimit int `json:"credential_concurrency_limit"`
-		QuotaBudget                struct {
-			Enabled         bool    `json:"enabled"`
-			FiveHourPercent float64 `json:"five_hour_percent"`
-			SevenDayPercent float64 `json:"seven_day_percent"`
-		} `json:"quota_budget"`
-	} `json:"values"`
+type engineBudget struct {
+	Enabled         bool    `json:"enabled"`
+	FiveHourPercent float64 `json:"five_hour_percent"`
+	SevenDayPercent float64 `json:"seven_day_percent"`
 }
 
-type engineGroup struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+type engineWindow struct {
+	Utilization *float64 `json:"utilization"`
+	ResetAt     *int64   `json:"reset_at_ms"`
 }
 
-// engineGroups accepts the group collection as a page ({"items": [...]}) or
-// a bare array, so a pagination change in the engine does not break the
-// dashboard.
-type engineGroups []engineGroup
-
-func (groups *engineGroups) UnmarshalJSON(data []byte) error {
-	var list []engineGroup
-	if err := common.Unmarshal(data, &list); err == nil {
-		*groups = list
-		return nil
-	}
-	var page struct {
-		Items []engineGroup `json:"items"`
-	}
-	if err := common.Unmarshal(data, &page); err != nil {
-		return err
-	}
-	*groups = page.Items
-	return nil
+type engineConcurrency struct {
+	ObservedAt         int64        `json:"observed_at_ms"`
+	CredentialLimit    int          `json:"credential_limit"`
+	DefaultQuotaBudget engineBudget `json:"default_quota_budget"`
+	Groups             []struct {
+		ID             int            `json:"id"`
+		Name           string         `json:"name"`
+		Enabled        bool           `json:"enabled"`
+		Current        int            `json:"current"`
+		OverrideLimit  *int           `json:"override_limit"`
+		EffectiveLimit int            `json:"effective_limit"`
+		QuotaSupported bool           `json:"quota_supported"`
+		QuotaEffective engineBudget   `json:"quota_effective"`
+		Counts         map[string]int `json:"counts"`
+		Credentials    []struct {
+			ID            int          `json:"id"`
+			Name          string       `json:"name"`
+			Status        string       `json:"status"`
+			FiveHour      engineWindow `json:"five_hour"`
+			SevenDay      engineWindow `json:"seven_day"`
+			Active        int          `json:"active"`
+			Sessions      int          `json:"sessions"`
+			CooldownUntil *int64       `json:"cooldown_until_ms"`
+			Activity      *struct {
+				LastUsedAt    *int64 `json:"last_used_at_ms"`
+				LastFailure   string `json:"last_failure_summary"`
+				LastFailureAt *int64 `json:"last_failure_at_ms"`
+				SuccessCount  int64  `json:"success_count"`
+				FailureCount  int64  `json:"failure_count"`
+			} `json:"activity"`
+			Account *struct {
+				State      string `json:"state"`
+				ObservedAt *int64 `json:"observed_at_ms"`
+				Email      string `json:"email"`
+				Plan       string `json:"plan"`
+				Tier       string `json:"tier"`
+			} `json:"account"`
+		} `json:"credentials"`
+	} `json:"groups"`
 }
 
-type engineAccounts struct {
-	Items []struct {
-		GroupID    int `json:"group_id"`
-		Credential struct {
-			CredentialID    int    `json:"credential_id"`
-			Mask            string `json:"mask"`
-			EffectiveStatus string `json:"effective_status"`
-			CooldownUntilMs *int64 `json:"cooldown_until_ms"`
-			Observation     struct {
-				Snapshot struct {
-					PlanSummary struct {
-						Name string `json:"name"`
-					} `json:"plan_summary"`
-					AccountSummary struct {
-						Tier string `json:"organization_rate_limit_tier"`
-					} `json:"account_summary"`
-					QuotaWindows []struct {
-						ID      string  `json:"id"`
-						Used    float64 `json:"used"`
-						ResetAt int64   `json:"reset_at_ms"`
-					} `json:"quota_windows"`
-				} `json:"snapshot"`
-			} `json:"observation"`
-		} `json:"credential"`
-	} `json:"items"`
+type engineEstimateHorizon struct {
+	RemainingUSD     float64 `json:"remaining_usd"`
+	RemainingLowUSD  float64 `json:"remaining_low_usd"`
+	RemainingHighUSD float64 `json:"remaining_high_usd"`
+	CapacityUSD      float64 `json:"capacity_usd"`
+	Counted          int     `json:"counted"`
+	Unknown          int     `json:"unknown"`
+}
+
+type engineEstimate struct {
+	FiveHour engineEstimateHorizon `json:"five_hour"`
+	Week     engineEstimateHorizon `json:"week"`
+	Refills  []EngineRefill        `json:"refills"`
+	Accounts []struct {
+		CredentialID int `json:"credential_id"`
+		FiveHour     struct {
+			RemainingUSD *float64 `json:"remaining_usd"`
+		} `json:"five_hour"`
+		SevenDay struct {
+			RemainingUSD *float64 `json:"remaining_usd"`
+		} `json:"seven_day"`
+		BurnUSDPerHour *float64 `json:"burn_usd_per_hour"`
+	} `json:"accounts"`
+}
+
+// maskEmail keeps the first letter and the domain: b***@example.com.
+func maskEmail(email string) string {
+	local, domain, ok := strings.Cut(email, "@")
+	if !ok || local == "" {
+		return email
+	}
+	return local[:1] + "***@" + domain
+}
+
+func percent(window engineWindow) float64 {
+	if window.Utilization == nil {
+		return 0
+	}
+	return math.Round(*window.Utilization*1000) / 10
+}
+
+func deref[T any](value *T) T {
+	var zero T
+	if value == nil {
+		return zero
+	}
+	return *value
 }
 
 func engineGet[T any](ctx context.Context, base string, key string, path string) (T, error) {
@@ -142,72 +240,117 @@ func engineGet[T any](ctx context.Context, base string, key string, path string)
 	return envelope.Data, nil
 }
 
-// FetchEnginePool reads the pool from the engine's control API. A missing
-// URL or key returns Configured false; a failed read returns the error in the
-// result so the rest of the dashboard still renders.
+// FetchEnginePool reads the pool from the engine's control API: every group
+// and account from /group-concurrency, the page the engine's own console
+// shows, and remaining dollars from its pool estimate. A missing URL or key
+// returns Configured false; a failed read returns the error in the result so
+// the rest of the dashboard still renders. A failed estimate leaves the
+// accounts in place.
 func FetchEnginePool(ctx context.Context) EnginePool {
 	base := strings.TrimRight(strings.TrimSpace(operation_setting.EngineControlURL), "/")
 	key := strings.TrimSpace(operation_setting.EngineControlKey)
+	pool := EnginePool{Groups: []EngineGroup{}, Accounts: []EngineAccount{}, Refills: []EngineRefill{}}
 	if base == "" || key == "" {
-		return EnginePool{Accounts: []EngineAccount{}}
+		return pool
 	}
-	pool := EnginePool{Configured: true, Accounts: []EngineAccount{}}
+	pool.Configured = true
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
-	settings, err := engineGet[engineSettings](ctx, base, key, "/settings")
+	snapshot, err := engineGet[engineConcurrency](ctx, base, key, "/group-concurrency")
 	if err != nil {
 		pool.Error = err.Error()
 		return pool
 	}
-	pool.CredentialConcurrency = settings.Values.CredentialConcurrencyLimit
-	if settings.Values.QuotaBudget.Enabled {
-		pool.FiveHourBudget = settings.Values.QuotaBudget.FiveHourPercent
-		pool.SevenDayBudget = settings.Values.QuotaBudget.SevenDayPercent
+	pool.ObservedAt = snapshot.ObservedAt
+	pool.CredentialConcurrency = snapshot.CredentialLimit
+	if snapshot.DefaultQuotaBudget.Enabled {
+		pool.FiveHourBudget = snapshot.DefaultQuotaBudget.FiveHourPercent
+		pool.SevenDayBudget = snapshot.DefaultQuotaBudget.SevenDayPercent
 	}
-	groups, err := engineGet[engineGroups](ctx, base, key, "/groups?page_size=100")
-	if err != nil {
-		pool.Error = err.Error()
-		return pool
-	}
-	groupNames := make(map[int]string, len(groups))
-	for _, group := range groups {
-		groupNames[group.ID] = group.Name
-	}
-	accounts, err := engineGet[engineAccounts](ctx, base, key, "/home/subscription-accounts")
-	if err != nil {
-		pool.Error = err.Error()
-		return pool
-	}
-	for _, item := range accounts.Items {
-		credential := item.Credential
-		account := EngineAccount{
-			CredentialID: credential.CredentialID,
-			Group:        groupNames[item.GroupID],
-			EmailMask:    credential.Mask,
-			Plan:         credential.Observation.Snapshot.PlanSummary.Name,
-			Tier:         credential.Observation.Snapshot.AccountSummary.Tier,
-			Status:       credential.EffectiveStatus,
+	for _, group := range snapshot.Groups {
+		row := EngineGroup{
+			ID:             group.ID,
+			Name:           group.Name,
+			Enabled:        group.Enabled,
+			InFlight:       group.Current,
+			EffectiveLimit: group.EffectiveLimit,
+			OverrideLimit:  group.OverrideLimit,
+			Accounts:       len(group.Credentials),
+			Counts:         group.Counts,
+			QuotaBudget:    group.QuotaSupported && group.QuotaEffective.Enabled,
 		}
-		if credential.CooldownUntilMs != nil {
-			account.CooldownUntil = *credential.CooldownUntilMs
+		if row.QuotaBudget {
+			row.FiveHourBudget = group.QuotaEffective.FiveHourPercent
+			row.SevenDayBudget = group.QuotaEffective.SevenDayPercent
 		}
-		for _, window := range credential.Observation.Snapshot.QuotaWindows {
-			switch window.ID {
-			case "five_hour":
-				account.FiveHour, account.FiveHourReset = window.Used, window.ResetAt
-			case "seven_day":
-				account.SevenDay, account.SevenDayReset = window.Used, window.ResetAt
+		pool.InFlight += group.Current
+		for _, credential := range group.Credentials {
+			account := EngineAccount{
+				CredentialID:  credential.ID,
+				GroupID:       group.ID,
+				Group:         group.Name,
+				EmailMask:     maskEmail(credential.Name),
+				Status:        credential.Status,
+				FiveHour:      percent(credential.FiveHour),
+				SevenDay:      percent(credential.SevenDay),
+				FiveHourReset: deref(credential.FiveHour.ResetAt),
+				SevenDayReset: deref(credential.SevenDay.ResetAt),
+				CooldownUntil: deref(credential.CooldownUntil),
+				Eligible:      group.Enabled && credential.Status == "available",
+				Active:        credential.Active,
+				Sessions:      credential.Sessions,
+			}
+			if observed := credential.Account; observed != nil {
+				if observed.Email != "" {
+					account.EmailMask = maskEmail(observed.Email)
+				}
+				account.Plan, account.Tier = observed.Plan, observed.Tier
+				account.Observation, account.ObservedAt = observed.State, deref(observed.ObservedAt)
+			}
+			if activity := credential.Activity; activity != nil {
+				account.Successes, account.Failures = activity.SuccessCount, activity.FailureCount
+				account.LastUsedAt = deref(activity.LastUsedAt)
+				account.LastFailure, account.LastFailureAt = activity.LastFailure, deref(activity.LastFailureAt)
+			}
+			if account.Eligible {
+				row.Eligible++
+			}
+			pool.Accounts = append(pool.Accounts, account)
+		}
+		if group.Enabled {
+			row.Slots = row.Eligible * snapshot.CredentialLimit
+			if group.EffectiveLimit > 0 {
+				row.Slots = min(row.Slots, group.EffectiveLimit)
 			}
 		}
-		account.Eligible = account.Status == "available" &&
-			(pool.FiveHourBudget == 0 || account.FiveHour < pool.FiveHourBudget) &&
-			(pool.SevenDayBudget == 0 || account.SevenDay < pool.SevenDayBudget)
-		if account.Eligible {
-			pool.EligibleAccounts++
-		}
-		pool.Accounts = append(pool.Accounts, account)
+		pool.EligibleAccounts += row.Eligible
+		pool.EffectiveSlots += row.Slots
+		pool.Groups = append(pool.Groups, row)
 	}
-	pool.EffectiveSlots = pool.EligibleAccounts * pool.CredentialConcurrency
+
+	estimate, err := engineGet[engineEstimate](ctx, base, key, "/group-concurrency/pool-estimate")
+	if err != nil {
+		pool.EstimateError = err.Error()
+		return pool
+	}
+	pool.FiveHour = &EngineHorizon{estimate.FiveHour.RemainingUSD, estimate.FiveHour.RemainingLowUSD,
+		estimate.FiveHour.RemainingHighUSD, estimate.FiveHour.CapacityUSD, estimate.FiveHour.Counted, estimate.FiveHour.Unknown}
+	pool.Week = &EngineHorizon{estimate.Week.RemainingUSD, estimate.Week.RemainingLowUSD,
+		estimate.Week.RemainingHighUSD, estimate.Week.CapacityUSD, estimate.Week.Counted, estimate.Week.Unknown}
+	if estimate.Refills != nil {
+		pool.Refills = estimate.Refills
+	}
+	byID := make(map[int]int, len(pool.Accounts))
+	for i, account := range pool.Accounts {
+		byID[account.CredentialID] = i
+	}
+	for _, row := range estimate.Accounts {
+		if i, ok := byID[row.CredentialID]; ok {
+			pool.Accounts[i].FiveHourRemainingUSD = row.FiveHour.RemainingUSD
+			pool.Accounts[i].SevenDayRemainingUSD = row.SevenDay.RemainingUSD
+			pool.Accounts[i].BurnUSDPerHour = row.BurnUSDPerHour
+		}
+	}
 	return pool
 }
