@@ -73,7 +73,7 @@ export type CapacityInsights = {
   in_flight_users: (UserRef & {
     in_flight: number
     limit: number
-    limit_source: 'user' | 'group'
+    limit_source: 'user' | 'tier' | 'group'
   })[]
   user_limits: (UserRef & {
     group: string
@@ -85,6 +85,7 @@ export type CapacityInsights = {
   limit_rejection_total: number
   limit_rejected_users: (UserRef & { count: number })[] | null
   concurrency_limits: Record<string, number> | null
+  concurrency_tiers: { min_paid: number; limit: number }[] | null
   pool: EnginePool
 }
 

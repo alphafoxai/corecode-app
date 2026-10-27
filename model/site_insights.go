@@ -23,7 +23,7 @@ const (
 	// InsightsMaxDays bounds the views that read hourly aggregates, orders
 	// and users.
 	InsightsMaxDays = 366
-	insightsTopN       = 10
+	insightsTopN    = 10
 )
 
 // InsightsRange is a half-open [Start, End) range in unix seconds. Offset is

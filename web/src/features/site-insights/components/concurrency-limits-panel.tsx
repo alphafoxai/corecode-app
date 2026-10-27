@@ -25,7 +25,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-import { resolveUserId, saveUserConcurrencyLimits } from '../api'
+import {
+  resolveUserId,
+  saveConcurrencyTiers,
+  saveUserConcurrencyLimits,
+} from '../api'
 import type { CapacityInsights } from '../types'
 import { Panel, SimpleTable, UserLabel } from './shared'
 
@@ -84,10 +88,14 @@ export function ConcurrencyLimitsPanel(props: {
     <Panel
       title={t('Concurrency limits')}
       description={t(
-        'A user limit replaces the group limit for that user, across all of their API keys. 0 means unlimited. Changes apply to the next request.'
+        'A user limit replaces every other limit for that user, across all of their API keys. 0 means unlimited. Without one, a user gets the higher of the group limit and the tier their paid total reaches. Changes apply to the next request.'
       )}
     >
       <div className='grid gap-4'>
+        <ConcurrencyTiersEditor
+          key={JSON.stringify(props.data?.concurrency_tiers ?? [])}
+          tiers={props.data?.concurrency_tiers ?? []}
+        />
         <p className='text-muted-foreground text-xs'>
           {t('Group limits')}:{' '}
           {groups.length > 0
@@ -179,5 +187,130 @@ export function ConcurrencyLimitsPanel(props: {
         />
       </div>
     </Panel>
+  )
+}
+
+type TierDraft = { id: number; minPaid: string; limit: string }
+
+/**
+ * Paid-total tiers: a user who has paid at least the amount, in the payment
+ * currency, may run the limit at once when that is above the group limit.
+ * Customers see them on the wallet and in the 429 message.
+ */
+function ConcurrencyTiersEditor(props: {
+  tiers: { min_paid: number; limit: number }[]
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [rows, setRows] = useState<TierDraft[]>(() =>
+    [...props.tiers]
+      .sort((a, b) => a.min_paid - b.min_paid)
+      .map((tier, index) => ({
+        id: index,
+        minPaid: String(tier.min_paid),
+        limit: String(tier.limit),
+      }))
+  )
+  const save = useMutation({
+    mutationFn: saveConcurrencyTiers,
+    onSuccess: () => {
+      toast.success(t('Concurrency tiers saved'))
+      queryClient.invalidateQueries({ queryKey: ['site-insights', 'capacity'] })
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : String(error)),
+  })
+  const update = (id: number, patch: Partial<TierDraft>) =>
+    setRows((current) =>
+      current.map((row) => (row.id === id ? { ...row, ...patch } : row))
+    )
+  const submit = () => {
+    const tiers = rows.map((row) => ({
+      min_paid: Number(row.minPaid),
+      limit: Number(row.limit),
+    }))
+    if (
+      tiers.some(
+        (tier) =>
+          !(tier.min_paid > 0) ||
+          !Number.isInteger(tier.limit) ||
+          tier.limit <= 0
+      )
+    ) {
+      toast.error(
+        t('Each tier needs a positive amount and a whole-number limit')
+      )
+      return
+    }
+    save.mutate(tiers.sort((a, b) => a.min_paid - b.min_paid))
+  }
+
+  return (
+    <div className='grid gap-2 rounded-lg border p-3'>
+      <div>
+        <h4 className='text-sm font-medium'>{t('Tiers by paid total')}</h4>
+        <p className='text-muted-foreground text-xs'>
+          {t(
+            'Paid through payment gateways, top-ups and plans, in the payment currency. Shown to customers on the wallet and in the 429 message.'
+          )}
+        </p>
+      </div>
+      {rows.map((row) => (
+        <div key={row.id} className='flex flex-wrap items-center gap-2 text-sm'>
+          <span className='text-muted-foreground'>{t('Paid at least')}</span>
+          <Input
+            className='w-32'
+            type='number'
+            min={0}
+            aria-label={t('Paid at least')}
+            value={row.minPaid}
+            onChange={(event) =>
+              update(row.id, { minPaid: event.target.value })
+            }
+          />
+          <span className='text-muted-foreground'>{t('runs at once')}</span>
+          <Input
+            className='w-24'
+            type='number'
+            min={1}
+            step={1}
+            aria-label={t('Limit')}
+            value={row.limit}
+            onChange={(event) => update(row.id, { limit: event.target.value })}
+          />
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            aria-label={t('Remove')}
+            onClick={() =>
+              setRows((current) => current.filter((item) => item.id !== row.id))
+            }
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      ))}
+      <div className='flex gap-2'>
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={() =>
+            setRows((current) => [
+              ...current,
+              {
+                id: Math.max(-1, ...current.map((row) => row.id)) + 1,
+                minPaid: '',
+                limit: '',
+              },
+            ])
+          }
+        >
+          {t('Add tier')}
+        </Button>
+        <Button size='sm' onClick={submit} disabled={save.isPending}>
+          {t('Save tiers')}
+        </Button>
+      </div>
+    </div>
   )
 }

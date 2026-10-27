@@ -33,6 +33,9 @@ import {
   UserLabel,
 } from './shared'
 
+// Where a live user's limit comes from, marked after the limit.
+const LIMIT_MARKS: Record<string, string> = { user: '*', tier: '↑' }
+
 export function CapacityTab(props: { data: CapacityInsights | undefined }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
@@ -295,7 +298,7 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         <Panel
           title={t('In flight by user')}
           description={t(
-            'Live, on this server. * marks a user limit; otherwise the limit comes from the group.'
+            'Live, on this server. * marks a user limit and ↑ a paid-total tier; otherwise the limit comes from the group.'
           )}
         >
           <SimpleTable
@@ -314,7 +317,7 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
                 align: 'right',
                 render: (row) =>
                   row.limit
-                    ? `${row.in_flight} / ${row.limit}${row.limit_source === 'user' ? '*' : ''}`
+                    ? `${row.in_flight} / ${row.limit}${LIMIT_MARKS[row.limit_source] ?? ''}`
                     : row.in_flight,
               },
             ]}

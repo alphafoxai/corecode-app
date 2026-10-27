@@ -122,8 +122,41 @@ func GetTopUpInfo(c *gin.Context) {
 		"discount":                operation_setting.GetPaymentSetting().AmountDiscount,
 		"bonus":                   operation_setting.GetPaymentSetting().AmountBonus,
 		"topup_link":              common.TopUpLink,
+		"concurrency":             userConcurrencyInfo(c.GetInt("id"), c.GetString("group")),
 	}
 	common.ApiSuccess(c, data)
+}
+
+// UserConcurrency tells a customer their concurrency limit, what they have
+// paid in total, and the tiers that raise the limit, for the wallet.
+type UserConcurrency struct {
+	Limit      int                                 `json:"limit"`
+	Source     string                              `json:"source"`
+	GroupLimit int                                 `json:"group_limit"`
+	PaidTotal  float64                             `json:"paid_total"`
+	Tiers      []operation_setting.ConcurrencyTier `json:"tiers"`
+}
+
+// userConcurrencyInfo reads the paid total afresh, so a customer who just
+// paid sees the new tier and the limiter picks it up at once.
+func userConcurrencyInfo(userID int, group string) UserConcurrency {
+	paid, err := model.RefreshUserPaidMoney(userID)
+	if err != nil {
+		paid = model.CachedUserPaidMoney(userID)
+	}
+	limit, source := operation_setting.EffectiveUserConcurrencyLimit(userID, group, func() float64 { return paid })
+	info := UserConcurrency{
+		Limit:      limit,
+		Source:     source,
+		GroupLimit: operation_setting.GetUserConcurrencyLimit(group),
+		PaidTotal:  paid,
+		Tiers:      []operation_setting.ConcurrencyTier{},
+	}
+	// A per-user limit or an unlimited group is not something to buy past.
+	if source != operation_setting.ConcurrencySourceUser && info.GroupLimit > 0 {
+		info.Tiers = operation_setting.GetTokenSetting().ConcurrencyTiers
+	}
+	return info
 }
 
 type EpayRequest struct {

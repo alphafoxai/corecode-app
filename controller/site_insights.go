@@ -47,7 +47,8 @@ func serveInsights[T any](c *gin.Context, maxDays int64, read func(model.Insight
 }
 
 // LiveUserConcurrency is one user's requests in flight on this instance.
-// LimitSource is "user" for a per-user override and "group" otherwise.
+// LimitSource is "user" for a per-user override, "tier" for a paid-total
+// tier and "group" otherwise.
 type LiveUserConcurrency struct {
 	model.UserRef
 	InFlight    int    `json:"in_flight"`
@@ -70,14 +71,15 @@ type UserConcurrencyOverride struct {
 // of all of them.
 type CapacityResponse struct {
 	*model.CapacityInsights
-	InFlight            int                       `json:"in_flight"`
-	InFlightUsers       []LiveUserConcurrency     `json:"in_flight_users"`
-	LimitRejections     []model.CountPoint        `json:"limit_rejections"`
-	LimitRejectionTotal int64                     `json:"limit_rejection_total"`
-	LimitRejectedUsers  []model.UserCount         `json:"limit_rejected_users"`
-	ConcurrencyLimits   map[string]int            `json:"concurrency_limits"`
-	UserLimits          []UserConcurrencyOverride `json:"user_limits"`
-	Pool                service.EnginePool        `json:"pool"`
+	InFlight            int                                 `json:"in_flight"`
+	InFlightUsers       []LiveUserConcurrency               `json:"in_flight_users"`
+	LimitRejections     []model.CountPoint                  `json:"limit_rejections"`
+	LimitRejectionTotal int64                               `json:"limit_rejection_total"`
+	LimitRejectedUsers  []model.UserCount                   `json:"limit_rejected_users"`
+	ConcurrencyLimits   map[string]int                      `json:"concurrency_limits"`
+	ConcurrencyTiers    []operation_setting.ConcurrencyTier `json:"concurrency_tiers"`
+	UserLimits          []UserConcurrencyOverride           `json:"user_limits"`
+	Pool                service.EnginePool                  `json:"pool"`
 }
 
 func GetCapacityInsights(c *gin.Context) {
@@ -90,6 +92,7 @@ func GetCapacityInsights(c *gin.Context) {
 			CapacityInsights:  insights,
 			InFlightUsers:     []LiveUserConcurrency{},
 			ConcurrencyLimits: operation_setting.GetTokenSetting().ConcurrencyLimits,
+			ConcurrencyTiers:  operation_setting.GetTokenSetting().ConcurrencyTiers,
 		}
 		inFlight := middleware.UserConcurrencySnapshot()
 		overrides := operation_setting.GetTokenSetting().UserConcurrencyLimits
@@ -112,7 +115,8 @@ func GetCapacityInsights(c *gin.Context) {
 				continue
 			}
 			response.InFlight += count
-			limit, source := operation_setting.EffectiveUserConcurrencyLimit(id, user.Group)
+			limit, source := operation_setting.EffectiveUserConcurrencyLimit(id, user.Group,
+				func() float64 { return model.CachedUserPaidMoney(id) })
 			response.InFlightUsers = append(response.InFlightUsers, LiveUserConcurrency{
 				UserRef:     model.UserRef{UserID: id, Username: user.Username},
 				InFlight:    count,

@@ -49,6 +49,7 @@ import {
   getPaymentIcon,
   getMinTopupAmount,
   calculatePresetPricing,
+  concurrencyAfterPaying,
 } from '../lib'
 import type {
   PaymentMethod,
@@ -277,6 +278,10 @@ export function RechargeFormCard({
                       const bonusTier = bonusAvailable
                         ? findBonusTier(bonusTiers, preset.value)
                         : null
+                      const raisedConcurrency = concurrencyAfterPaying(
+                        topupInfo?.concurrency,
+                        actualPrice
+                      )
                       return (
                         <Button
                           key={preset.value}
@@ -332,6 +337,13 @@ export function RechargeFormCard({
                                   displayValue * bonusTier.rate,
                                   locale
                                 ),
+                              })}
+                            </div>
+                          )}
+                          {raisedConcurrency && (
+                            <div className='text-primary mt-0.5 w-full text-xs font-medium'>
+                              {t('Concurrency up to {{count}}', {
+                                count: raisedConcurrency,
                               })}
                             </div>
                           )}
