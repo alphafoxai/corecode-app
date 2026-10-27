@@ -16,11 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/** Telegram account that answers enterprise pricing questions */
-export const ENTERPRISE_TELEGRAM_HANDLE = 'joe_alphafox'
-
-export const ENTERPRISE_TELEGRAM_URL = `https://t.me/${ENTERPRISE_TELEGRAM_HANDLE}`
-
 /**
  * Monthly spend bands, in the order the form lists them. `labelKey` is the
  * i18n key; the backend accepts only these values.
