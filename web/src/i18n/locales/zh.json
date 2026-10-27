@@ -7996,6 +7996,20 @@
     "{{time}}: peak {{peak}}, {{requests}} requests": "{{time}}：峰值 {{peak}}，{{requests}} 次请求",
     "{{time}}: {{engine}} pool full, {{upstream}} upstream limit": "{{time}}：账号池打满 {{engine}}，上游限流 {{upstream}}",
     "Funds": "资金",
-    "Has paid": "已付费"
+    "Has paid": "已付费",
+    "A user limit replaces the group limit for that user, across all of their API keys. 0 means unlimited. Changes apply to the next request.": "单独给用户设的上限会替代该用户的分组上限，按其所有 API 密钥合计。0 表示不限。修改后从下一个请求起生效。",
+    "Concurrency limits": "并发上限",
+    "Concurrency limits saved": "并发上限已保存",
+    "Enter a whole number, 0 for unlimited": "请输入整数，0 表示不限",
+    "Failed to save concurrency limits": "保存并发上限失败",
+    "Group limit": "分组上限",
+    "Group limits": "分组上限",
+    "Limit": "上限",
+    "Live, on this server. * marks a user limit; otherwise the limit comes from the group.": "本实例的实时数据。带 * 的是单独设置的用户上限，其余取自用户分组。",
+    "No user has its own limit; every user follows its group.": "还没有单独设置上限的用户，所有用户都按分组上限。",
+    "No user with that id or username": "找不到这个用户 ID 或用户名",
+    "Set limit": "设置上限",
+    "Set them in System Settings → Security → Token Limits.": "在 系统设置 → 安全 → 令牌限制 里修改。",
+    "User limit": "用户上限"
   }
 }

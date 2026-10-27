@@ -70,7 +70,17 @@ export type CapacityInsights = {
   user_peaks: (UserRef & { peak: number; peak_at: number; requests: number })[]
   truncated: boolean
   in_flight: number
-  in_flight_users: (UserRef & { in_flight: number; limit: number })[]
+  in_flight_users: (UserRef & {
+    in_flight: number
+    limit: number
+    limit_source: 'user' | 'group'
+  })[]
+  user_limits: (UserRef & {
+    group: string
+    limit: number
+    group_limit: number
+    in_flight: number
+  })[]
   limit_rejections: CountPoint[]
   limit_rejection_total: number
   concurrency_limits: Record<string, number> | null

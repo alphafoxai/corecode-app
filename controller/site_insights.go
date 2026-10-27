@@ -47,22 +47,35 @@ func serveInsights[T any](c *gin.Context, maxDays int64, read func(model.Insight
 }
 
 // LiveUserConcurrency is one user's requests in flight on this instance.
+// LimitSource is "user" for a per-user override and "group" otherwise.
 type LiveUserConcurrency struct {
 	model.UserRef
-	InFlight int `json:"in_flight"`
-	Limit    int `json:"limit"`
+	InFlight    int    `json:"in_flight"`
+	Limit       int    `json:"limit"`
+	LimitSource string `json:"limit_source"`
+}
+
+// UserConcurrencyOverride is one per-user limit, with the group limit it
+// replaces.
+type UserConcurrencyOverride struct {
+	model.UserRef
+	Group      string `json:"group"`
+	Limit      int    `json:"limit"`
+	GroupLimit int    `json:"group_limit"`
+	InFlight   int    `json:"in_flight"`
 }
 
 // CapacityResponse adds what only this process knows, the requests in flight
 // and the per-user limit's rejections, and the engine pool to the logs view.
 type CapacityResponse struct {
 	*model.CapacityInsights
-	InFlight            int                   `json:"in_flight"`
-	InFlightUsers       []LiveUserConcurrency `json:"in_flight_users"`
-	LimitRejections     []model.CountPoint    `json:"limit_rejections"`
-	LimitRejectionTotal int64                 `json:"limit_rejection_total"`
-	ConcurrencyLimits   map[string]int        `json:"concurrency_limits"`
-	Pool                service.EnginePool    `json:"pool"`
+	InFlight            int                       `json:"in_flight"`
+	InFlightUsers       []LiveUserConcurrency     `json:"in_flight_users"`
+	LimitRejections     []model.CountPoint        `json:"limit_rejections"`
+	LimitRejectionTotal int64                     `json:"limit_rejection_total"`
+	ConcurrencyLimits   map[string]int            `json:"concurrency_limits"`
+	UserLimits          []UserConcurrencyOverride `json:"user_limits"`
+	Pool                service.EnginePool        `json:"pool"`
 }
 
 func GetCapacityInsights(c *gin.Context) {
@@ -78,23 +91,47 @@ func GetCapacityInsights(c *gin.Context) {
 			ConcurrencyLimits: operation_setting.GetTokenSetting().ConcurrencyLimits,
 		}
 		inFlight, rejected := middleware.UserConcurrencySnapshot()
-		ids := make([]int, 0, len(inFlight))
+		overrides := operation_setting.GetTokenSetting().UserConcurrencyLimits
+		ids := make([]int, 0, len(inFlight)+len(overrides))
 		for id, count := range inFlight {
 			response.InFlight += count
 			ids = append(ids, id)
+		}
+		for key := range overrides {
+			if id, err := strconv.Atoi(key); err == nil {
+				ids = append(ids, id)
+			}
 		}
 		users, err := model.InsightsUsers(ids)
 		if err != nil {
 			return nil, err
 		}
-		for _, id := range ids {
+		for id, count := range inFlight {
 			user := users[id]
+			limit, source := operation_setting.EffectiveUserConcurrencyLimit(id, user.Group)
 			response.InFlightUsers = append(response.InFlightUsers, LiveUserConcurrency{
-				UserRef:  model.UserRef{UserID: id, Username: user.Username},
-				InFlight: inFlight[id],
-				Limit:    operation_setting.GetUserConcurrencyLimit(user.Group),
+				UserRef:     model.UserRef{UserID: id, Username: user.Username},
+				InFlight:    count,
+				Limit:       limit,
+				LimitSource: source,
 			})
 		}
+		response.UserLimits = []UserConcurrencyOverride{}
+		for key, limit := range overrides {
+			id, err := strconv.Atoi(key)
+			if err != nil {
+				continue
+			}
+			user := users[id]
+			response.UserLimits = append(response.UserLimits, UserConcurrencyOverride{
+				UserRef:    model.UserRef{UserID: id, Username: user.Username},
+				Group:      user.Group,
+				Limit:      limit,
+				GroupLimit: operation_setting.GetUserConcurrencyLimit(user.Group),
+				InFlight:   inFlight[id],
+			})
+		}
+		slices.SortFunc(response.UserLimits, func(a, b UserConcurrencyOverride) int { return cmp.Compare(a.UserID, b.UserID) })
 		slices.SortFunc(response.InFlightUsers, func(a, b LiveUserConcurrency) int {
 			return cmp.Or(cmp.Compare(b.InFlight, a.InFlight), cmp.Compare(a.UserID, b.UserID))
 		})

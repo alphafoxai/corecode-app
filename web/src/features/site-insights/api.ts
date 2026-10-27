@@ -80,3 +80,32 @@ export async function getInsights<V extends InsightsView>(
   }
   return res.data.data
 }
+
+type UserSearchPage = { items: { id: number; username: string }[] }
+
+/** Resolves a user id or an exact username to a user id. */
+export async function resolveUserId(input: string): Promise<number | null> {
+  const value = input.trim()
+  if (/^[1-9][0-9]*$/.test(value)) return Number(value)
+  const res = await api.get<ApiResponse<UserSearchPage>>('/api/user/search', {
+    params: { keyword: value, p: 1, page_size: 20 },
+  })
+  const match = res.data.data?.items.find((user) => user.username === value)
+  return match ? match.id : null
+}
+
+/**
+ * Saves the whole per-user concurrency map. The server replaces the stored
+ * map, so a removed user is gone after the save.
+ */
+export async function saveUserConcurrencyLimits(
+  limits: Record<string, number>
+): Promise<void> {
+  const res = await api.put<ApiResponse<unknown>>('/api/option/', {
+    key: 'token_setting.user_concurrency_limits',
+    value: JSON.stringify(limits),
+  })
+  if (!res.data.success) {
+    throw createServerError(res.data, 'Failed to save concurrency limits')
+  }
+}

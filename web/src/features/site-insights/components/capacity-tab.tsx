@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 
 import { useErrorCategoryLabel, useInsightsFormat } from '../lib'
 import type { CapacityInsights, EngineAccount } from '../types'
+import { ConcurrencyLimitsPanel } from './concurrency-limits-panel'
 import {
   BarSeries,
   Breakdown,
@@ -264,11 +265,13 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         </Panel>
       </div>
 
+      <ConcurrencyLimitsPanel data={data} />
+
       <div className='grid gap-4 lg:grid-cols-2'>
         <Panel
           title={t('In flight by user')}
           description={t(
-            'Live, on this server. Limit comes from the user group.'
+            'Live, on this server. * marks a user limit; otherwise the limit comes from the group.'
           )}
         >
           <SimpleTable
@@ -286,7 +289,9 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
                 label: t('In flight'),
                 align: 'right',
                 render: (row) =>
-                  row.limit ? `${row.in_flight} / ${row.limit}` : row.in_flight,
+                  row.limit
+                    ? `${row.in_flight} / ${row.limit}${row.limit_source === 'user' ? '*' : ''}`
+                    : row.in_flight,
               },
             ]}
           />
