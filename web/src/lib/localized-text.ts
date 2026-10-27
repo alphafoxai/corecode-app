@@ -85,7 +85,9 @@ export function localizeItem<T extends object>(item: T, language: string): T {
   if (!isPlainObject(translations)) return item
   const fields = pickLocale(translations, language, isPlainObject)
   if (!fields) return item
-  const localized: Record<string, unknown> = { ...(item as Record<string, unknown>) }
+  const localized: Record<string, unknown> = {
+    ...(item as Record<string, unknown>),
+  }
   for (const [field, text] of Object.entries(fields)) {
     if (typeof text === 'string' && text.trim() !== '') localized[field] = text
   }
