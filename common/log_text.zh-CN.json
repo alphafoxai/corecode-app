@@ -852,5 +852,8 @@
   "zhipu_image_get_b64_failed: %s": "智谱图片转 b64 失败: %s",
   "zhipu_image_missing_url": "智谱图片接口没有返回 URL",
   "¥%.6f quota": "¥%.6f 额度",
-  "＄%.6f quota": "＄%.6f 额度"
+  "＄%.6f quota": "＄%.6f 额度",
+  "failed to record concurrency rejections: %s": "并发上限拒绝数写入失败: %s",
+  "site insights hour %d not stored: %s": "全站看板小时汇总 %d 未保存: %s",
+  "site insights rollup failed after %d hours: %v": "全站看板小时汇总失败（已完成 %d 小时）: %v"
 }

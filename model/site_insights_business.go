@@ -197,20 +197,18 @@ func GetBusinessInsights(r InsightsRange) (*BusinessInsights, error) {
 	return result, nil
 }
 
-// clientBreakdown counts requests by the client product token logs carry
-// since it was added; older logs have none and count as unknown.
+// clientBreakdown counts successful requests by the client product token
+// logs carry since it was added; older logs have none and count as unknown.
 func clientBreakdown(r InsightsRange) ([]NamedCount, bool, error) {
-	logs, truncated, err := readInsightLogs(r, true, LogTypeConsume)
+	hours, err := loadInsightHours(r)
 	if err != nil {
 		return nil, false, err
 	}
 	counts := make(map[string]int64)
-	for _, log := range logs {
-		client := parseLogOther(log.Other).AdminInfo.Client
-		if client == "" {
-			client = "unknown"
-		}
-		counts[client]++
+	truncated := false
+	for _, hour := range hours {
+		mergeCounts(counts, hour.summary.Clients)
+		truncated = truncated || hour.summary.Truncated
 	}
 	result := sortedCounts(counts)
 	return result[:min(len(result), 20)], truncated, nil

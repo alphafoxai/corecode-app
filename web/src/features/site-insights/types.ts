@@ -83,6 +83,7 @@ export type CapacityInsights = {
   })[]
   limit_rejections: CountPoint[]
   limit_rejection_total: number
+  limit_rejected_users: (UserRef & { count: number })[] | null
   concurrency_limits: Record<string, number> | null
   pool: EnginePool
 }

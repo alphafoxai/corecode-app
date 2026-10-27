@@ -76,13 +76,6 @@ func parseLogOther(other string) logOtherFields {
 	return fields
 }
 
-func percentile(sorted []int64, p float64) int64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	return sorted[min(len(sorted)-1, int(float64(len(sorted))*p))]
-}
-
 // errorReason shortens an error log to its first clause, for grouping.
 func errorReason(content string) string {
 	reason := content
@@ -99,92 +92,73 @@ func errorReason(content string) string {
 }
 
 func GetQualityInsights(r InsightsRange) (*QualityInsights, error) {
-	logs, truncated, err := readInsightLogs(r, true, LogTypeConsume, LogTypeError)
+	hours, err := loadInsightHours(r)
 	if err != nil {
 		return nil, err
 	}
-	result := &QualityInsights{Truncated: truncated}
+	result := &QualityInsights{}
 	type modelBucket struct {
 		quality       ModelQuality
-		ttft, latency []int64
+		ttft, latency histogram
 		cache, input  int64
 	}
 	models := make(map[string]*modelBucket)
 	type dayBucket struct {
 		day  CacheDay
-		ttft []int64
+		ttft histogram
 	}
 	days := make(map[int64]*dayBucket)
 	for _, day := range r.days() {
-		days[day] = &dayBucket{day: CacheDay{Day: day}}
+		days[day] = &dayBucket{day: CacheDay{Day: day}, ttft: histogram{}}
 	}
 	streamEnds := make(map[string]int64)
 	statusCodes := make(map[string]int64)
 	reasons := make(map[string]int64)
-	var allTTFT []int64
+	allTTFT := histogram{}
 	var cacheRead, inputTotal int64
-	for _, log := range logs {
-		bucket := models[log.ModelName]
-		if bucket == nil {
-			bucket = &modelBucket{quality: ModelQuality{Model: log.ModelName}}
-			models[log.ModelName] = bucket
-		}
-		day := days[r.DayStart(log.CreatedAt)]
-		result.Requests++
-		bucket.quality.Requests++
-		if day != nil {
-			day.day.Requests++
-		}
-		if log.Type == LogTypeError {
-			result.Errors++
-			bucket.quality.Errors++
+	for _, hour := range hours {
+		result.Truncated = result.Truncated || hour.summary.Truncated
+		mergeCounts(streamEnds, hour.summary.StreamEnds)
+		mergeCounts(statusCodes, hour.summary.StatusCodes)
+		mergeCounts(reasons, hour.summary.ErrorReasons)
+		day := days[r.DayStart(hour.start)]
+		for name, model := range hour.models {
+			row := model.row
+			bucket := models[name]
+			if bucket == nil {
+				bucket = &modelBucket{quality: ModelQuality{Model: name}, ttft: histogram{}, latency: histogram{}}
+				models[name] = bucket
+			}
+			result.Requests += row.Requests
+			result.Errors += row.Errors
+			bucket.quality.Requests += row.Requests
+			bucket.quality.Errors += row.Errors
+			bucket.ttft.merge(model.ttft)
+			bucket.latency.merge(model.latency)
+			allTTFT.merge(model.ttft)
+			input := row.Uncached + row.CacheRead + row.CacheWrite
+			bucket.cache += row.CacheRead
+			bucket.input += input
+			cacheRead += row.CacheRead
+			inputTotal += input
 			if day != nil {
-				day.day.ErrorCount++
+				day.day.Requests += row.Requests
+				day.day.ErrorCount += row.Errors
+				day.day.Read += row.CacheRead
+				day.day.Write += row.CacheWrite
+				day.day.Uncached += row.Uncached
+				day.ttft.merge(model.ttft)
 			}
-			code := logStatusCode(log.Content)
-			statusCodes[statusCodeName(code)]++
-			reasons[errorReason(log.Content)]++
-			continue
-		}
-		other := parseLogOther(log.Other)
-		bucket.latency = append(bucket.latency, int64(log.UseTime))
-		if log.IsStream && other.Frt > 0 {
-			ttft := int64(other.Frt)
-			bucket.ttft = append(bucket.ttft, ttft)
-			allTTFT = append(allTTFT, ttft)
-			if day != nil {
-				day.ttft = append(day.ttft, ttft)
-			}
-		}
-		if log.IsStream {
-			reason := other.StreamStatus.EndReason
-			if reason == "" {
-				reason = "unknown"
-			}
-			streamEnds[reason]++
-		}
-		input := int64(log.PromptTokens) + other.CacheTokens + other.CacheCreationTokens
-		bucket.cache += other.CacheTokens
-		bucket.input += input
-		cacheRead += other.CacheTokens
-		inputTotal += input
-		if day != nil {
-			day.day.Read += other.CacheTokens
-			day.day.Write += other.CacheCreationTokens
-			day.day.Uncached += int64(log.PromptTokens)
 		}
 	}
-	slices.Sort(allTTFT)
-	result.TTFTP50, result.TTFTP95 = percentile(allTTFT, 0.5), percentile(allTTFT, 0.95)
+	result.TTFTP50, result.TTFTP95 = allTTFT.percentile(0.5), allTTFT.percentile(0.95)
 	result.ErrorRate = ratio(float64(result.Errors), float64(result.Requests))
 	result.CacheShare = ratio(float64(cacheRead), float64(inputTotal))
 	for _, bucket := range models {
-		slices.Sort(bucket.ttft)
-		slices.Sort(bucket.latency)
 		quality := bucket.quality
 		quality.ErrorRate = ratio(float64(quality.Errors), float64(quality.Requests))
-		quality.TTFTP50, quality.TTFTP95 = percentile(bucket.ttft, 0.5), percentile(bucket.ttft, 0.95)
-		quality.LatencyP50, quality.LatencyP95 = percentile(bucket.latency, 0.5), percentile(bucket.latency, 0.95)
+		quality.TTFTP50, quality.TTFTP95 = bucket.ttft.percentile(0.5), bucket.ttft.percentile(0.95)
+		quality.LatencyP50, quality.LatencyP95 = bucket.latency.percentile(0.5), bucket.latency.percentile(0.95)
 		quality.CacheShare = ratio(float64(bucket.cache), float64(bucket.input))
 		result.Models = append(result.Models, quality)
 	}
@@ -192,8 +166,7 @@ func GetQualityInsights(r InsightsRange) (*QualityInsights, error) {
 		return cmp.Or(cmp.Compare(b.Requests, a.Requests), cmp.Compare(a.Model, b.Model))
 	})
 	for _, bucket := range days {
-		slices.Sort(bucket.ttft)
-		bucket.day.TTFTP50 = percentile(bucket.ttft, 0.5)
+		bucket.day.TTFTP50 = bucket.ttft.percentile(0.5)
 		bucket.day.ReadShare = ratio(float64(bucket.day.Read), float64(bucket.day.Read+bucket.day.Write+bucket.day.Uncached))
 		bucket.day.ErrorRate = ratio(float64(bucket.day.ErrorCount), float64(bucket.day.Requests))
 		result.Daily = append(result.Daily, bucket.day)
