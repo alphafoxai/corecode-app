@@ -56,6 +56,7 @@ import {
   getSuccessRateTextClass,
 } from '@/features/performance-metrics/lib/format'
 import { PluginIcon } from '@/features/task-plugins/components/plugin-icon'
+import { useDocumentTitle } from '@/hooks/use-document-title'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
@@ -1611,6 +1612,7 @@ export function ModelDetailsDrawer(props: ModelDetailsDrawerProps) {
 export function ModelDetails() {
   const { t } = useTranslation()
   const { modelId } = useParams({ from: '/pricing/$modelId/' })
+  useDocumentTitle(modelId ? `${modelId} · ${t('Model Pricing')}` : undefined)
   const search = useSearch({ from: '/pricing/$modelId/' })
   const navigate = useNavigate()
 

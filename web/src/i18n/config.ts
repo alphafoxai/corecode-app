@@ -20,7 +20,7 @@ import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
-import { convertDetectedLanguage } from './languages'
+import { convertDetectedLanguage, toIntlLocale } from './languages'
 
 type LocaleModule = { default: { translation: Record<string, string> } }
 
@@ -46,6 +46,13 @@ const lazyLocales: BackendModule = {
     return load ? (await load()).default.translation : {}
   },
 }
+
+// <html lang> follows the interface language, for screen readers, browser
+// translation and search engines. index.html's value covers the first paint.
+i18n.on('languageChanged', (language) => {
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = toIntlLocale(language) ?? 'en'
+})
 
 // Resolves once the current language and the fallback are loaded, or have
 // failed to load; keys then render as their English source text.
