@@ -29,8 +29,13 @@ import {
 import { cn } from '@/lib/utils'
 
 import { useInsightsFormat } from '../lib'
-import type { EngineAccount, EngineGroup, EnginePool } from '../types'
-import { MetricGrid, Panel, SimpleTable } from './shared'
+import type {
+  EngineAccount,
+  EngineGroup,
+  EngineHorizon,
+  EnginePool,
+} from '../types'
+import { MetricGrid, Meter, Panel, SimpleTable, type Tone } from './shared'
 
 // Statuses that need an operator, as the engine's own console groups them.
 const ATTENTION = new Set([
@@ -97,8 +102,23 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
   const attention = accounts.filter((account) => ATTENTION.has(account.status))
   const five = pool?.five_hour_estimate
   const week = pool?.week_estimate
-  const usd = (value: number) => fmt.usd(Math.round(value))
+  const usd = (value: number) => fmt.usdWhole(value)
   const at = (ms: number) => (ms ? fmt.time(Math.floor(ms / 1000)) : '-')
+  const share = (horizon: EngineHorizon) =>
+    horizon.capacity_usd ? horizon.remaining_usd / horizon.capacity_usd : 0
+  const groups = new Map((pool?.groups ?? []).map((row) => [row.id, row]))
+  // The engine pauses an account at its group's budget, or at the default
+  // budget when the group is not known here.
+  const budgetOf = (row: EngineAccount, window: 'five' | 'seven') => {
+    const owner = groups.get(row.group_id)
+    if (owner) {
+      if (!owner.quota_budget) return 0
+      return window === 'five' ? owner.five_hour_budget : owner.seven_day_budget
+    }
+    return window === 'five'
+      ? (pool?.five_hour_budget ?? 0)
+      : (pool?.seven_day_budget ?? 0)
+  }
   const shown = accounts.filter(
     (account) =>
       (group === 'all' || String(account.group_id) === group) &&
@@ -141,13 +161,19 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
           {
             label: t('5-hour left'),
             value: five ? `≈ ${usd(five.remaining_usd)}` : '-',
+            help: t(
+              'Dollars schedulable accounts can still spend before their 5-hour budget line, estimated from their usage and calibrated capacity.'
+            ),
+            meter: five
+              ? {
+                  value: share(five),
+                  tone: remainingTone(share(five)),
+                  label: t('5-hour left'),
+                }
+              : undefined,
             hint: five
               ? t('{{share}} of {{capacity}}', {
-                  share: fmt.pct(
-                    five.capacity_usd
-                      ? five.remaining_usd / five.capacity_usd
-                      : 0
-                  ),
+                  share: fmt.pct(share(five)),
                   capacity: usd(five.capacity_usd),
                 })
               : pool?.estimate_error,
@@ -155,13 +181,19 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
           {
             label: t('7-day left'),
             value: week ? `≈ ${usd(week.remaining_usd)}` : '-',
+            help: t(
+              'Dollars schedulable accounts can still spend before their 7-day budget line, estimated from their usage and calibrated capacity.'
+            ),
+            meter: week
+              ? {
+                  value: share(week),
+                  tone: remainingTone(share(week)),
+                  label: t('7-day left'),
+                }
+              : undefined,
             hint: week
               ? t('{{share}} of {{capacity}}', {
-                  share: fmt.pct(
-                    week.capacity_usd
-                      ? week.remaining_usd / week.capacity_usd
-                      : 0
-                  ),
+                  share: fmt.pct(share(week)),
                   capacity: usd(week.capacity_usd),
                 })
               : undefined,
@@ -210,8 +242,18 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
               key: 'in_flight',
               label: t('In flight / limit'),
               align: 'right',
-              render: (row) =>
-                `${row.in_flight} / ${row.effective_limit || t('Unlimited')}`,
+              render: (row) => (
+                <span className='ml-auto grid w-28 justify-items-end gap-1'>
+                  {row.in_flight} / {row.effective_limit || t('Unlimited')}
+                  {row.effective_limit > 0 && (
+                    <Meter
+                      value={(row.in_flight / row.effective_limit) * 100}
+                      tone={loadTone(row.in_flight, row.effective_limit)}
+                      label={t('In flight / limit')}
+                    />
+                  )}
+                </span>
+              ),
             },
             {
               key: 'slots',
@@ -312,17 +354,22 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
             {
               key: 'active',
               label: t('In flight'),
+              hint: t('Requests in flight / sessions pinned to the account'),
               align: 'right',
               render: (row) => `${row.active} / ${row.sessions}`,
             },
             {
               key: 'five',
               label: t('5-hour'),
+              hint: t(
+                'The bar is the share of the window the account has used; the tick is its budget line, where the engine stops scheduling it.'
+              ),
               align: 'right',
               render: (row) => (
                 <WindowCell
+                  title={t('5-hour window')}
                   used={row.five_hour}
-                  budget={pool?.five_hour_budget ?? 0}
+                  budget={budgetOf(row, 'five')}
                   remaining={row.five_hour_remaining_usd}
                   reset={at(row.five_hour_reset_ms)}
                 />
@@ -331,11 +378,15 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
             {
               key: 'seven',
               label: t('7-day'),
+              hint: t(
+                'The bar is the share of the window the account has used; the tick is its budget line, where the engine stops scheduling it.'
+              ),
               align: 'right',
               render: (row) => (
                 <WindowCell
+                  title={t('7-day window')}
                   used={row.seven_day}
-                  budget={pool?.seven_day_budget ?? 0}
+                  budget={budgetOf(row, 'seven')}
                   remaining={row.seven_day_remaining_usd}
                   reset={at(row.seven_day_reset_ms)}
                 />
@@ -344,6 +395,7 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
             {
               key: 'burn',
               label: t('Spend / hour'),
+              hint: t('Logged spend over the last 24 hours, per hour'),
               align: 'right',
               render: (row) =>
                 row.burn_usd_per_hour == null
@@ -363,7 +415,34 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
   )
 }
 
+// Remaining shares below these read as running low.
+function remainingTone(share: number): Tone {
+  if (share < 0.1) return 'danger'
+  if (share < 0.25) return 'warning'
+  return 'default'
+}
+
+function loadTone(inFlight: number, limit: number): Tone {
+  if (inFlight >= limit) return 'danger'
+  if (inFlight >= limit * 0.8) return 'warning'
+  return 'default'
+}
+
+function usageTone(used: number, budget: number): Tone {
+  if (budget > 0 && used >= budget) return 'danger'
+  if (budget > 0 && used >= budget - 10) return 'warning'
+  return 'default'
+}
+
+const TEXT_TONES: Record<Tone, string> = {
+  default: '',
+  warning: 'text-amber-600 dark:text-amber-400',
+  danger: 'text-destructive font-medium',
+  good: '',
+}
+
 function WindowCell(props: {
+  title: string
   used: number
   budget: number
   remaining: number | null
@@ -371,27 +450,57 @@ function WindowCell(props: {
 }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
-  let tone: string | undefined
-  if (props.budget > 0 && props.used >= props.budget) {
-    tone = 'text-destructive font-medium'
-  } else if (props.budget > 0 && props.used >= props.budget - 10) {
-    tone = 'text-amber-600 dark:text-amber-400'
-  }
+  const tone = usageTone(props.used, props.budget)
+  const used = `${Math.round(props.used)}%`
   return (
-    <span className='grid justify-items-end'>
-      <span className={tone}>
-        {Math.round(props.used)}%
-        {props.remaining != null && (
-          <span className='text-muted-foreground'>
-            {' '}
-            · {fmt.usd(Math.round(props.remaining))}
-          </span>
-        )}
-      </span>
-      <span className='text-muted-foreground text-xs'>
-        {t('Resets {{time}}', { time: props.reset })}
-      </span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            tabIndex={0}
+            className='focus-visible:ring-ring/50 ml-auto grid w-40 cursor-default justify-items-end gap-1 rounded-sm outline-none focus-visible:ring-2'
+          />
+        }
+      >
+        <span className={TEXT_TONES[tone]}>
+          {used}
+          {props.remaining != null && (
+            <span className='text-muted-foreground font-normal'>
+              {' · '}
+              {t('{{amount}} left', { amount: fmt.usdWhole(props.remaining) })}
+            </span>
+          )}
+        </span>
+        <Meter
+          value={props.used}
+          marker={props.budget}
+          tone={tone}
+          label={`${props.title} ${used}`}
+        />
+        <span className='text-muted-foreground text-xs'>
+          {t('Resets {{time}}', { time: props.reset })}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className='block min-w-52 py-2'>
+        <p className='mb-1.5 font-semibold'>{props.title}</p>
+        <dl className='grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums'>
+          <dt className='opacity-80'>{t('Used')}</dt>
+          <dd className='text-right'>{used}</dd>
+          <dt className='opacity-80'>{t('Budget line')}</dt>
+          <dd className='text-right'>
+            {props.budget > 0 ? `${props.budget}%` : t('Off')}
+          </dd>
+          {props.remaining != null && (
+            <>
+              <dt className='opacity-80'>{t('Left before the line')}</dt>
+              <dd className='text-right'>≈ {fmt.usd(props.remaining)}</dd>
+            </>
+          )}
+          <dt className='opacity-80'>{t('Resets')}</dt>
+          <dd className='text-right'>{props.reset}</dd>
+        </dl>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -405,23 +514,36 @@ function ActivityCell(props: {
     success: row.successes,
     failure: row.failures,
   })
-  if (!row.last_failure) {
-    return <span className='text-xs'>{counts}</span>
-  }
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className='cursor-help text-xs underline decoration-dotted' />
+          <span
+            tabIndex={0}
+            className={cn(
+              'cursor-help text-xs outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/50',
+              row.last_failure &&
+                'underline decoration-dotted underline-offset-4'
+            )}
+          />
         }
       >
         {counts}
       </TooltipTrigger>
-      <TooltipContent className='max-w-sm'>
-        {t('Last failure {{time}}: {{reason}}', {
-          time: props.at(row.last_failure_at_ms),
-          reason: row.last_failure,
-        })}
+      <TooltipContent className='block max-w-sm py-2'>
+        <p>
+          {row.last_used_at_ms
+            ? t('Last used {{time}}', { time: props.at(row.last_used_at_ms) })
+            : t('No use recorded')}
+        </p>
+        {row.last_failure && (
+          <p className='mt-1 break-words opacity-80'>
+            {t('Last failure {{time}}: {{reason}}', {
+              time: props.at(row.last_failure_at_ms),
+              reason: row.last_failure,
+            })}
+          </p>
+        )}
       </TooltipContent>
     </Tooltip>
   )

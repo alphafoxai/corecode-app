@@ -45,6 +45,12 @@ export function useInsightsFormat() {
     currency: 'USD',
     maximumFractionDigits: 2,
   })
+  const usdWholeFormat = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
   const percent = new Intl.NumberFormat(locale, {
     style: 'percent',
     maximumFractionDigits: 1,
@@ -62,6 +68,7 @@ export function useInsightsFormat() {
   return {
     num: (value: number) => number.format(value),
     usd: (value: number) => usdFormat.format(value),
+    usdWhole: (value: number) => usdWholeFormat.format(Math.round(value)),
     cny: (value: number) => formatPaymentMoney(value),
     pct: (value: number) => percent.format(value),
     day: (unix: number) => day.format(new Date(unix * 1000)),
