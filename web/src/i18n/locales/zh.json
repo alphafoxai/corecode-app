@@ -8081,6 +8081,8 @@
     "No user with that id or username": "找不到这个用户 ID 或用户名",
     "Set limit": "设置上限",
     "Set them in System Settings → Security → Token Limits.": "在 系统设置 → 安全 → 令牌限制 里修改。",
-    "User limit": "用户上限"
+    "User limit": "用户上限",
+    "Subscription Remaining": "当前订阅剩余",
+    "No active subscription": "无生效中的订阅"
   }
 }

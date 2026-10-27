@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { Label } from '@/components/ui/label'
+import { getUserSubscriptions } from '@/features/subscriptions/api'
+import { getUserAffiliate } from '@/features/users/api'
 import { formatQuota, formatCompactNumber } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 
@@ -32,6 +34,14 @@ interface UserInfoDialogProps {
   userId: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+// Remaining quota across the subscriptions billing can draw from now, the
+// same set the backend treats as active: status active and not yet ended.
+interface SubscriptionRemaining {
+  activeCount: number
+  unlimited: boolean
+  remaining: number
 }
 
 function InfoItem({ label, value }: { label: string; value: string | number }) {
@@ -50,13 +60,40 @@ export function UserInfoDialog({
 }: UserInfoDialogProps) {
   const { t } = useTranslation()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+  const [subscriptionRemaining, setSubscriptionRemaining] =
+    useState<SubscriptionRemaining | null>(null)
+  const [inviterName, setInviterName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchUserInfo = useCallback(
     async (id: number) => {
       setIsLoading(true)
+      setSubscriptionRemaining(null)
+      setInviterName('')
       try {
-        const result = await getUserInfo(id)
+        // A failed subscription or inviter lookup leaves that row as '-'
+        // rather than hiding the rest of the user's information.
+        const [result, subscriptionsResult, affiliate] = await Promise.all([
+          getUserInfo(id),
+          getUserSubscriptions(id).catch(() => null),
+          getUserAffiliate(id).catch(() => null),
+        ])
+        setInviterName(affiliate?.inviter_name || '')
+        if (subscriptionsResult?.success) {
+          const now = Date.now() / 1000
+          const active = (subscriptionsResult.data || [])
+            .map((record) => record.subscription)
+            .filter((sub) => sub.status === 'active' && sub.end_time > now)
+          setSubscriptionRemaining({
+            activeCount: active.length,
+            unlimited: active.some((sub) => sub.amount_total <= 0),
+            remaining: active.reduce(
+              (sum, sub) =>
+                sum + Math.max(0, sub.amount_total - sub.amount_used),
+              0
+            ),
+          })
+        }
         if (result.success) {
           setUserInfo(result.data || null)
         } else {
@@ -76,6 +113,15 @@ export function UserInfoDialog({
       fetchUserInfo(userId)
     }
   }, [open, userId, fetchUserInfo])
+
+  let subscriptionRemainingText = '-'
+  if (subscriptionRemaining?.activeCount === 0) {
+    subscriptionRemainingText = t('No active subscription')
+  } else if (subscriptionRemaining?.unlimited) {
+    subscriptionRemainingText = t('Unlimited')
+  } else if (subscriptionRemaining) {
+    subscriptionRemainingText = formatQuota(subscriptionRemaining.remaining)
+  }
 
   return (
     <Dialog
@@ -116,6 +162,12 @@ export function UserInfoDialog({
             <InfoItem
               label={t('Used Quota')}
               value={formatQuota(userInfo.used_quota)}
+            />
+          </div>
+          <div className='grid grid-cols-2 gap-4'>
+            <InfoItem
+              label={t('Subscription Remaining')}
+              value={subscriptionRemainingText}
             />
           </div>
 
@@ -170,6 +222,8 @@ export function UserInfoDialog({
               </div>
             </div>
           )}
+
+          <InfoItem label={t('Inviter')} value={inviterName || '-'} />
         </div>
       )}
       {!isLoading && !userInfo && (

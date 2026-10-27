@@ -196,7 +196,10 @@ describe('localizeItem', () => {
 
   test('keeps the base fields a translation leaves out or blanks', () => {
     const item = { title: '标题', body: '正文', i18n: { en: { title: '' } } }
-    expect(localizeItem(item, 'en')).toMatchObject({ title: '标题', body: '正文' })
+    expect(localizeItem(item, 'en')).toMatchObject({
+      title: '标题',
+      body: '正文',
+    })
   })
 
   test('returns the item itself when it carries no translations', () => {

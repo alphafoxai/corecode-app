@@ -53,7 +53,8 @@ await Promise.all(
     if (raw.length < MIN_BYTES) return
     const compressed = await brotli(raw, {
       params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
+        [zlib.constants.BROTLI_PARAM_QUALITY]:
+          zlib.constants.BROTLI_MAX_QUALITY,
         [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length,
       },
     })
