@@ -467,20 +467,27 @@ func CountAffiliateInvitees(userId int) (int64, error) {
 // direct commission their consumption has earned the affiliate, and whether
 // they hold the gift plan. GiftPlan is "gifted" when an inviter gave it,
 // "owned" when they got it another way, and empty when they can be given it.
+//
+// CommissionBase is the part of UsedQuota that commission was paid on: the
+// consumption the invitee's own payments covered, summed over the same
+// credits as Commission, so Commission is CommissionBase at the rate of each
+// credit.
 type AffiliateInvitee struct {
-	Id         int    `json:"id"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	CreatedAt  int64  `json:"created_at"`
-	UsedQuota  int64  `json:"used_quota"`
-	Commission int64  `json:"commission"`
-	GiftPlan   string `json:"gift_plan"`
+	Id             int    `json:"id"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	CreatedAt      int64  `json:"created_at"`
+	UsedQuota      int64  `json:"used_quota"`
+	CommissionBase int64  `json:"commission_base"`
+	Commission     int64  `json:"commission"`
+	GiftPlan       string `json:"gift_plan"`
 }
 
 // AffiliateInviteeTotals sums AffiliateInvitee over every invitee.
 type AffiliateInviteeTotals struct {
-	UsedQuota  int64 `json:"used_quota"`
-	Commission int64 `json:"commission"`
+	UsedQuota      int64 `json:"used_quota"`
+	CommissionBase int64 `json:"commission_base"`
+	Commission     int64 `json:"commission"`
 }
 
 // ListAffiliateInvitees pages the users an affiliate invited, newest first.
@@ -500,19 +507,24 @@ func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateI
 	for _, user := range users {
 		ids = append(ids, user.Id)
 	}
-	commissions := make(map[int]int64, len(users))
+	type commissionSum struct {
+		Base   int64
+		Amount int64
+	}
+	commissions := make(map[int]commissionSum, len(users))
 	if len(ids) > 0 {
 		var rows []struct {
 			SourceUserId int
+			Base         int64
 			Amount       int64
 		}
-		if err := DB.Model(&AffiliateCommission{}).Select("source_user_id, COALESCE(SUM(amount), 0) AS amount").
+		if err := DB.Model(&AffiliateCommission{}).Select("source_user_id, COALESCE(SUM(base), 0) AS base, COALESCE(SUM(amount), 0) AS amount").
 			Where("user_id = ? AND level = 1 AND source_user_id IN ?", userId, ids).
 			Group("source_user_id").Scan(&rows).Error; err != nil {
 			return nil, 0, err
 		}
 		for _, row := range rows {
-			commissions[row.SourceUserId] = row.Amount
+			commissions[row.SourceUserId] = commissionSum{Base: row.Base, Amount: row.Amount}
 		}
 	}
 	giftPlans := make(map[int]string, len(users))
@@ -533,13 +545,14 @@ func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateI
 	invitees := make([]*AffiliateInvitee, 0, len(users))
 	for _, user := range users {
 		invitees = append(invitees, &AffiliateInvitee{
-			Id:         user.Id,
-			Name:       user.Username,
-			Email:      user.Email,
-			CreatedAt:  user.CreatedAt,
-			UsedQuota:  int64(user.UsedQuota),
-			Commission: commissions[user.Id],
-			GiftPlan:   giftPlans[user.Id],
+			Id:             user.Id,
+			Name:           user.Username,
+			Email:          user.Email,
+			CreatedAt:      user.CreatedAt,
+			UsedQuota:      int64(user.UsedQuota),
+			CommissionBase: commissions[user.Id].Base,
+			Commission:     commissions[user.Id].Amount,
+			GiftPlan:       giftPlans[user.Id],
 		})
 	}
 	return invitees, total, nil
@@ -552,9 +565,17 @@ func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
 		Select("COALESCE(SUM(used_quota), 0)").Scan(&totals.UsedQuota).Error; err != nil {
 		return totals, err
 	}
-	err := DB.Model(&AffiliateCommission{}).Where("user_id = ? AND level = 1", userId).
-		Select("COALESCE(SUM(amount), 0)").Scan(&totals.Commission).Error
-	return totals, err
+	var commission struct {
+		Base   int64
+		Amount int64
+	}
+	if err := DB.Model(&AffiliateCommission{}).Where("user_id = ? AND level = 1", userId).
+		Select("COALESCE(SUM(base), 0) AS base, COALESCE(SUM(amount), 0) AS amount").Scan(&commission).Error; err != nil {
+		return totals, err
+	}
+	totals.CommissionBase = commission.Base
+	totals.Commission = commission.Amount
+	return totals, nil
 }
 
 // AffiliateGiftPlan returns the plan a user can gift their invitees, or nil

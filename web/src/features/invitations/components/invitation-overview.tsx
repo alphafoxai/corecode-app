@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { StatusBadge } from '@/components/status-badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -78,6 +79,22 @@ export function InvitationOverview(props: InvitationOverviewProps) {
   return (
     <Card data-card-hover='false' className='bg-muted/20 py-0'>
       <CardContent className='grid gap-3 p-3 sm:gap-4 sm:p-4'>
+        {account && account.rate > 0 && (
+          <div className='flex flex-wrap items-center gap-2'>
+            <StatusBadge
+              label={t('Rate {{rate}}%', { rate: account.rate })}
+              variant='success'
+              copyable={false}
+            />
+            {account.channel && (
+              <StatusBadge
+                label={t('Promotion channel')}
+                variant='purple'
+                copyable={false}
+              />
+            )}
+          </div>
+        )}
         {link}
         <dl className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
           {stats.map(([label, value]) => (

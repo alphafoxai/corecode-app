@@ -104,7 +104,8 @@ it('lists each invitee with their spend and commission, and totals over all invi
           name: 'alice',
           email: 'alice@example.com',
           created_at: 1,
-          used_quota: 7 * QUOTA,
+          used_quota: 12 * QUOTA,
+          commission_base: 10 * QUOTA,
           commission: QUOTA,
           gift_plan: '',
         },
@@ -114,6 +115,7 @@ it('lists each invitee with their spend and commission, and totals over all invi
           email: '',
           created_at: 2,
           used_quota: 0,
+          commission_base: 0,
           commission: 0,
           gift_plan: '',
         },
@@ -121,7 +123,11 @@ it('lists each invitee with their spend and commission, and totals over all invi
       total: 12,
       page: 1,
       page_size: 20,
-      totals: { used_quota: 100 * QUOTA, commission: 30 * QUOTA },
+      totals: {
+        used_quota: 100 * QUOTA,
+        commission_base: 300 * QUOTA,
+        commission: 30 * QUOTA,
+      },
       gift_plan_title: '',
     },
     {
@@ -146,7 +152,10 @@ it('lists each invitee with their spend and commission, and totals over all invi
     within(row as HTMLElement).getByText('alice@example.com')
   ).toBeVisible()
   expect(
-    within(row as HTMLElement).getByText(formatQuota(7 * QUOTA))
+    within(row as HTMLElement).getByText(formatQuota(12 * QUOTA))
+  ).toBeVisible()
+  expect(
+    within(row as HTMLElement).getByText(formatQuota(10 * QUOTA))
   ).toBeVisible()
   expect(within(row as HTMLElement).getByText(formatQuota(QUOTA))).toBeVisible()
   expect(screen.getByText('bob')).toBeVisible()
@@ -162,6 +171,8 @@ it('lists each invitee with their spend and commission, and totals over all invi
     'Referral link'
   )) as HTMLInputElement
   expect(link.value).toMatch(/aff=AB12$/)
+  expect(screen.getByText('Rate 10%')).toBeVisible()
+  expect(screen.queryByText('Promotion channel')).toBeNull()
   expect(get).toHaveBeenCalledWith('/api/affiliate/self/invitees', {
     params: { p: 1, page_size: 20 },
   })
@@ -173,7 +184,7 @@ it('says invitations are unavailable when the user has no rate and shows the emp
     total: 0,
     page: 1,
     page_size: 20,
-    totals: { used_quota: 0, commission: 0 },
+    totals: { used_quota: 0, commission_base: 0, commission: 0 },
     gift_plan_title: '',
   })
 
@@ -182,6 +193,37 @@ it('says invitations are unavailable when the user has no rate and shows the emp
     screen.getByText('Invitations are not available for your account.')
   ).toBeVisible()
   expect(screen.queryByLabelText('Referral link')).toBeNull()
+  expect(screen.queryByText(/^Rate /)).toBeNull()
+})
+
+it('marks a promotion channel next to its rate', async () => {
+  renderPage(
+    {
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      totals: { used_quota: 0, commission_base: 0, commission: 0 },
+      gift_plan_title: '',
+    },
+    {
+      affiliate: {
+        id: 1,
+        user_id: 7,
+        rate: 30,
+        channel: true,
+        granted_by: 1,
+        balance: 0,
+        earned: 0,
+        created_at: 1,
+        updated_at: 1,
+      } as never,
+      aff_code: 'CH01',
+    }
+  )
+
+  expect(await screen.findByText('Rate 30%')).toBeVisible()
+  expect(screen.getByText('Promotion channel')).toBeVisible()
 })
 
 it('gifts the plan to an invitee who can receive it, after confirming', async () => {
@@ -195,6 +237,7 @@ it('gifts the plan to an invitee who can receive it, after confirming', async ()
     email: '',
     created_at: id,
     used_quota: 0,
+    commission_base: 0,
     commission: 0,
     gift_plan,
   })
@@ -207,7 +250,7 @@ it('gifts the plan to an invitee who can receive it, after confirming', async ()
     total: 3,
     page: 1,
     page_size: 20,
-    totals: { used_quota: 0, commission: 0 },
+    totals: { used_quota: 0, commission_base: 0, commission: 0 },
     gift_plan_title: 'Trial pack',
   })
   const post = vi

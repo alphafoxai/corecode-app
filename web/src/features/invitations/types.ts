@@ -28,6 +28,11 @@ export interface Invitee {
   created_at: number
   /** Everything the invitee has consumed, in quota */
   used_quota: number
+  /**
+   * The part of used_quota the commission was paid on: consumption covered
+   * by what the invitee paid, in quota
+   */
+  commission_base: number
   /** Direct commission the invitee's consumption earned the caller, in quota */
   commission: number
   /**
@@ -39,6 +44,7 @@ export interface Invitee {
 
 export interface InviteeTotals {
   used_quota: number
+  commission_base: number
   commission: number
 }
 

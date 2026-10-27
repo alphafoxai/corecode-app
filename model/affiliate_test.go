@@ -368,7 +368,7 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			useAffiliateTestDB(t, dialect)
 			dollars := func(n int) int64 { return int64(n * affiliateDollar) }
 
-			// A is a channel; B and D are A's invitees, and C is B's.
+			// A is a channel; B, D and E are A's invitees, and C is B's.
 			a := registerAffiliateTestUser(t, "aff_a", "")
 			_, err := SetAffiliate(a.Id, 30, true, 1)
 			require.NoError(t, err)
@@ -377,31 +377,37 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			require.NoError(t, err)
 			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
 			d := registerAffiliateTestUser(t, "aff_d", a.AffCode)
+			e := registerAffiliateTestUser(t, "aff_e", a.AffCode)
 			for _, user := range []*User{b, c, d} {
 				payAffiliateTestTopUp(t, user.Id, 1000, PaymentProviderEpay)
 			}
+			// E paid ¥5 and consumed $20, the rest from quota they did not pay for.
+			payAffiliateTestTopUp(t, e.Id, 5, PaymentProviderEpay)
 			consumeAffiliateTestQuota(t, b.Id, 100)
 			consumeAffiliateTestQuota(t, c.Id, 200)
 			consumeAffiliateTestQuota(t, d.Id, 7)
-			for _, user := range []*User{b, c, d} {
+			consumeAffiliateTestQuota(t, e.Id, 20)
+			for _, user := range []*User{b, c, d, e} {
 				settleAffiliateTestUser(t, user.Id)
 			}
 
 			invitees, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 1, PageSize: 10})
 			require.NoError(t, err)
-			assert.EqualValues(t, 2, total, "C is B's invitee, not A's")
-			require.Len(t, invitees, 2)
-			assert.Equal(t, AffiliateInvitee{Id: d.Id, Name: "aff_d", CreatedAt: d.CreatedAt, UsedQuota: dollars(7), Commission: 1050000}, *invitees[0], "newest first")
-			assert.Equal(t, AffiliateInvitee{Id: b.Id, Name: "aff_b", CreatedAt: b.CreatedAt, UsedQuota: dollars(100), Commission: dollars(30)}, *invitees[1],
+			assert.EqualValues(t, 3, total, "C is B's invitee, not A's")
+			require.Len(t, invitees, 3)
+			assert.Equal(t, AffiliateInvitee{Id: e.Id, Name: "aff_e", CreatedAt: e.CreatedAt, UsedQuota: dollars(20), CommissionBase: dollars(5), Commission: 750000}, *invitees[0],
+				"newest first; only the $5 E paid for earns commission")
+			assert.Equal(t, AffiliateInvitee{Id: d.Id, Name: "aff_d", CreatedAt: d.CreatedAt, UsedQuota: dollars(7), CommissionBase: dollars(7), Commission: 1050000}, *invitees[1])
+			assert.Equal(t, AffiliateInvitee{Id: b.Id, Name: "aff_b", CreatedAt: b.CreatedAt, UsedQuota: dollars(100), CommissionBase: dollars(100), Commission: dollars(30)}, *invitees[2],
 				"A's 5% on C's consumption is second-level and stays off B's row")
 
 			totals, err := SumAffiliateInvitees(a.Id)
 			require.NoError(t, err)
-			assert.Equal(t, AffiliateInviteeTotals{UsedQuota: dollars(107), Commission: dollars(30) + 1050000}, totals)
+			assert.Equal(t, AffiliateInviteeTotals{UsedQuota: dollars(127), CommissionBase: dollars(112), Commission: dollars(30) + 1050000 + 750000}, totals)
 
-			page, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 2, PageSize: 1})
+			page, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 3, PageSize: 1})
 			require.NoError(t, err)
-			assert.EqualValues(t, 2, total)
+			assert.EqualValues(t, 3, total)
 			require.Len(t, page, 1)
 			assert.Equal(t, dollars(100), page[0].UsedQuota)
 

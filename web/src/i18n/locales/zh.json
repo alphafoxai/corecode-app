@@ -8083,6 +8083,7 @@
     "Set them in System Settings → Security → Token Limits.": "在 系统设置 → 安全 → 令牌限制 里修改。",
     "User limit": "用户上限",
     "Subscription Remaining": "当前订阅剩余",
-    "No active subscription": "无生效中的订阅"
+    "No active subscription": "无生效中的订阅",
+    "Paid spend": "累计真实充值消费"
   }
 }
