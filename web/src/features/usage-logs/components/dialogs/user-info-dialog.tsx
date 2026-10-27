@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog } from '@/components/dialog'
 import { Label } from '@/components/ui/label'
 import { getUserSubscriptions } from '@/features/subscriptions/api'
+import { getUserAffiliate } from '@/features/users/api'
 import { formatQuota, formatCompactNumber } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 
@@ -61,19 +62,23 @@ export function UserInfoDialog({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [subscriptionRemaining, setSubscriptionRemaining] =
     useState<SubscriptionRemaining | null>(null)
+  const [inviterName, setInviterName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchUserInfo = useCallback(
     async (id: number) => {
       setIsLoading(true)
       setSubscriptionRemaining(null)
+      setInviterName('')
       try {
-        // A failed subscription lookup leaves that row as '-' rather than
-        // hiding the rest of the user's information.
-        const [result, subscriptionsResult] = await Promise.all([
+        // A failed subscription or inviter lookup leaves that row as '-'
+        // rather than hiding the rest of the user's information.
+        const [result, subscriptionsResult, affiliate] = await Promise.all([
           getUserInfo(id),
           getUserSubscriptions(id).catch(() => null),
+          getUserAffiliate(id).catch(() => null),
         ])
+        setInviterName(affiliate?.inviter_name || '')
         if (subscriptionsResult?.success) {
           const now = Date.now() / 1000
           const active = (subscriptionsResult.data || [])
@@ -217,6 +222,8 @@ export function UserInfoDialog({
               </div>
             </div>
           )}
+
+          <InfoItem label={t('Inviter')} value={inviterName || '-'} />
         </div>
       )}
       {!isLoading && !userInfo && (

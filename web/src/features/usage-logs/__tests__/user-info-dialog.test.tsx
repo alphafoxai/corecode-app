@@ -47,7 +47,10 @@ function subscription(fields: object) {
   }
 }
 
-function renderDialog(subscriptions: object[] | Error) {
+function renderDialog(
+  subscriptions: object[] | Error,
+  inviter = { inviter_id: 0, inviter_name: '' }
+) {
   vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
     if (url === '/api/user/7') {
       return {
@@ -60,6 +63,9 @@ function renderDialog(subscriptions: object[] | Error) {
     if (url === '/api/subscription/admin/users/7/subscriptions') {
       if (subscriptions instanceof Error) throw subscriptions
       return { data: { success: true, data: subscriptions } }
+    }
+    if (url === '/api/affiliate/admin/users/7') {
+      return { data: { success: true, data: inviter } }
     }
     throw new Error(`unexpected ${url}`)
   })
@@ -117,4 +123,18 @@ it('keeps the user information when the subscription lookup fails', async () => 
 
   expect(await subscriptionRemaining()).toHaveTextContent('-')
   expect(screen.getByText('alice')).toBeVisible()
+})
+
+it('names the inviter of an invited user', async () => {
+  renderDialog([], { inviter_id: 3, inviter_name: 'bob' })
+
+  const label = await screen.findByText('Inviter')
+  expect(label.nextElementSibling).toHaveTextContent('bob')
+})
+
+it('shows a dash for a user nobody invited', async () => {
+  renderDialog([])
+
+  const label = await screen.findByText('Inviter')
+  expect(label.nextElementSibling).toHaveTextContent(/^-$/)
 })
