@@ -16,6 +16,8 @@ the limit turns them away.
   `{min_paid, limit}`, defaulting to 1,000 → 10 and 2,000 → 20. `PUT
   /api/option/` rejects a non-positive amount or limit and a repeated
   amount. The root dashboard's concurrency panel edits them.
+  Superseded on 2026-10-27: the operator moved 20 at once to 10,000 paid,
+  and the default follows, so a fresh database matches production.
 - **Paid total is what `AffiliatePaidMoney` already sums:** successful
   orders through payment gateways, top-ups and plans, in the payment
   currency. Orders paid from the wallet are left out because that money was

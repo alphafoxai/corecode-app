@@ -38,7 +38,7 @@ var tokenSetting = TokenSetting{
 	MaxUserTokens:         1000, // 默认每用户最多 1000 个令牌
 	ConcurrencyLimits:     map[string]int{},
 	UserConcurrencyLimits: map[string]int{},
-	ConcurrencyTiers:      []ConcurrencyTier{{MinPaid: 1000, Limit: 10}, {MinPaid: 2000, Limit: 20}},
+	ConcurrencyTiers:      []ConcurrencyTier{{MinPaid: 1000, Limit: 10}, {MinPaid: 10000, Limit: 20}},
 }
 
 func init() {
