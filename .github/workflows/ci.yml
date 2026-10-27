@@ -74,7 +74,9 @@ jobs:
 
       - name: Vet and test the Go module
         run: |
-          set -eu
+          # pipefail: the test output is piped to tail, and without it the step
+          # takes tail's exit status, so a failing test would pass the job.
+          set -euo pipefail
           go vet ./...
           go test ./common/... ./controller/... ./middleware/... ./model/... ./service/... 2>&1 | tail -40
           go test -race ./pkg/deployment
