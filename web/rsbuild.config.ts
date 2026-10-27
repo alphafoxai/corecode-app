@@ -118,6 +118,17 @@ export default defineConfig(({ envMode }) => {
     },
     tools: {
       rspack: {
+        module: {
+          rules: [
+            {
+              test: /\.json$/,
+              resourceQuery: /overrides/,
+              use: [
+                path.resolve(__dirname, 'scripts/i18n-en-overrides-loader.cjs'),
+              ],
+            },
+          ],
+        },
         plugins: [
           tanstackRouter({
             target: 'react',

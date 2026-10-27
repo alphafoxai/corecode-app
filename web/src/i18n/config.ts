@@ -27,11 +27,14 @@ type LocaleModule = { default: { translation: Record<string, string> } }
 // Each locale is 0.5–0.8 MB and a visitor reads one, so each loads as its own
 // chunk on demand instead of all seven riding in the entry bundle. Every locale
 // carries every key (locales.test.ts), so a supported language loads alone and
-// `en` is the fallback only for a language the console does not offer. The
-// chunk names let index.html preload the visitor's locale beside the entry
+// `en` is the fallback only for a language the console does not offer. English
+// loads only the entries that differ from their keys
+// (scripts/i18n-en-overrides-loader.cjs); the rest render as the key itself.
+// The chunk names let index.html preload the visitor's locale beside the entry
 // bundle (pluginPreloadLocale in rsbuild.config.ts).
 const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
-  en: () => import(/* webpackChunkName: "locale-en" */ './locales/en.json'),
+  en: () =>
+    import(/* webpackChunkName: "locale-en" */ './locales/en.json?overrides'),
   zhCN: () => import(/* webpackChunkName: "locale-zhCN" */ './locales/zh.json'),
   fr: () => import(/* webpackChunkName: "locale-fr" */ './locales/fr.json'),
   ru: () => import(/* webpackChunkName: "locale-ru" */ './locales/ru.json'),

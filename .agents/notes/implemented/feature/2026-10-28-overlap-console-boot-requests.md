@@ -32,12 +32,18 @@ the `en` chunk was never read for a Chinese visitor.
   refresh that is in flight, so the root guard awaits the same request.
   `prefetchSetupStatus()` stores the check, and the root guard takes it with
   `takeSetupStatus()`. A later check in the same page load, such as the one
-  after setup completes, makes a fresh request. `router.loadRouteChunk()`
-  caches its promise on the route, so the router reuses the download.
+  after setup completes, makes a fresh request. The route chunks load through
+  `preloadCurrentRouteCode`, described in
+  `../bug-fix/2026-10-27-shorten-the-console-boot-waterfall.md`;
+  `router.loadRouteChunk()` caches its promise on the route, so the router
+  reuses the download.
 - **A supported language loads alone.** `fallbackLng` maps each supported
   language to no fallback and keeps `en` for unsupported languages.
   `locales.test.ts` fails when a locale lacks a value for any `en` key, since a
-  missing key would now render as its source text.
+  missing key would now render as its source text. The `en` chunk itself
+  carries only the entries that differ from their keys
+  (`2026-10-27-shorten-the-console-boot-waterfall.md`), so an English or
+  unsupported-language visitor loads a few KB.
 - **`index.html` preloads the visitor's locale beside the entry bundle.** The
   locale imports carry `webpackChunkName: "locale-<code>"`, and
   `pluginPreloadLocale` in `rsbuild.config.ts` writes an inline script with the

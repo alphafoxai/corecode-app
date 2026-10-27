@@ -18,6 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 /// <reference types="@rsbuild/core/types" />
 
+// A locale with only its non-source-text entries; see config.ts.
+declare module '*.json?overrides' {
+  const locale: { translation: Record<string, string> }
+  export default locale
+}
+
 declare module '@visactor/react-vchart' {
   export const VChart: React.ComponentType<Record<string, unknown>>
 }
