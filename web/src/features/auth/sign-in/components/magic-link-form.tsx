@@ -433,9 +433,10 @@ function MagicLinkCodeStep({
         {t('Sign in')}
       </Button>
 
-      <p className='text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5 text-sm'>
-        {t('You can also open the link in the email to sign in.')}
-      </p>
+      <div className='text-muted-foreground bg-muted/50 space-y-1 rounded-lg px-3 py-2.5 text-sm'>
+        <p>{t('You can also open the link in the email to sign in.')}</p>
+        <p>{t('No email? Check your spam or junk folder.')}</p>
+      </div>
 
       {resendSecondsLeft === 0 && humanCheck}
 
