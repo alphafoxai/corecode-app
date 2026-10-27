@@ -112,33 +112,37 @@ export function QualityTab(props: { data: QualityInsights | undefined }) {
         <Panel title={t('Input tokens by cache use')}>
           <BarSeries
             ariaLabel={t('Input tokens by cache use')}
-            legend={[t('Cache read'), t('Cache write'), t('Uncached')]}
+            series={[
+              { label: t('Cache read') },
+              { label: t('Cache write') },
+              { label: t('Uncached') },
+            ]}
             points={(data?.daily ?? []).map((day) => ({
               key: day.day,
+              title: fmt.day(day.day),
               values: [day.read, day.write, day.uncached],
-              label: t(
-                '{{date}}: {{share}} read from cache, TTFT p50 {{ttft}}',
+              extra: [
                 {
-                  date: fmt.day(day.day),
-                  share: fmt.pct(day.read_share),
-                  ttft: fmt.ms(day.ttft_p50_ms),
-                }
-              ),
+                  label: t('Cache read share'),
+                  value: fmt.pct(day.read_share),
+                },
+                { label: t('TTFT p50'), value: fmt.ms(day.ttft_p50_ms) },
+              ],
             }))}
           />
         </Panel>
         <Panel title={t('Daily failure rate')}>
           <BarSeries
             ariaLabel={t('Daily failure rate')}
+            series={[{ label: t('Failure rate'), format: fmt.pct }]}
             points={(data?.daily ?? []).map((day) => ({
               key: day.day,
+              title: fmt.day(day.day),
               values: [day.error_rate],
-              label: t('{{date}}: {{rate}} ({{errors}} of {{requests}})', {
-                date: fmt.day(day.day),
-                rate: fmt.pct(day.error_rate),
-                errors: day.errors,
-                requests: day.requests,
-              }),
+              extra: [
+                { label: t('Failed'), value: fmt.num(day.errors) },
+                { label: t('Requests'), value: fmt.num(day.requests) },
+              ],
             }))}
           />
         </Panel>

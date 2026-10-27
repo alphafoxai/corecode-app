@@ -85,19 +85,20 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
       >
         <BarSeries
           ariaLabel={t('Daily revenue')}
-          legend={[t('Top-ups'), t('Subscriptions')]}
+          series={[
+            { label: t('Top-ups'), format: fmt.cny },
+            { label: t('Subscriptions'), format: fmt.cny },
+          ]}
           points={(data?.daily ?? []).map((day) => ({
             key: day.day,
+            title: fmt.day(day.day),
             values: [day.topup, day.subscription],
-            label: t(
-              '{{date}}: top-ups {{topup}}, plans {{plan}}, consumed {{used}}',
+            extra: [
               {
-                date: fmt.day(day.day),
-                topup: fmt.cny(day.topup),
-                plan: fmt.cny(day.subscription),
-                used: fmt.usd(day.consumption_usd),
-              }
-            ),
+                label: t('Consumed at list price'),
+                value: fmt.usd(day.consumption_usd),
+              },
+            ],
           }))}
         />
       </Panel>

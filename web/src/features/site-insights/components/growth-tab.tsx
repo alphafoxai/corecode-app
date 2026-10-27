@@ -116,23 +116,19 @@ export function GrowthTab(props: { data: GrowthInsights | undefined }) {
       <Panel title={t('Sign-ups by day and what they did')}>
         <BarSeries
           ariaLabel={t('Sign-ups by day')}
-          legend={[t('Has paid'), t('Activated, not paid'), t('Not activated')]}
+          series={[
+            { label: t('Has paid') },
+            { label: t('Activated, not paid') },
+            { label: t('Not activated') },
+          ]}
           points={(data?.daily ?? []).map((day) => ({
             key: day.day,
+            title: fmt.day(day.day),
             values: [
               day.paid,
               Math.max(day.activated - day.paid, 0),
               Math.max(day.registered - day.activated, 0),
             ],
-            label: t(
-              '{{date}}: {{registered}} registered, {{activated}} activated, {{paid}} paid',
-              {
-                date: fmt.day(day.day),
-                registered: day.registered,
-                activated: day.activated,
-                paid: day.paid,
-              }
-            ),
           }))}
         />
       </Panel>
@@ -189,28 +185,24 @@ export function ActivityTab(props: { data: ActivityInsights | undefined }) {
         <Panel title={t('Daily active users')}>
           <BarSeries
             ariaLabel={t('Daily active users')}
+            series={[{ label: t('DAU') }]}
             points={(data?.daily ?? []).map((day) => ({
               key: day.day,
+              title: fmt.day(day.day),
               values: [day.dau],
-              label: t('{{date}}: DAU {{dau}}, WAU {{wau}}', {
-                date: fmt.day(day.day),
-                dau: day.dau,
-                wau: day.wau,
-              }),
+              extra: [{ label: t('WAU'), value: fmt.num(day.wau) }],
             }))}
           />
         </Panel>
         <Panel title={t('Daily consumption')}>
           <BarSeries
             ariaLabel={t('Daily consumption')}
+            series={[{ label: t('Consumption'), format: fmt.usd }]}
             points={(data?.daily ?? []).map((day) => ({
               key: day.day,
+              title: fmt.day(day.day),
               values: [day.quota_usd],
-              label: t('{{date}}: {{amount}}, {{requests}} requests', {
-                date: fmt.day(day.day),
-                amount: fmt.usd(day.quota_usd),
-                requests: day.requests,
-              }),
+              extra: [{ label: t('Requests'), value: fmt.num(day.requests) }],
             }))}
           />
         </Panel>
