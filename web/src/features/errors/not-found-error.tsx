@@ -20,11 +20,15 @@ import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { useDocumentTitle } from '@/hooks/use-document-title'
+import { useNoIndex } from '@/hooks/use-no-index'
 
 export function NotFoundError() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
+  useNoIndex()
+  useDocumentTitle('404')
   return (
     <div className='h-svh'>
       <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
