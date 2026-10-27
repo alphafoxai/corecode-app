@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -291,4 +292,25 @@ func TestAutoDisableSkipsRequestsThatUsedTokenUpstreamKey(t *testing.T) {
 	assert.True(t, autoDisableRequested(c, channelError, apiErr), "a channel-key failure disables the channel")
 	common.SetContextKey(c, constant.ContextKeyChannelUpstreamKeyUsed, true)
 	assert.False(t, autoDisableRequested(c, channelError, apiErr), "a token-upstream-key failure must not disable the shared channel")
+}
+
+func TestRelayLogAdminInfoCarriesRequestBodyRead(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"m"}`))
+	t.Cleanup(func() { common.CleanupBodyStorage(c) })
+	_, err := common.GetRequestBody(c)
+	require.NoError(t, err)
+
+	other := model.NewLogOther()
+	AppendRelayLogAdminInfo(c, nil, other)
+	read, ok := other.Snapshot()["admin_info"].(map[string]any)["request_body"].(common.RequestBodyRead)
+	require.True(t, ok, "consume and error logs record how the body was read")
+	assert.Equal(t, int64(13), read.Bytes)
+	assert.Equal(t, int64(13), read.ContentLength)
+	assert.Empty(t, read.Error)
+
+	unread, _ := gin.CreateTestContext(httptest.NewRecorder())
+	untouched := model.NewLogOther()
+	AppendRelayLogAdminInfo(unread, nil, untouched)
+	assert.NotContains(t, untouched.Snapshot()["admin_info"], "request_body", "a request whose body was never read has no measurement")
 }

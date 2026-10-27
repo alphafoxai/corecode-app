@@ -24,6 +24,41 @@ import (
 const KeyRequestBody = "key_request_body"
 const KeyBodyStorage = "key_body_storage"
 const keyBodyReadError = "key_body_read_error"
+const keyRequestBodyRead = "key_request_body_read"
+
+// RequestBodyRead describes how GetRequestBody read the client's body: its
+// declared and received sizes, how long the read took, and why it failed.
+// It never holds body content. Bytes counts what the handler received, which
+// for a compressed upload is the decompressed size while ContentLength is the
+// size on the wire.
+type RequestBodyRead struct {
+	ContentLength int64  `json:"content_length"`
+	Bytes         int64  `json:"bytes"`
+	ReadMs        int64  `json:"read_ms"`
+	Error         string `json:"error,omitempty"`
+}
+
+// GetRequestBodyRead returns the measurement of the request's body read, made
+// once when GetRequestBody first consumes the body.
+func GetRequestBodyRead(c *gin.Context) (RequestBodyRead, bool) {
+	value, exists := c.Get(keyRequestBodyRead)
+	if !exists {
+		return RequestBodyRead{}, false
+	}
+	read, ok := value.(RequestBodyRead)
+	return read, ok
+}
+
+type countingReader struct {
+	reader io.Reader
+	bytes  int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytes += int64(n)
+	return n, err
+}
 
 var ErrRequestBodyTooLarge = errors.New("request body too large")
 
@@ -77,16 +112,26 @@ func GetRequestBody(c *gin.Context) (io.Seeker, error) {
 	contentLength := c.Request.ContentLength
 
 	// 使用新的存储系统
-	storage, err := CreateBodyStorageFromReader(c.Request.Body, contentLength, maxBytes)
+	body := &countingReader{reader: c.Request.Body}
+	started := time.Now()
+	storage, err := CreateBodyStorageFromReader(body, contentLength, maxBytes)
 	_ = c.Request.Body.Close()
+	read := RequestBodyRead{
+		ContentLength: contentLength,
+		Bytes:         body.bytes,
+		ReadMs:        time.Since(started).Milliseconds(),
+	}
 
 	if err != nil {
 		if IsRequestBodyTooLargeError(err) {
 			err = errors.Wrap(ErrRequestBodyTooLarge, fmt.Sprintf("request body exceeds %d MB", maxMB))
 		}
+		read.Error = err.Error()
+		c.Set(keyRequestBodyRead, read)
 		c.Set(keyBodyReadError, err)
 		return nil, err
 	}
+	c.Set(keyRequestBodyRead, read)
 
 	// 缓存存储对象
 	c.Set(KeyBodyStorage, storage)

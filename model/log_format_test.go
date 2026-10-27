@@ -303,3 +303,29 @@ func TestRecordClientIPIsHiddenFromUsersWhoDidNotAskForIt(t *testing.T) {
 		assert.Empty(t, ip, "an export of an opted-out user's logs carries no IP")
 	}
 }
+
+// TestRequestBodyReadIsAdminOnly pins that how a request body was read reaches
+// administrators and not the customer who sent it.
+func TestRequestBodyReadIsAdminOnly(t *testing.T) {
+	other := NewLogOther()
+	other.SetPublic("model_price", 0.004)
+	other.SetAdmin("request_body", common.RequestBodyRead{ContentLength: 4096, Bytes: 20, ReadMs: 79000, Error: "unexpected EOF"})
+	userLogs := []*Log{{Other: other.JSONString()}}
+	adminLogs := []*Log{{Other: other.JSONString()}}
+
+	formatUserLogs(userLogs, 0)
+	FormatAdminLogs(adminLogs)
+
+	userView, err := common.StrToMap(userLogs[0].Other)
+	require.NoError(t, err)
+	assert.NotContains(t, userView, "admin_info")
+	assert.Contains(t, userView, "model_price")
+
+	adminView, err := common.StrToMap(adminLogs[0].Other)
+	require.NoError(t, err)
+	adminInfo, ok := adminView["admin_info"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{
+		"content_length": float64(4096), "bytes": float64(20), "read_ms": float64(79000), "error": "unexpected EOF",
+	}, adminInfo["request_body"])
+}
