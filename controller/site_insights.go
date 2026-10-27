@@ -65,14 +65,16 @@ type UserConcurrencyOverride struct {
 	InFlight   int    `json:"in_flight"`
 }
 
-// CapacityResponse adds what only this process knows, the requests in flight
-// and the per-user limit's rejections, and the engine pool to the logs view.
+// CapacityResponse adds the requests in flight on this process, the per-user
+// limit's rejections and the engine pool to the logs view. Root is left out
+// of all of them.
 type CapacityResponse struct {
 	*model.CapacityInsights
 	InFlight            int                       `json:"in_flight"`
 	InFlightUsers       []LiveUserConcurrency     `json:"in_flight_users"`
 	LimitRejections     []model.CountPoint        `json:"limit_rejections"`
 	LimitRejectionTotal int64                     `json:"limit_rejection_total"`
+	LimitRejectedUsers  []model.UserCount         `json:"limit_rejected_users"`
 	ConcurrencyLimits   map[string]int            `json:"concurrency_limits"`
 	UserLimits          []UserConcurrencyOverride `json:"user_limits"`
 	Pool                service.EnginePool        `json:"pool"`
@@ -87,14 +89,12 @@ func GetCapacityInsights(c *gin.Context) {
 		response := &CapacityResponse{
 			CapacityInsights:  insights,
 			InFlightUsers:     []LiveUserConcurrency{},
-			LimitRejections:   []model.CountPoint{},
 			ConcurrencyLimits: operation_setting.GetTokenSetting().ConcurrencyLimits,
 		}
-		inFlight, rejected := middleware.UserConcurrencySnapshot()
+		inFlight := middleware.UserConcurrencySnapshot()
 		overrides := operation_setting.GetTokenSetting().UserConcurrencyLimits
 		ids := make([]int, 0, len(inFlight)+len(overrides))
-		for id, count := range inFlight {
-			response.InFlight += count
+		for id := range inFlight {
 			ids = append(ids, id)
 		}
 		for key := range overrides {
@@ -108,6 +108,10 @@ func GetCapacityInsights(c *gin.Context) {
 		}
 		for id, count := range inFlight {
 			user := users[id]
+			if user.Role >= common.RoleRootUser {
+				continue
+			}
+			response.InFlight += count
 			limit, source := operation_setting.EffectiveUserConcurrencyLimit(id, user.Group)
 			response.InFlightUsers = append(response.InFlightUsers, LiveUserConcurrency{
 				UserRef:     model.UserRef{UserID: id, Username: user.Username},
@@ -135,11 +139,13 @@ func GetCapacityInsights(c *gin.Context) {
 		slices.SortFunc(response.InFlightUsers, func(a, b LiveUserConcurrency) int {
 			return cmp.Or(cmp.Compare(b.InFlight, a.InFlight), cmp.Compare(a.UserID, b.UserID))
 		})
-		for hour, count := range rejected {
-			response.LimitRejections = append(response.LimitRejections, model.CountPoint{At: hour, Count: int64(count)})
-			response.LimitRejectionTotal += int64(count)
+		response.LimitRejections, response.LimitRejectedUsers, err = model.ReadUserConcurrencyRejections(r.Start, r.End)
+		if err != nil {
+			return nil, err
 		}
-		slices.SortFunc(response.LimitRejections, func(a, b model.CountPoint) int { return cmp.Compare(a.At, b.At) })
+		for _, point := range response.LimitRejections {
+			response.LimitRejectionTotal += point.Count
+		}
 		response.Pool = service.FetchEnginePool(c.Request.Context())
 		return response, nil
 	})

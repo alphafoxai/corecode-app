@@ -42,6 +42,9 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
   const engineRejections =
     data?.error_categories.find((item) => item.name === 'engine_concurrency')
       ?.count ?? 0
+  const limitRejections = new Map(
+    (data?.limit_rejections ?? []).map((point) => [point.at, point.count])
+  )
 
   return (
     <div className='grid gap-4'>
@@ -87,9 +90,9 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
             tone: engineRejections > 0 ? 'danger' : 'good',
           },
           {
-            label: t('Per-user limit 429 (48h)'),
+            label: t('Per-user limit 429'),
             value: fmt.num(data?.limit_rejection_total ?? 0),
-            hint: t('Since this server started'),
+            hint: t('Turned away before reaching the pool'),
             tone:
               (data?.limit_rejection_total ?? 0) > 0 ? 'warning' : 'default',
           },
@@ -227,19 +230,49 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         />
       </Panel>
 
-      <div className='grid gap-4 lg:grid-cols-2'>
+      <div className='grid gap-4 lg:grid-cols-3'>
         <Panel title={t('Rejections by hour')}>
           <BarSeries
             ariaLabel={t('Rejections by hour')}
             series={[
               { label: t('Engine account concurrency full') },
               { label: t('Claude upstream rate limit') },
+              { label: t('Per-user limit') },
             ]}
             points={(data?.hourly ?? []).map((hour) => ({
               key: hour.hour,
               title: fmt.time(hour.hour),
-              values: [hour.engine_rejections, hour.upstream_rate_limits],
+              values: [
+                hour.engine_rejections,
+                hour.upstream_rate_limits,
+                limitRejections.get(hour.hour) ?? 0,
+              ],
             }))}
+          />
+        </Panel>
+        <Panel
+          title={t('Users turned away by their limit')}
+          description={t(
+            'Requests the per-user concurrency limit answered with 429. They never reach the request logs.'
+          )}
+        >
+          <SimpleTable
+            rows={data?.limit_rejected_users}
+            rowKey={(row) => row.user_id}
+            empty={t('No user hit their limit in this range')}
+            columns={[
+              {
+                key: 'user',
+                label: t('User'),
+                render: (row) => <UserLabel {...row} />,
+              },
+              {
+                key: 'count',
+                label: t('Times turned away'),
+                align: 'right',
+                render: (row) => fmt.num(row.count),
+              },
+            ]}
           />
         </Panel>
         <Panel

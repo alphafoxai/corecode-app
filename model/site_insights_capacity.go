@@ -25,9 +25,9 @@ type UserPeak struct {
 
 // CapacityInsights reconstructs concurrency from the request logs: a log is
 // written when a request ends, so it was in flight from created_at - use_time
-// to created_at. Requests rejected before reaching the relay, such as the
-// per-user concurrency limit, are not in the logs; the controller adds those
-// from the limiter itself.
+// to created_at. Root's requests are left out. Requests rejected before
+// reaching the relay, such as the per-user concurrency limit, are not in the
+// logs; the controller adds those from model.UserConcurrencyRejection.
 type CapacityInsights struct {
 	Requests        int64          `json:"requests"`
 	Errors          int64          `json:"errors"`
@@ -48,105 +48,64 @@ type concurrencyEvent struct {
 }
 
 func GetCapacityInsights(r InsightsRange) (*CapacityInsights, error) {
-	logs, truncated, err := readInsightLogs(r, false, LogTypeConsume, LogTypeError)
+	hours, err := loadInsightHours(r)
 	if err != nil {
 		return nil, err
 	}
-	result := &CapacityInsights{Truncated: truncated}
-	hours := make(map[int64]*CapacityHour)
-	hourOf := func(at int64) *CapacityHour {
-		start := r.HourStart(at)
-		hour := hours[start]
-		if hour == nil {
-			hour = &CapacityHour{Hour: start}
-			hours[start] = hour
-		}
-		return hour
-	}
-	for at := r.HourStart(r.Start); at < r.End; at += 3600 {
-		hourOf(at)
-	}
+	result := &CapacityInsights{Hourly: make([]CapacityHour, 0, len(hours))}
 	categories := make(map[string]int64)
-	perMinute := make(map[int64]int64)
 	users := make(map[int]*UserPeak)
-	events := make([]concurrencyEvent, 0, len(logs)*2)
-	for _, log := range logs {
-		end := log.CreatedAt
-		start := end - int64(max(log.UseTime, 0))
-		hour := hourOf(start)
-		hour.Requests++
-		result.Requests++
-		perMinute[start-((start%60)+60)%60]++
-		if log.Type == LogTypeError {
-			category := classifyErrorLog(log.Content)
-			categories[category]++
-			hour.Errors++
-			result.Errors++
-			switch category {
-			case ErrorEngineConcurrency:
-				hour.EngineRejections++
-			case ErrorUpstreamRateLimit:
-				hour.UpstreamRateLimit++
+	for _, hour := range hours {
+		summary := hour.summary
+		result.Requests += summary.Requests
+		result.Errors += summary.Errors
+		result.Truncated = result.Truncated || summary.Truncated
+		if summary.Peak > result.PeakConcurrency {
+			result.PeakConcurrency, result.PeakAt = summary.Peak, summary.PeakAt
+		}
+		if summary.PeakRPM > result.PeakRPM {
+			result.PeakRPM, result.PeakRPMAt = summary.PeakRPM, summary.PeakRPMAt
+		}
+		mergeCounts(categories, summary.Categories)
+		result.Hourly = append(result.Hourly, CapacityHour{
+			Hour:              hour.start,
+			Requests:          summary.Requests,
+			Errors:            summary.Errors,
+			PeakConcurrency:   summary.Peak,
+			EngineRejections:  summary.EngineRejections,
+			UpstreamRateLimit: summary.UpstreamRateLimit,
+		})
+		for id, row := range hour.users {
+			user := users[id]
+			if user == nil {
+				user = &UserPeak{UserRef: UserRef{UserID: id}}
+				users[id] = user
 			}
-		}
-		user := users[log.UserId]
-		if user == nil {
-			user = &UserPeak{UserRef: UserRef{UserID: log.UserId, Username: log.Username}}
-			users[log.UserId] = user
-		}
-		user.Requests++
-		// use_time is whole seconds; a request under a second still held a
-		// slot, so it ends one second after it starts.
-		if end <= start {
-			end = start + 1
-		}
-		events = append(events, concurrencyEvent{start, 1, log.UserId}, concurrencyEvent{end, -1, log.UserId})
-	}
-	// Ends sort before starts at the same second, so back-to-back requests
-	// are not counted as overlapping.
-	slices.SortFunc(events, func(a, b concurrencyEvent) int {
-		return cmp.Or(cmp.Compare(a.at, b.at), cmp.Compare(a.delta, b.delta))
-	})
-	current := 0
-	perUser := make(map[int]int)
-	for _, event := range events {
-		current += event.delta
-		perUser[event.userID] += event.delta
-		if event.delta < 0 {
-			continue
-		}
-		if hour := hourOf(event.at); current > hour.PeakConcurrency {
-			hour.PeakConcurrency = current
-		}
-		if current > result.PeakConcurrency {
-			result.PeakConcurrency, result.PeakAt = current, event.at
-		}
-		if user := users[event.userID]; perUser[event.userID] > user.Peak {
-			user.Peak, user.PeakAt = perUser[event.userID], event.at
-		}
-	}
-	for minute, count := range perMinute {
-		if count > result.PeakRPM || count == result.PeakRPM && minute < result.PeakRPMAt {
-			result.PeakRPM, result.PeakRPMAt = count, minute
+			user.Requests += row.Requests
+			if row.Peak > user.Peak {
+				user.Peak, user.PeakAt = row.Peak, row.PeakAt
+			}
 		}
 	}
 	result.ErrorCategories = sortedCounts(categories)
-	result.Hourly = make([]CapacityHour, 0, len(hours))
-	for _, hour := range hours {
-		if hour.Hour >= r.HourStart(r.Start) && hour.Hour < r.End {
-			result.Hourly = append(result.Hourly, *hour)
-		}
-	}
-	slices.SortFunc(result.Hourly, func(a, b CapacityHour) int { return cmp.Compare(a.Hour, b.Hour) })
 	result.UserPeaks = make([]UserPeak, 0, len(users))
 	for _, user := range users {
 		result.UserPeaks = append(result.UserPeaks, *user)
 	}
 	slices.SortFunc(result.UserPeaks, func(a, b UserPeak) int {
-		return cmp.Or(cmp.Compare(b.Peak, a.Peak), cmp.Compare(b.Requests, a.Requests))
+		return cmp.Or(cmp.Compare(b.Peak, a.Peak), cmp.Compare(b.Requests, a.Requests), cmp.Compare(a.UserID, b.UserID))
 	})
-	if len(result.UserPeaks) > insightsTopN*2 {
-		result.UserPeaks = result.UserPeaks[:insightsTopN*2]
+	result.UserPeaks = result.UserPeaks[:min(len(result.UserPeaks), insightsTopN*2)]
+	ids := make([]int, 0, len(result.UserPeaks))
+	for _, user := range result.UserPeaks {
+		ids = append(ids, user.UserID)
+	}
+	names, err := usernamesByID(ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range result.UserPeaks {
+		result.UserPeaks[i].Username = names[result.UserPeaks[i].UserID]
 	}
 	return result, nil
 }

@@ -12,7 +12,7 @@ import (
 func useInsightsTestDB(t *testing.T, dialect string) {
 	t.Helper()
 	useAffiliateTestDB(t, dialect)
-	extra := []any{&QuotaData{}, &AuditLog{}, &Redemption{}}
+	extra := []any{&QuotaData{}, &AuditLog{}, &Redemption{}, &InsightHour{}, &InsightUserHour{}, &InsightModelHour{}, &UserConcurrencyRejection{}}
 	require.NoError(t, DB.AutoMigrate(extra...))
 	t.Cleanup(func() { require.NoError(t, DB.Migrator().DropTable(extra...)) })
 }
@@ -53,6 +53,9 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 				{UserId: bob.Id, Username: "bob", Type: LogTypeConsume, CreatedAt: day1 + 80, UseTime: 10, ModelName: "sonnet", Quota: int(dollar), PromptTokens: 5, Ip: "1.1.1.1", Other: `{}`},
 				{UserId: bob.Id, Username: "bob", Type: LogTypeError, CreatedAt: day1 + 90, Content: "status_code=429, Credential concurrency limit exceeded.", ModelName: "sonnet", Ip: "2.2.2.2"},
 				{UserId: carol.Id, Username: "carol", Type: LogTypeError, CreatedAt: day1 + 86400 + 100, Content: "status_code=429, Claude upstream rate limit was reached", ModelName: "opus", Ip: "3.3.3.3"},
+				// Root's own request overlaps alice's: the capacity view leaves it
+				// out, the quality view counts it.
+				{UserId: root.Id, Username: "root", Type: LogTypeConsume, CreatedAt: day1 + 110, UseTime: 30, ModelName: "opus", Ip: "9.9.9.9", Other: `{}`},
 			}
 			require.NoError(t, LOG_DB.Create(&logs).Error)
 
@@ -66,6 +69,15 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, UserRef{alice.Id, "alice"}, capacity.UserPeaks[0].UserRef)
 			assert.Equal(t, 2, capacity.UserPeaks[0].Peak)
 			assert.Len(t, capacity.Hourly, 48)
+			for _, user := range capacity.UserPeaks {
+				assert.NotEqual(t, root.Id, user.UserID, "root is not a customer")
+			}
+			var storedHours int64
+			require.NoError(t, DB.Model(&InsightHour{}).Count(&storedHours).Error)
+			assert.EqualValues(t, 48, storedHours, "final hours are stored")
+			again, err := GetCapacityInsights(r)
+			require.NoError(t, err)
+			assert.Equal(t, capacity, again, "stored hours read back the same")
 
 			plan := SubscriptionPlan{Title: "trial", PriceAmount: 9.9, MaxPurchasePerUser: 1, Enabled: true}
 			require.NoError(t, DB.Create(&plan).Error)
@@ -144,7 +156,8 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 
 			quality, err := GetQualityInsights(r)
 			require.NoError(t, err)
-			assert.Equal(t, 0.4, quality.ErrorRate)
+			assert.EqualValues(t, 6, quality.Requests, "root counts toward quality")
+			assert.Equal(t, 0.3333, quality.ErrorRate)
 			assert.EqualValues(t, 1200, quality.TTFTP50)
 			assert.Equal(t, []NamedCount{{"eof", 2}}, quality.StreamEnds)
 			assert.Equal(t, []NamedCount{{"429", 2}}, quality.StatusCodes)
@@ -155,7 +168,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.EqualValues(t, 1, business.Invitees)
 			require.Len(t, business.TopInviters, 1)
 			assert.Equal(t, InviterReturn{UserRef: UserRef{alice.Id, "alice"}, Invitees: 1, ActiveInvitee: 1, SpendUSD: 1, Payments: 9.9}, business.TopInviters[0])
-			assert.Equal(t, []NamedCount{{"unknown", 2}, {"claude-cli/2.1.3", 1}}, business.Clients)
+			assert.Equal(t, []NamedCount{{"unknown", 3}, {"claude-cli/2.1.3", 1}}, business.Clients)
 			require.Len(t, business.Models, 2)
 			assert.Equal(t, "opus", business.Models[0].Model)
 			assert.Equal(t, 0.75, business.Models[0].Share)
@@ -187,4 +200,63 @@ func TestClassifyErrorLog(t *testing.T) {
 	} {
 		assert.Equal(t, want, classifyErrorLog(content), content)
 	}
+}
+
+func TestInsightHourSpansHours(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useInsightsTestDB(t, dialect)
+			const hour1 = int64(1759248000)
+			hour2 := hour1 + 3600
+			alice := registerAffiliateTestUser(t, "alice", "")
+			bob := registerAffiliateTestUser(t, "bob", "")
+			// alice's request runs from 10 minutes before hour 2 to 10 minutes
+			// into it; bob's starts 5 minutes into hour 2.
+			logs := []Log{
+				{UserId: alice.Id, Username: "alice", Type: LogTypeConsume, CreatedAt: hour2 + 600, UseTime: 1200, ModelName: "opus", Other: `{}`},
+				{UserId: bob.Id, Username: "bob", Type: LogTypeConsume, CreatedAt: hour2 + 900, UseTime: 600, ModelName: "opus", Other: `{}`},
+			}
+			require.NoError(t, LOG_DB.Create(&logs).Error)
+			capacity, err := GetCapacityInsights(InsightsRange{Start: hour1, End: hour2 + 3600})
+			require.NoError(t, err)
+			require.Len(t, capacity.Hourly, 2)
+			assert.Equal(t, CapacityHour{Hour: hour1, Requests: 1, PeakConcurrency: 1}, capacity.Hourly[0], "alice's request counts where it began")
+			assert.Equal(t, CapacityHour{Hour: hour2, Requests: 1, PeakConcurrency: 2}, capacity.Hourly[1], "and is still in flight when bob's begins")
+			assert.Equal(t, hour2+300, capacity.PeakAt)
+			assert.Len(t, capacity.UserPeaks, 2)
+		})
+	}
+}
+
+func TestUserConcurrencyRejections(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useInsightsTestDB(t, dialect)
+			const hour = int64(1759248000)
+			alice := registerAffiliateTestUser(t, "alice", "")
+			root := &User{Username: "root", DisplayName: "root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}
+			require.NoError(t, root.Insert(0))
+			key := ConcurrencyRejectionKey{HourStart: hour, UserId: alice.Id}
+			assert.Empty(t, AddUserConcurrencyRejections(map[ConcurrencyRejectionKey]int64{key: 2, {HourStart: hour, UserId: root.Id}: 9}))
+			assert.Empty(t, AddUserConcurrencyRejections(map[ConcurrencyRejectionKey]int64{key: 3, {HourStart: hour + 3600, UserId: alice.Id}: 1}))
+			points, users, err := ReadUserConcurrencyRejections(hour, hour+7200)
+			require.NoError(t, err)
+			assert.Equal(t, []CountPoint{{hour, 5}, {hour + 3600, 1}}, points, "counts add up and root is left out")
+			assert.Equal(t, []UserCount{{UserRef{alice.Id, "alice"}, 6}}, users)
+		})
+	}
+}
+
+func TestHistogram(t *testing.T) {
+	for value, key := range map[int64]int64{87: 87, 999: 1000, 1234: 1200, 1250: 1300, 45678: 46000} {
+		assert.Equal(t, key, histogramKey(value), value)
+	}
+	h := histogram{}
+	for _, value := range []int64{800, 1200, 3000, 3000} {
+		h.add(value)
+	}
+	assert.EqualValues(t, 3000, h.percentile(0.5), "index 2 of four sorted values")
+	assert.EqualValues(t, 800, h.percentile(0))
+	assert.Equal(t, h, decodeHistogram(h.encode()))
+	assert.Zero(t, histogram{}.percentile(0.5))
 }

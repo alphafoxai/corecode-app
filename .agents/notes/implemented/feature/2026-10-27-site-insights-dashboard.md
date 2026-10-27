@@ -58,7 +58,9 @@ turned into customers:
 - **The per-user concurrency limiter keeps its rejections by hour for two
   days** in the same process memory as its counts, and
   `UserConcurrencySnapshot` exposes both. The capacity view says the figure
-  is since the server started.
+  is since the server started. Since replaced: the rejections are stored in
+  the database and the log views read hourly rollups
+  (`2026-10-27-insights-hourly-rollups.md`).
 - **The engine pool is read from corecode-engine's control API** with the
   root-only options `EngineControlURL` and `EngineControlKey`. The key ends
   in `Key`, so the option list masks it. An unset URL or key shows how to

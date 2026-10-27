@@ -384,6 +384,10 @@ func migrateDB() error {
 		&AffiliateCommission{},
 		&AffiliateWithdrawal{},
 		&EnterpriseApplication{},
+		&UserConcurrencyRejection{},
+		&InsightHour{},
+		&InsightUserHour{},
+		&InsightModelHour{},
 	)
 	if err != nil {
 		return err

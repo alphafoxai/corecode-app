@@ -14,17 +14,15 @@ import (
 // top-up report: day and hour arithmetic differs across SQLite, MySQL and
 // PostgreSQL, and the ranges are small enough to read.
 const (
-	// InsightsMaxLogDays bounds the views that read raw request logs.
-	InsightsMaxLogDays = 31
+	// InsightsMaxLogDays bounds the views that read the request logs through
+	// hourly rollups (site_insights_hours.go).
+	InsightsMaxLogDays = 92
 	// InsightsMaxRiskDays bounds the risk view, which groups request logs
 	// by address in the database rather than reading them.
 	InsightsMaxRiskDays = 92
 	// InsightsMaxDays bounds the views that read hourly aggregates, orders
 	// and users.
 	InsightsMaxDays = 366
-	// insightsMaxLogRows caps one raw log read; a view past it reports
-	// Truncated and covers the newest rows.
-	insightsMaxLogRows = 200_000
 	insightsTopN       = 10
 )
 
@@ -127,25 +125,6 @@ type insightLog struct {
 	Other            string
 }
 
-func readInsightLogs(r InsightsRange, withOther bool, types ...int) ([]insightLog, bool, error) {
-	columns := "user_id, username, created_at, type, content, model_name, quota, prompt_tokens, completion_tokens, use_time, is_stream, ip"
-	if withOther {
-		columns += ", other"
-	}
-	var rows []insightLog
-	err := LOG_DB.Model(&Log{}).Select(columns).
-		Where("created_at >= ? AND created_at < ? AND type IN ?", r.Start, r.End, types).
-		Order("id desc").Limit(insightsMaxLogRows + 1).Find(&rows).Error
-	if err != nil {
-		return nil, false, err
-	}
-	truncated := len(rows) > insightsMaxLogRows
-	if truncated {
-		rows = rows[:insightsMaxLogRows]
-	}
-	return rows, truncated, nil
-}
-
 // insightQuota is one hourly quota_data row.
 type insightQuota struct {
 	UserID              int
@@ -185,10 +164,11 @@ func usernamesByID(ids []int) (map[int]string, error) {
 	return names, nil
 }
 
-// InsightsUser is the name and group of a user in a live view.
+// InsightsUser is the name, group and role of a user in a live view.
 type InsightsUser struct {
 	Username string
 	Group    string
+	Role     int
 }
 
 // InsightsUsers returns the name and group of each id, deleted users
@@ -202,13 +182,14 @@ func InsightsUsers(ids []int) (map[int]InsightsUser, error) {
 		Id        int
 		Username  string
 		UserGroup string
+		Role      int
 	}
-	if err := DB.Model(&User{}).Unscoped().Select("id, username, "+commonGroupCol+" AS user_group").
+	if err := DB.Model(&User{}).Unscoped().Select("id, username, role, "+commonGroupCol+" AS user_group").
 		Where("id IN ?", ids).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, row := range rows {
-		users[row.Id] = InsightsUser{Username: row.Username, Group: row.UserGroup}
+		users[row.Id] = InsightsUser{Username: row.Username, Group: row.UserGroup, Role: row.Role}
 	}
 	return users, nil
 }

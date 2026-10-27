@@ -52,13 +52,13 @@ export type InsightsByView = {
 
 /** The longest range, in days, each view's endpoint accepts. */
 export const VIEW_MAX_DAYS: Record<InsightsView, number> = {
-  capacity: 31,
+  capacity: 92,
   finance: 366,
   risk: 92,
   growth: 366,
   activity: 366,
-  quality: 31,
-  business: 31,
+  quality: 92,
+  business: 92,
 }
 
 export async function getInsights<V extends InsightsView>(
