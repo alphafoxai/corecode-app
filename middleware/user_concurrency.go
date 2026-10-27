@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"maps"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -85,15 +87,44 @@ func FlushUserConcurrencyRejections() {
 	userRequestsInFlight.Unlock()
 }
 
+// userPaidMoney is the paid total the tiers read; tests replace it.
+var userPaidMoney = model.CachedUserPaidMoney
+
+// userConcurrencyMessage says the limit and, unless it is a per-user
+// override, how much more paid in total raises it.
+func userConcurrencyMessage(c *gin.Context, limit int, source string, paidTotal func() float64) string {
+	if source != operation_setting.ConcurrencySourceUser && len(operation_setting.GetTokenSetting().ConcurrencyTiers) > 0 {
+		if next, ok := operation_setting.NextConcurrencyTier(paidTotal(), limit); ok {
+			return i18n.T(c, i18n.MsgUserConcurrencyLimitNextTier, map[string]any{
+				"Max":       limit,
+				"Remaining": strconv.FormatFloat(math.Ceil((next.MinPaid-paidTotal())*100)/100, 'f', -1, 64),
+				"Next":      next.Limit,
+			})
+		}
+	}
+	return i18n.T(c, i18n.MsgUserConcurrencyLimitReached, map[string]any{"Max": limit})
+}
+
 // UserConcurrencyLimit rejects a request with 429 while its user already has as
-// many requests in flight, over all of the user's tokens, as the user's group
-// allows. A streamed response holds its slot until the stream ends.
+// many requests in flight, over all of the user's tokens, as the user's limit
+// allows (operation_setting.EffectiveUserConcurrencyLimit). A streamed response holds its slot until the stream ends.
 func UserConcurrencyLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetInt(string(constant.ContextKeyUserId))
-		limit, _ := operation_setting.EffectiveUserConcurrencyLimit(userID,
-			common.GetContextKeyString(c, constant.ContextKeyUserGroup))
-		if userID == 0 || limit == 0 {
+		if userID == 0 {
+			c.Next()
+			return
+		}
+		paid := -1.0
+		paidTotal := func() float64 {
+			if paid < 0 {
+				paid = userPaidMoney(userID)
+			}
+			return paid
+		}
+		limit, source := operation_setting.EffectiveUserConcurrencyLimit(userID,
+			common.GetContextKeyString(c, constant.ContextKeyUserGroup), paidTotal)
+		if limit == 0 {
 			c.Next()
 			return
 		}
@@ -103,8 +134,7 @@ func UserConcurrencyLimit() gin.HandlerFunc {
 			recordUserConcurrencyRejection(userID, time.Now())
 			userRequestsInFlight.Unlock()
 			c.Header("Retry-After", "1")
-			abortWithOpenAiMessage(c, http.StatusTooManyRequests,
-				i18n.T(c, i18n.MsgUserConcurrencyLimitReached, map[string]any{"Max": limit}))
+			abortWithOpenAiMessage(c, http.StatusTooManyRequests, userConcurrencyMessage(c, limit, source, paidTotal))
 			return
 		}
 		userRequestsInFlight.counts[userID]++

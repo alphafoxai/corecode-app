@@ -158,6 +158,23 @@ export interface TopupInfo {
   payment_compliance_confirmed?: boolean
   /** Current compliance terms version */
   payment_compliance_terms_version?: string
+  /** The customer's concurrency limit and the tiers that raise it */
+  concurrency?: UserConcurrency
+}
+
+/**
+ * How many requests a customer may run at once across all API keys, and the
+ * paid-total tiers that raise it. Amounts are in the payment currency.
+ */
+export interface UserConcurrency {
+  /** Current limit; 0 means unlimited */
+  limit: number
+  /** "user" for a limit set by an operator, "tier" or "group" otherwise */
+  source: 'user' | 'tier' | 'group'
+  group_limit: number
+  paid_total: number
+  /** Empty when the limit cannot be raised by paying */
+  tiers: { min_paid: number; limit: number }[]
 }
 
 /**

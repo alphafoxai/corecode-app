@@ -363,6 +363,12 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "token_setting.concurrency_tiers":
+		err = operation_setting.ValidateConcurrencyTiers(option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "affiliate_setting.self_serve_rate", "affiliate_setting.max_rate", "affiliate_setting.second_level_rate",
 		"affiliate_setting.min_withdrawal":
 		field := strings.TrimPrefix(option.Key, "affiliate_setting.")

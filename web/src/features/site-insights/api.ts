@@ -109,3 +109,15 @@ export async function saveUserConcurrencyLimits(
     throw createServerError(res.data, 'Failed to save concurrency limits')
   }
 }
+
+export async function saveConcurrencyTiers(
+  tiers: { min_paid: number; limit: number }[]
+): Promise<void> {
+  const res = await api.put<ApiResponse<unknown>>('/api/option/', {
+    key: 'token_setting.concurrency_tiers',
+    value: JSON.stringify(tiers),
+  })
+  if (!res.data.success) {
+    throw createServerError(res.data, 'Failed to save concurrency tiers')
+  }
+}
