@@ -435,33 +435,35 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			InvalidateSubscriptionPlanCache(plan.Id)
 			t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
 
-			_, err := GiftAffiliatePlan(a.Id, b.Id)
+			_, _, err := GiftAffiliatePlan(a.Id, b.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "no gift plan is configured")
 			operation_setting.GetAffiliateSetting().GiftPlanId = plan.Id
 
 			// Only a promotion channel with invite rights can gift.
-			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "A is an ordinary inviter")
 			_, err = SetAffiliate(a.Id, 0, true, 1)
 			require.NoError(t, err)
-			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "a channel at rate 0 has lost its invite rights")
 			_, err = SetAffiliate(a.Id, 10, true, 1)
 			require.NoError(t, err)
 
-			_, err = GiftAffiliatePlan(a.Id, c.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, c.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee)
-			_, err = GiftAffiliatePlan(a.Id, d.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, d.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee, "an invitee's invitee is not the caller's")
 
-			gifted, err := GiftAffiliatePlan(a.Id, b.Id)
+			gifted, giftedSubscription, err := GiftAffiliatePlan(a.Id, b.Id)
 			require.NoError(t, err)
 			assert.Equal(t, plan.Id, gifted.Id)
 			var subscription UserSubscription
 			require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", b.Id, plan.Id).First(&subscription).Error)
+			assert.Equal(t, subscription.Id, giftedSubscription.Id)
+			assert.Equal(t, subscription.EndTime, giftedSubscription.EndTime)
 			assert.Equal(t, SubscriptionSourceAffiliateGift, subscription.Source)
 			assert.Equal(t, "active", subscription.Status)
-			_, err = GiftAffiliatePlan(a.Id, b.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftTaken, "a plan is gifted once")
 
 			// The gifted invitee cannot buy the plan, by any payment, but an
@@ -475,7 +477,7 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			// An invitee who bought the plan cannot be given it.
 			require.NoError(t, DB.Model(&User{}).Where("id = ?", e.Id).Update("quota", 100*affiliateDollar).Error)
 			require.NoError(t, PurchaseSubscriptionWithBalance(e.Id, plan.Id))
-			_, err = GiftAffiliatePlan(a.Id, e.Id)
+			_, _, err = GiftAffiliatePlan(a.Id, e.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftTaken)
 			assert.NoError(t, CheckSubscriptionPurchase(e.Id, plan), "a purchase does not block buying again")
 
@@ -492,7 +494,7 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", plan.Id).Update("enabled", false).Error)
 			InvalidateSubscriptionPlanCache(plan.Id)
-			_, err = GiftAffiliatePlan(b.Id, d.Id)
+			_, _, err = GiftAffiliatePlan(b.Id, d.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable)
 		})
 	}
