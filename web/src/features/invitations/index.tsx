@@ -35,7 +35,7 @@ import { InvitationOverview } from './components/invitation-overview'
 import type { Invitee } from './types'
 
 const EMPTY: Invitee[] = []
-const NO_TOTALS = { used_quota: 0, commission: 0 }
+const NO_TOTALS = { used_quota: 0, commission_base: 0, commission: 0 }
 
 function useInviteeColumns(
   giftPlanTitle: string,
@@ -81,6 +81,17 @@ function useInviteeColumns(
           </span>
         ),
         meta: { label: t('Total spend') },
+      },
+      {
+        accessorKey: 'commission_base',
+        header: t('Paid spend'),
+        size: 150,
+        cell: ({ row }) => (
+          <span className='tabular-nums'>
+            {formatQuota(row.original.commission_base)}
+          </span>
+        ),
+        meta: { label: t('Paid spend') },
       },
       {
         accessorKey: 'commission',

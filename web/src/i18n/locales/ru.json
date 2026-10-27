@@ -8083,6 +8083,7 @@
     "Set them in System Settings → Security → Token Limits.": "Set them in System Settings → Security → Token Limits.",
     "User limit": "User limit",
     "Subscription Remaining": "Остаток по подписке",
-    "No active subscription": "Нет активной подписки"
+    "No active subscription": "Нет активной подписки",
+    "Paid spend": "Оплаченные расходы"
   }
 }
