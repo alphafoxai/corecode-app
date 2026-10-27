@@ -8042,6 +8042,7 @@
     "{{share}} of the {{size}} users who signed up {{day}} sent requests on D{{n}}": "{{share}} of the {{size}} users who signed up {{day}} sent requests on D{{n}}",
     "{{success}} ok · {{failure}} failed": "{{success}} ok · {{failure}} failed",
     "Paid {{amount}} in total": "Paid {{amount}} in total",
+    "Total Paid": "Total Paid",
     "Concurrency limit": "Concurrency limit",
     "Requests at once, across all of your API keys": "Requests at once, across all of your API keys",
     "Your limit was set for your account.": "Your limit was set for your account.",

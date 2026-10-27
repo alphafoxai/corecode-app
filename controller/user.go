@@ -344,6 +344,29 @@ func issueDefaultAPIToken(c *gin.Context, user *model.User) error {
 	return token.Insert()
 }
 
+// AdminUserRow is a user as the admin user list shows it: the user and what
+// they have paid through payment gateways, in the payment currency.
+type AdminUserRow struct {
+	*model.User
+	PaidTotal float64 `json:"paid_total"`
+}
+
+func adminUserRows(users []*model.User) ([]AdminUserRow, error) {
+	ids := make([]int, len(users))
+	for i, user := range users {
+		ids[i] = user.Id
+	}
+	paid, err := model.UsersPaidMoney(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]AdminUserRow, len(users))
+	for i, user := range users {
+		rows[i] = AdminUserRow{User: user, PaidTotal: paid[user.Id]}
+	}
+	return rows, nil
+}
+
 func GetAllUsers(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	sortOptions := model.NewUserSortOptions(c.Query("sort_by"), c.Query("sort_order"))
@@ -352,9 +375,14 @@ func GetAllUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	rows, err := adminUserRows(users)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 
 	pageInfo.SetTotal(int(total))
-	pageInfo.SetItems(users)
+	pageInfo.SetItems(rows)
 
 	common.ApiSuccess(c, pageInfo)
 	return
@@ -382,9 +410,14 @@ func SearchUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	rows, err := adminUserRows(users)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 
 	pageInfo.SetTotal(int(total))
-	pageInfo.SetItems(users)
+	pageInfo.SetItems(rows)
 	common.ApiSuccess(c, pageInfo)
 	return
 }

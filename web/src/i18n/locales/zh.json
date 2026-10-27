@@ -8042,6 +8042,7 @@
     "{{share}} of the {{size}} users who signed up {{day}} sent requests on D{{n}}": "{{day}} 注册的 {{size}} 人中，{{share}} 在 D{{n}} 仍发请求",
     "{{success}} ok · {{failure}} failed": "成功 {{success}} · 失败 {{failure}}",
     "Paid {{amount}} in total": "累计充值 {{amount}}",
+    "Total Paid": "累计充值",
     "Concurrency limit": "并发上限",
     "Requests at once, across all of your API keys": "所有 API 密钥合计可同时进行的请求数",
     "Your limit was set for your account.": "这是为你的账号单独设置的上限。",
