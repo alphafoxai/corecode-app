@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
@@ -333,6 +334,12 @@ func (s *BillingSession) shouldTrust(c *gin.Context) bool {
 	}
 
 	trustQuota := operation_setting.GetQuotaSetting().TrustQuotaUSD * common.QuotaPerUnit
+	// A trusted request reserves nothing and settles its whole cost
+	// afterwards, so every request the user may hold at once can draw on the
+	// same balance. Require the threshold for each of them.
+	if limit := common.GetContextKeyInt(c, constant.ContextKeyUserConcurrencyLimit); limit > 1 {
+		trustQuota *= float64(limit)
+	}
 	if trustQuota <= 0 || math.IsNaN(trustQuota) || math.IsInf(trustQuota, 0) {
 		return false
 	}

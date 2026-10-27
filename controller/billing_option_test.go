@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
@@ -253,18 +254,22 @@ func TestPreConsumePolicyDatabaseMatrix(t *testing.T) {
 				threshold, multiplier float64
 				wallet, token         int
 				force, unlimited      bool
+				concurrency           int
 				wantHeld              int
 			}{
-				{"above threshold", 10, 1, 5500000, 5500000, false, false, 0},
-				{"custom threshold", 20, 1, 5500000, 5500000, false, false, 1500},
-				{"zero disables bypass", 0, 1, 5500000, 5500000, false, false, 1500},
-				{"wallet equals threshold", 10, 1, 5000000, 5500000, false, false, 1500},
-				{"token equals threshold", 10, 1, 5500000, 5000000, false, false, 1500},
-				{"fractional threshold", 10.5, 1, 5250001, 5250001, false, false, 0},
-				{"unlimited token", 10, 1, 5500000, 0, false, true, 0},
-				{"forced reservation", 10, 1, 5500000, 5500000, true, false, 1500},
-				{"half input cost", 0, 0.5, 100000, 100000, false, false, 750},
-				{"fractional multiple refunds excess", 0, 2.5, 100000, 100000, false, false, 3750},
+				{"above threshold", 10, 1, 5500000, 5500000, false, false, 0, 0},
+				{"custom threshold", 20, 1, 5500000, 5500000, false, false, 0, 1500},
+				{"zero disables bypass", 0, 1, 5500000, 5500000, false, false, 0, 1500},
+				{"wallet equals threshold", 10, 1, 5000000, 5500000, false, false, 0, 1500},
+				{"token equals threshold", 10, 1, 5500000, 5000000, false, false, 0, 1500},
+				{"fractional threshold", 10.5, 1, 5250001, 5250001, false, false, 0, 0},
+				{"unlimited token", 10, 1, 5500000, 0, false, true, 0, 0},
+				{"forced reservation", 10, 1, 5500000, 5500000, true, false, 0, 1500},
+				{"half input cost", 0, 0.5, 100000, 100000, false, false, 0, 750},
+				{"fractional multiple refunds excess", 0, 2.5, 100000, 100000, false, false, 0, 3750},
+				{"concurrency limit scales threshold", 10, 1, 5500000, 27500000, false, false, 5, 1500},
+				{"above threshold times concurrency", 10, 1, 27500001, 27500001, false, false, 5, 0},
+				{"limit of one keeps threshold", 10, 1, 5500000, 5500000, false, false, 1, 0},
 			}
 			for i, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
@@ -277,6 +282,9 @@ func TestPreConsumePolicyDatabaseMatrix(t *testing.T) {
 					ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 					ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 					ctx.Set("token_quota", tc.token)
+					if tc.concurrency > 0 {
+						common.SetContextKey(ctx, constant.ContextKeyUserConcurrencyLimit, tc.concurrency)
+					}
 					info := &relaycommon.RelayInfo{UserId: user.Id, TokenId: token.Id, TokenKey: token.Key, TokenUnlimited: tc.unlimited, ForcePreConsume: tc.force, OriginModelName: "policy-model", UserGroup: "default", UsingGroup: "default", BillingRequestInput: &billingexpr.RequestInput{}}
 					info.UserSetting.BillingPreference = "wallet_only"
 					price, err := helper.ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{MaxTokens: 10000})

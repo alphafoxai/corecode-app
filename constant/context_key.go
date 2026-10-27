@@ -60,6 +60,9 @@ const (
 	ContextKeyUserGroup   ContextKey = "user_group"
 	ContextKeyUsingGroup  ContextKey = "group"
 	ContextKeyUserName    ContextKey = "username"
+	// ContextKeyUserConcurrencyLimit is the user's concurrency limit, set by
+	// middleware.UserConcurrencyLimit when one applies.
+	ContextKeyUserConcurrencyLimit ContextKey = "user_concurrency_limit"
 
 	ContextKeyLocalCountTokens ContextKey = "local_count_tokens"
 

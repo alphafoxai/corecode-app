@@ -139,6 +139,9 @@ func UserConcurrencyLimit() gin.HandlerFunc {
 		}
 		userRequestsInFlight.counts[userID]++
 		userRequestsInFlight.Unlock()
+		// Billing scales its trust threshold by this, so a balance cannot be
+		// overdrawn by as many unreserved requests as the limit admits.
+		common.SetContextKey(c, constant.ContextKeyUserConcurrencyLimit, limit)
 
 		defer func() {
 			userRequestsInFlight.Lock()
