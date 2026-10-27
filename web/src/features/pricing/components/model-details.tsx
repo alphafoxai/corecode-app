@@ -57,6 +57,7 @@ import {
 } from '@/features/performance-metrics/lib/format'
 import { PluginIcon } from '@/features/task-plugins/components/plugin-icon'
 import { useDocumentTitle } from '@/hooks/use-document-title'
+import { useNoIndex } from '@/hooks/use-no-index'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
@@ -1634,6 +1635,8 @@ export function ModelDetails() {
     if (!models || !modelId) return null
     return models.find((m) => m.model_name === modelId) || null
   }, [models, modelId])
+  // An unknown model name renders "Model not found" with status 200.
+  useNoIndex(!isLoading && !model)
 
   const handleBack = () => {
     navigate({ to: '/pricing', search })
