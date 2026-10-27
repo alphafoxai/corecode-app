@@ -33,23 +33,32 @@ export function safeDivide(
 }
 
 /**
- * Calculate aggregated statistics from quota data
+ * Calculate aggregated statistics from quota data.
+ *
+ * totalTokens is every token processed: input, output, cache reads and cache
+ * writes. token_used is input plus output, and every upstream here is Claude
+ * Messages, whose input excludes the cache, so the cache counts are added
+ * rather than already inside it.
  */
 export function calculateDashboardStats(data: QuotaDataItem[]) {
   return data.reduce(
     (acc, item) => {
-      const cacheRead = item.cache_read_tokens ?? 0
-      const cacheCreation = item.cache_creation_tokens ?? 0
+      const cacheRead = Number.isFinite(item.cache_read_tokens)
+        ? Math.max(0, item.cache_read_tokens ?? 0)
+        : 0
+      const cacheCreation = Number.isFinite(item.cache_creation_tokens)
+        ? Math.max(0, item.cache_creation_tokens ?? 0)
+        : 0
       return {
         totalQuota: acc.totalQuota + (Number(item.quota) || 0),
         totalCount: acc.totalCount + (Number(item.count) || 0),
-        totalTokens: acc.totalTokens + (Number(item.token_used) || 0),
-        totalCacheReadTokens:
-          acc.totalCacheReadTokens +
-          (Number.isFinite(cacheRead) ? Math.max(0, cacheRead) : 0),
-        totalCacheCreationTokens:
-          acc.totalCacheCreationTokens +
-          (Number.isFinite(cacheCreation) ? Math.max(0, cacheCreation) : 0),
+        totalTokens:
+          acc.totalTokens +
+          (Number(item.token_used) || 0) +
+          cacheRead +
+          cacheCreation,
+        totalCacheReadTokens: acc.totalCacheReadTokens + cacheRead,
+        totalCacheCreationTokens: acc.totalCacheCreationTokens + cacheCreation,
       }
     },
     {
