@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-transition'
+import { useDocumentTitle } from '@/hooks/use-document-title'
 
 import {
   LoadingSkeleton,
@@ -33,6 +34,7 @@ import { usePricingData } from './hooks/use-pricing-data'
 
 export function Pricing() {
   const { t } = useTranslation()
+  useDocumentTitle(t('Model Pricing'))
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null
   )
