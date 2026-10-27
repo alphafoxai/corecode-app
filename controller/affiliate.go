@@ -7,8 +7,10 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
 
@@ -118,19 +120,41 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 	})
 }
 
+// notifyAffiliateGift emails the invitee about a gift without holding up the
+// inviter's response. Tests replace it.
+var notifyAffiliateGift = func(lang string, inviterId int, inviteeId int, plan *model.SubscriptionPlan, subscription *model.UserSubscription) {
+	gopool.Go(func() {
+		invitee, err := model.GetUserById(inviteeId, false)
+		if err != nil {
+			common.SysLog(common.LogText("failed to load invitee %d for the gift email: %v", inviteeId, err))
+			return
+		}
+		inviter, err := model.GetUserById(inviterId, false)
+		if err != nil {
+			common.SysLog(common.LogText("failed to load inviter %d for the gift email: %v", inviterId, err))
+			return
+		}
+		if err := service.NotifyAffiliateGift(lang, invitee, inviter, plan, subscription); err != nil {
+			common.SysLog(common.LogText("failed to send the gift email to user %d: %v", inviteeId, err))
+		}
+	})
+}
+
 // GiftSelfAffiliateInvitee gives one of a promotion channel's invitees the
-// gift plan.
+// gift plan and emails the invitee when they have an address.
 func GiftSelfAffiliateInvitee(c *gin.Context) {
 	inviteeId, err := strconv.Atoi(c.Param("id"))
 	if err != nil || inviteeId <= 0 {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	plan, err := model.GiftAffiliatePlan(c.GetInt("id"), inviteeId)
+	inviterId := c.GetInt("id")
+	plan, subscription, err := model.GiftAffiliatePlan(inviterId, inviteeId)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
+	notifyAffiliateGift(service.AccountMailLanguage(c, inviteeId), inviterId, inviteeId, plan, subscription)
 	common.ApiSuccessT(c, "Gave {{plan}}", nil, map[string]any{"plan": plan.Title})
 }
 

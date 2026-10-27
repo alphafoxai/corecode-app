@@ -855,5 +855,8 @@
   "＄%.6f quota": "＄%.6f 额度",
   "failed to record concurrency rejections: %s": "并发上限拒绝数写入失败: %s",
   "site insights hour %d not stored: %s": "全站看板小时汇总 %d 未保存: %s",
-  "site insights rollup failed after %d hours: %v": "全站看板小时汇总失败（已完成 %d 小时）: %v"
+  "site insights rollup failed after %d hours: %v": "全站看板小时汇总失败（已完成 %d 小时）: %v",
+  "failed to load invitee %d for the gift email: %v": "读取被邀请用户 %d 失败，未发送赠送通知邮件: %v",
+  "failed to load inviter %d for the gift email: %v": "读取邀请人 %d 失败，未发送赠送通知邮件: %v",
+  "failed to send the gift email to user %d: %v": "向用户 %d 发送赠送通知邮件失败: %v"
 }

@@ -587,18 +587,19 @@ func AffiliateGiftPlan(userId int) (*SubscriptionPlan, error) {
 }
 
 // GiftAffiliatePlan gives one of a promotion channel's invitees the gift
-// plan, free. An invitee who already has the plan, gifted or bought, cannot be given it,
+// plan, free, and returns the plan and the subscription it created. An
+// invitee who already has the plan, gifted or bought, cannot be given it,
 // and one who was given it cannot buy it; the invitee's row is locked first,
 // as purchases lock it, so a gift and a purchase cannot both pass the check.
-func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, error) {
+func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, *UserSubscription, error) {
 	plan, err := AffiliateGiftPlan(inviterId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if plan == nil {
-		return nil, ErrAffiliateGiftUnavailable
+		return nil, nil, ErrAffiliateGiftUnavailable
 	}
-	groupChanged := false
+	var subscription *UserSubscription
 	var invitee User
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		if err := lockForUpdate(tx).Select("id", "username", "inviter_id").Where("id = ?", inviteeId).First(&invitee).Error; err != nil {
@@ -618,22 +619,18 @@ func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, error) 
 		if count > 0 {
 			return ErrAffiliateGiftTaken
 		}
-		subscription, err := CreateUserSubscriptionFromPlanTx(tx, inviteeId, plan, SubscriptionSourceAffiliateGift)
-		if err != nil {
-			return err
-		}
-		groupChanged = subscription.PrevUserGroup != ""
-		return nil
+		subscription, err = CreateUserSubscriptionFromPlanTx(tx, inviteeId, plan, SubscriptionSourceAffiliateGift)
+		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if groupChanged {
+	if subscription.PrevUserGroup != "" {
 		refreshSubscriptionUserGroupCache(inviteeId, common.LogText("affiliate plan gift"))
 	}
 	RecordLog(inviteeId, LogTypeSystem, common.NewMessage("Your inviter gave you the plan {{plan}}", map[string]any{"plan": plan.Title}))
 	RecordLog(inviterId, LogTypeSystem, common.NewMessage("You gave {{user}} the plan {{plan}}", map[string]any{"user": invitee.Username, "plan": plan.Title}))
-	return plan, nil
+	return plan, subscription, nil
 }
 
 // SetUserInviter is the administrator's change of who invited a user; 0
