@@ -75,6 +75,12 @@ var LinuxDOOAuthEnabled = false
 var WeChatAuthEnabled = false
 var TelegramOAuthEnabled = false
 var TurnstileCheckEnabled = false
+
+// PowCheckEnabled requires a solved proof-of-work challenge on the anonymous
+// account routes; PowMaxNumber is the challenge's search space, so the
+// browser tries PowMaxNumber/2 hashes on average.
+var PowCheckEnabled = false
+var PowMaxNumber = 100000
 var RegisterEnabled = true
 
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制

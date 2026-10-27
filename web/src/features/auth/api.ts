@@ -30,6 +30,7 @@ import {
   clearPasswordEncryptionCache,
   encryptPassword,
 } from './lib/password-encryption'
+import { type PowChallenge, powSolutionHeaders } from './lib/proof-of-work'
 import { getAffiliateCode } from './lib/storage'
 import type { TelegramAuthorization } from './lib/telegram-login'
 import type { VerificationOperation } from './secure-verification/types'
@@ -38,7 +39,7 @@ import type {
   LoginResponse,
   Login2FAResponse,
   TwoFAPayload,
-  RegisterPayload,
+  RegisterRequest,
   ApiResponse,
   MagicLinkResponse,
 } from './types'
@@ -73,7 +74,7 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
         username: payload.username,
         ...passwordFields,
       },
-      { skipAuthRefresh: true }
+      { skipAuthRefresh: true, headers: powSolutionHeaders(payload.pow) }
     )
     if (payload.passwordEncryptionEnabled && !res.data?.success) {
       clearPasswordEncryptionCache()
@@ -152,10 +153,12 @@ export async function logout(): Promise<ApiResponse> {
 // Send password reset email
 export async function sendPasswordResetEmail(
   email: string,
-  turnstile?: string
+  turnstile?: string,
+  pow?: string
 ): Promise<ApiResponse> {
   const res = await api.get('/api/reset_password', {
     params: { email, turnstile },
+    headers: powSolutionHeaders(pow),
   })
   return res.data
 }
@@ -168,15 +171,22 @@ export async function sendPasswordResetEmail(
 // address has an account, so it never confirms registration. redirect is the
 // in-app path the link should continue to after it lands. aff is the inviter's
 // code; the server uses it only when the link registers a new account.
+// turnstile and pow answer the human checks while they are enabled.
 export async function requestMagicLink(
   email: string,
   redirect?: string,
-  aff?: string
+  aff?: string,
+  turnstile?: string,
+  pow?: string
 ): Promise<MagicLinkResponse> {
   const res = await api.post(
     '/api/magic_link/send',
     { email, redirect, aff },
-    { skipAuthRefresh: true }
+    {
+      skipAuthRefresh: true,
+      params: turnstile ? { turnstile } : undefined,
+      headers: powSolutionHeaders(pow),
+    }
   )
   return res.data
 }
@@ -298,9 +308,13 @@ export async function telegramLogin(
 // ----------------------------------------------------------------------------
 
 // User registration
-export async function register(payload: RegisterPayload): Promise<ApiResponse> {
+export async function register({
+  pow,
+  ...payload
+}: RegisterRequest): Promise<ApiResponse> {
   const res = await api.post(`/api/user/register`, payload, {
     params: { turnstile: payload.turnstile ?? '' },
+    headers: powSolutionHeaders(pow),
   })
   return res.data
 }
@@ -308,12 +322,29 @@ export async function register(payload: RegisterPayload): Promise<ApiResponse> {
 // Send email verification code
 export async function sendEmailVerification(
   email: string,
-  turnstile?: string
+  turnstile?: string,
+  pow?: string
 ): Promise<ApiResponse> {
   const res = await api.get('/api/verification', {
     params: { email, turnstile },
+    headers: powSolutionHeaders(pow),
   })
   return res.data
+}
+
+// A proof-of-work challenge for the anonymous account routes.
+export async function requestPowChallenge(): Promise<PowChallenge> {
+  const res = await api.get('/api/pow/challenge', {
+    skipAuthRefresh: true,
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  if (!res.data?.success) {
+    throw new Error(
+      res.data?.message || 'Failed to get a proof-of-work challenge'
+    )
+  }
+  return res.data.data
 }
 
 // Confirm an authenticated, server-owned email binding flow.

@@ -40,6 +40,7 @@ import {
   forgotPasswordFormSchema,
   PASSWORD_RESET_COUNTDOWN,
 } from '@/features/auth/constants'
+import { useProofOfWork } from '@/features/auth/hooks/use-proof-of-work'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { useCountdown } from '@/hooks/use-countdown'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -61,6 +62,7 @@ export function ForgotPasswordForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const { takeProof } = useProofOfWork()
   const {
     secondsLeft,
     isActive,
@@ -78,7 +80,9 @@ export function ForgotPasswordForm({
 
     setIsLoading(true)
     try {
-      const res = await sendPasswordResetEmail(data.email, turnstileToken)
+      const pow = await takeProof()
+      if (pow === null) return
+      const res = await sendPasswordResetEmail(data.email, turnstileToken, pow)
       if (res?.success) {
         form.reset()
         startCountdown()

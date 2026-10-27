@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { createHash } from 'node:crypto'
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 /*
 Copyright (C) 2023-2026 QuantumNous
@@ -300,6 +302,138 @@ describe('MagicLinkForm', () => {
     expect(
       screen.getByRole('button', { name: /Send sign-in code/ })
     ).toBeEnabled()
+  })
+})
+
+describe('MagicLinkForm with Turnstile', () => {
+  const turnstileStatus = { turnstile_check: true, turnstile_site_key: 'site' }
+
+  // Each rendered widget solves at once with the next token, so the test sees
+  // which widget a send spent.
+  function solveWidgets() {
+    let solved = 0
+    const render = vi.fn(
+      (_element: HTMLElement, options: Record<string, unknown>) => {
+        solved += 1
+        ;(options.callback as (token: string) => void)(`token-${solved}`)
+      }
+    )
+    window.turnstile = { render }
+    return render
+  }
+
+  afterEach(() => {
+    delete window.turnstile
+  })
+
+  it('sends the solved token and spends a new widget on the resend', async () => {
+    const render = solveWidgets()
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 0 } } as never)
+
+    renderInRouter(SignInHarness, '/', turnstileStatus)
+    const user = userEvent.setup()
+    await submitEmail(user)
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post).toHaveBeenCalledWith(
+      '/api/magic_link/send',
+      { email: 'someone@example.com', redirect: '/pricing' },
+      { skipAuthRefresh: true, params: { turnstile: 'token-1' } }
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Resend code' }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
+    expect(post.mock.calls[1][2]).toMatchObject({
+      params: { turnstile: 'token-2' },
+    })
+    expect(render).toHaveBeenCalledTimes(3)
+  })
+
+  it('holds the send until the widget has produced a token', async () => {
+    window.turnstile = { render: vi.fn() }
+    const post = vi.spyOn(api, 'post')
+
+    renderInRouter(SignInHarness, '/', turnstileStatus)
+    await submitEmail(userEvent.setup())
+
+    expect(post).not.toHaveBeenCalled()
+  })
+})
+
+describe('MagicLinkForm with proof of work', () => {
+  const powStatus = { pow_check: true }
+
+  // Each challenge request gets a new salt whose answer is its sequence number.
+  function serveChallenges() {
+    let issued = 0
+    return vi.spyOn(api, 'get').mockImplementation(((url: string) => {
+      if (url !== '/api/pow/challenge') {
+        return Promise.reject(new Error(`unexpected GET ${url}`))
+      }
+      issued += 1
+      const salt = `salt-${issued}.${Math.floor(Date.now() / 1000) + 600}`
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: {
+            algorithm: 'SHA-256',
+            salt,
+            challenge: createHash('sha256')
+              .update(`${salt}${issued}`)
+              .digest('hex'),
+            maxnumber: 1000,
+            signature: `signature-${issued}`,
+            expires_at: Math.floor(Date.now() / 1000) + 600,
+          },
+        },
+      })
+    }) as never)
+  }
+
+  function solutionIn(call: unknown[]) {
+    const config = call[2] as { headers?: Record<string, string> }
+    return JSON.parse(atob(config.headers?.['X-Pow-Solution'] ?? ''))
+  }
+
+  it('sends a solved challenge and solves a new one for the resend', async () => {
+    serveChallenges()
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 0 } } as never)
+
+    renderInRouter(SignInHarness, '/', powStatus)
+    const user = userEvent.setup()
+    await submitEmail(user)
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(solutionIn(post.mock.calls[0])).toMatchObject({
+      number: 1,
+      signature: 'signature-1',
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Resend code' }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
+    expect(solutionIn(post.mock.calls[1])).toMatchObject({
+      number: 2,
+      signature: 'signature-2',
+    })
+  })
+
+  it('sends nothing when no challenge can be had', async () => {
+    vi.spyOn(api, 'get').mockRejectedValue(new Error('offline'))
+    const post = vi.spyOn(api, 'post')
+
+    renderInRouter(SignInHarness, '/', powStatus)
+    await submitEmail(userEvent.setup())
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Send sign-in code/ })
+      ).toBeEnabled()
+    )
+    expect(post).not.toHaveBeenCalled()
   })
 })
 

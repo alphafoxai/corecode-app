@@ -31,6 +31,8 @@ import { EMAIL_VERIFICATION_COUNTDOWN } from '../constants'
 interface UseEmailVerificationOptions {
   turnstileToken?: string
   validateTurnstile?: () => boolean
+  // useProofOfWork's takeProof; null means no solution and stops the send
+  takeProof?: () => Promise<string | undefined | null>
 }
 
 /**
@@ -60,7 +62,13 @@ export function useEmailVerification(options?: UseEmailVerificationOptions) {
 
     setIsSending(true)
     try {
-      const res = await sendEmailVerification(email, options?.turnstileToken)
+      const pow = await options?.takeProof?.()
+      if (pow === null) return false
+      const res = await sendEmailVerification(
+        email,
+        options?.turnstileToken,
+        pow
+      )
       if (res?.success) {
         startCountdown()
         toast.success(i18next.t('Verification email sent'))

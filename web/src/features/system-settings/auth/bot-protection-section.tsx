@@ -47,6 +47,15 @@ const botProtectionSchema = z.object({
   TurnstileCheckEnabled: z.boolean(),
   TurnstileSiteKey: z.string().optional(),
   TurnstileSecretKey: z.string().optional(),
+  PowCheckEnabled: z.boolean(),
+  // Bounds match service.PowMinMaxNumber and service.PowMaxMaxNumber.
+  PowMaxNumber: z
+    .string()
+    .regex(/^\d+$/)
+    .refine((value) => {
+      const number = Number(value)
+      return number >= 1000 && number <= 10_000_000
+    }),
 })
 
 type BotProtectionFormValues = z.infer<typeof botProtectionSchema>
@@ -144,6 +153,55 @@ export function BotProtectionSection({
                     {...field}
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='PowCheckEnabled'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>{t('Enable proof of work')}</FormLabel>
+                  <FormDescription>
+                    {t(
+                      'The browser solves a small computation before signing in, registering, or sending a sign-in, reset, or verification email. Served from this site, so it works wherever the site does.'
+                    )}
+                  </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='PowMaxNumber'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Proof-of-work difficulty')}</FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    inputMode='numeric'
+                    min={1000}
+                    max={10_000_000}
+                    autoComplete='off'
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Hashes the browser tries at most; it tries half on average. At 100000 a phone takes a second or two. Raise it during an attack.'
+                  )}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

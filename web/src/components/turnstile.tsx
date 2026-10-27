@@ -61,7 +61,12 @@ export function Turnstile({
       return
     }
     const scriptId = 'cf-turnstile'
-    if (document.getElementById(scriptId)) return
+    const pending = document.getElementById(scriptId)
+    if (pending) {
+      // An earlier widget started the script; render once it has loaded.
+      pending.addEventListener('load', render)
+      return () => pending.removeEventListener('load', render)
+    }
     const s = document.createElement('script')
     s.id = scriptId
     s.src =

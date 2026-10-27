@@ -113,6 +113,8 @@ const AUTH_SECTIONS = [
           TurnstileCheckEnabled: settings.TurnstileCheckEnabled,
           TurnstileSiteKey: settings.TurnstileSiteKey,
           TurnstileSecretKey: settings.TurnstileSecretKey,
+          PowCheckEnabled: settings.PowCheckEnabled,
+          PowMaxNumber: settings.PowMaxNumber,
         }}
       />
     ),

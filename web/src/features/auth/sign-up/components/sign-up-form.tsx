@@ -44,6 +44,7 @@ import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { registerFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useEmailVerification } from '@/features/auth/hooks/use-email-verification'
+import { useProofOfWork } from '@/features/auth/hooks/use-proof-of-work'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import {
   getAffiliateCode,
@@ -77,6 +78,7 @@ export function SignUpForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const { takeProof } = useProofOfWork()
   const { redirectToLogin, handleLoginResult } = useAuthRedirect()
   const {
     isSending: isSendingCode,
@@ -86,6 +88,7 @@ export function SignUpForm({
   } = useEmailVerification({
     turnstileToken,
     validateTurnstile,
+    takeProof,
   })
 
   const form = useForm<z.infer<typeof registerFormSchema>>({
@@ -161,6 +164,8 @@ export function SignUpForm({
 
     setIsLoading(true)
     try {
+      const pow = await takeProof()
+      if (pow === null) return
       const res = await register({
         username: data.username,
         password: data.password,
@@ -168,6 +173,7 @@ export function SignUpForm({
         verification_code: verificationCode || undefined,
         aff_code: getAffiliateCode(),
         turnstile: turnstileToken,
+        pow,
       })
 
       if (res?.success) {
