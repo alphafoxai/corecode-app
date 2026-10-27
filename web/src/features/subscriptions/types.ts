@@ -38,6 +38,8 @@ export const subscriptionPlanSchema = z.object({
   allow_balance_pay: z.boolean().optional().default(true),
   allow_wallet_overflow: z.boolean().optional().default(true),
   max_purchase_per_user: z.number(),
+  registered_after: z.number().optional(),
+  registered_before: z.number().optional(),
   total_amount: z.number(),
   upgrade_group: z.string().optional(),
   downgrade_group: z.string().optional(),

@@ -8084,6 +8084,12 @@
     "User limit": "User limit",
     "Subscription Remaining": "Остаток по подписке",
     "No active subscription": "Нет активной подписки",
-    "Paid spend": "Оплаченные расходы"
+    "Paid spend": "Оплаченные расходы",
+    "Registered on or after": "Зарегистрирован не ранее",
+    "Registered before": "Зарегистрирован до",
+    "No limit": "Без ограничений",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "Купить план могут только пользователи, зарегистрированные в этот период. Подарки и назначения администратором это ограничение не учитывают.",
+    "This plan is not available to your account": "Этот план недоступен для вашей учётной записи",
+    "Invalid registration window": "Недопустимый период регистрации"
   }
 }

@@ -44,6 +44,8 @@ export function getPlanFormSchema(t: TFunction) {
     allow_balance_pay: z.boolean(),
     allow_wallet_overflow: z.boolean(),
     max_purchase_per_user: z.coerce.number().min(0),
+    registered_after: z.date().nullable(),
+    registered_before: z.date().nullable(),
     total_amount: z.coerce.number().min(0),
     upgrade_group: z.string().optional(),
     downgrade_group: z.string().optional(),
@@ -69,6 +71,8 @@ export const PLAN_FORM_DEFAULTS: PlanFormValues = {
   allow_balance_pay: true,
   allow_wallet_overflow: true,
   max_purchase_per_user: 0,
+  registered_after: null,
+  registered_before: null,
   total_amount: 0,
   upgrade_group: '',
   downgrade_group: '',
@@ -92,6 +96,12 @@ export function planToFormValues(plan: SubscriptionPlan): PlanFormValues {
     allow_balance_pay: plan.allow_balance_pay !== false,
     allow_wallet_overflow: plan.allow_wallet_overflow !== false,
     max_purchase_per_user: Number(plan.max_purchase_per_user || 0),
+    registered_after: plan.registered_after
+      ? new Date(plan.registered_after * 1000)
+      : null,
+    registered_before: plan.registered_before
+      ? new Date(plan.registered_before * 1000)
+      : null,
     total_amount: quotaUnitsToDollars(Number(plan.total_amount || 0)),
     upgrade_group: plan.upgrade_group || '',
     downgrade_group: plan.downgrade_group || '',
@@ -116,6 +126,12 @@ export function formValuesToPlanPayload(values: PlanFormValues): PlanPayload {
           : 0,
       sort_order: Number(values.sort_order || 0),
       max_purchase_per_user: Number(values.max_purchase_per_user || 0),
+      registered_after: values.registered_after
+        ? Math.floor(values.registered_after.getTime() / 1000)
+        : 0,
+      registered_before: values.registered_before
+        ? Math.floor(values.registered_before.getTime() / 1000)
+        : 0,
       total_amount: parseQuotaFromDollars(Number(values.total_amount || 0)),
       upgrade_group: values.upgrade_group || '',
       downgrade_group: values.downgrade_group || '',

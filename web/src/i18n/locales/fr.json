@@ -8084,6 +8084,12 @@
     "User limit": "User limit",
     "Subscription Remaining": "Restant de l'abonnement",
     "No active subscription": "Aucun abonnement actif",
-    "Paid spend": "Dépenses payées"
+    "Paid spend": "Dépenses payées",
+    "Registered on or after": "Inscrit à partir du",
+    "Registered before": "Inscrit avant le",
+    "No limit": "Sans limite",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "Seuls les utilisateurs inscrits dans cette période peuvent acheter l'offre. Les cadeaux et les attributions par un administrateur l'ignorent.",
+    "This plan is not available to your account": "Cette offre n'est pas disponible pour votre compte",
+    "Invalid registration window": "Période d'inscription invalide"
   }
 }

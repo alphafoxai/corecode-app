@@ -8084,6 +8084,12 @@
     "User limit": "User limit",
     "Subscription Remaining": "現在のサブスクリプション残量",
     "No active subscription": "有効なサブスクリプションはありません",
-    "Paid spend": "実入金による利用額"
+    "Paid spend": "実入金による利用額",
+    "Registered on or after": "登録日時（以降）",
+    "Registered before": "登録日時（より前）",
+    "No limit": "制限なし",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "この期間内に登録したユーザーのみプランを購入できます。招待による贈呈と管理者による付与には適用されません。",
+    "This plan is not available to your account": "このプランはお客様のアカウントではご利用いただけません",
+    "Invalid registration window": "登録期間が無効です"
   }
 }

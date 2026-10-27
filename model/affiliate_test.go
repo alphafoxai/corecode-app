@@ -502,6 +502,28 @@ func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
 			InvalidateSubscriptionPlanCache(plan.Id)
 			_, _, err = GiftAffiliatePlan(b.Id, d.Id)
 			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable)
+
+			// Once the plan is only for users registered before a cutoff, a
+			// later registrant cannot buy it but can still be gifted it, and a
+			// newcomer plan takes the opposite side of the same cutoff.
+			const cutoff = int64(2_000_000_000)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", c.Id).Update("created_at", cutoff-1).Error)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", d.Id).Update("created_at", cutoff).Error)
+			plan.Enabled, plan.RegisteredBefore = true, cutoff
+			require.NoError(t, DB.Model(plan).Updates(map[string]any{"enabled": true, "registered_before": cutoff}).Error)
+			InvalidateSubscriptionPlanCache(plan.Id)
+			assert.NoError(t, CheckSubscriptionPurchase(c.Id, plan))
+			assert.ErrorIs(t, CheckSubscriptionPurchase(d.Id, plan), ErrSubscriptionNotEligible)
+			_, _, err = GiftAffiliatePlan(b.Id, d.Id)
+			require.NoError(t, err, "a gift ignores the registration window")
+
+			newcomer := &SubscriptionPlan{Title: "newcomer", PriceAmount: 29.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true, RegisteredAfter: cutoff}
+			require.NoError(t, DB.Create(newcomer).Error)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", c.Id).Update("quota", 100*affiliateDollar).Error)
+			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(c.Id, newcomer.Id), ErrSubscriptionNotEligible)
+			assert.NoError(t, CheckSubscriptionPurchase(d.Id, newcomer))
+			_, err = AdminBindSubscription(c.Id, newcomer.Id, "")
+			require.NoError(t, err, "an administrator can bind it to anyone")
 		})
 	}
 }

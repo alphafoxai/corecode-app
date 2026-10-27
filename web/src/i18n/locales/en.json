@@ -8084,6 +8084,12 @@
     "User limit": "User limit",
     "Subscription Remaining": "Subscription Remaining",
     "No active subscription": "No active subscription",
-    "Paid spend": "Paid spend"
+    "Paid spend": "Paid spend",
+    "Registered on or after": "Registered on or after",
+    "Registered before": "Registered before",
+    "No limit": "No limit",
+    "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.",
+    "This plan is not available to your account": "This plan is not available to your account",
+    "Invalid registration window": "Invalid registration window"
   }
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -39,8 +40,25 @@ func GetSubscriptionPlans(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	userId := c.GetInt("id")
+	var createdAt int64
+	if err := model.DB.Model(&model.User{}).Where("id = ?", userId).Pluck("created_at", &createdAt).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	// A plan outside the user's registration window stays listed when they
+	// already hold it, gifted or bought, so their subscription keeps its title.
+	var heldPlanIds []int
+	if err := model.DB.Model(&model.UserSubscription{}).Where("user_id = ?", userId).
+		Distinct().Pluck("plan_id", &heldPlanIds).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	result := make([]SubscriptionPlanDTO, 0, len(plans))
 	for _, p := range plans {
+		if !p.AdmitsRegistration(createdAt) && !slices.Contains(heldPlanIds, p.Id) {
+			continue
+		}
 		p.NormalizeDefaults()
 		result = append(result, SubscriptionPlanDTO{
 			Plan: p,
@@ -184,6 +202,11 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorT(c, "Total quota cannot be negative")
 		return
 	}
+	if req.Plan.RegisteredAfter < 0 || req.Plan.RegisteredBefore < 0 ||
+		(req.Plan.RegisteredAfter > 0 && req.Plan.RegisteredBefore > 0 && req.Plan.RegisteredAfter >= req.Plan.RegisteredBefore) {
+		common.ApiErrorT(c, "Invalid registration window")
+		return
+	}
 	req.Plan.UpgradeGroup = strings.TrimSpace(req.Plan.UpgradeGroup)
 	if req.Plan.UpgradeGroup != "" {
 		if _, ok := ratio_setting.GetGroupRatioCopy()[req.Plan.UpgradeGroup]; !ok {
@@ -258,6 +281,11 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorT(c, "Total quota cannot be negative")
 		return
 	}
+	if req.Plan.RegisteredAfter < 0 || req.Plan.RegisteredBefore < 0 ||
+		(req.Plan.RegisteredAfter > 0 && req.Plan.RegisteredBefore > 0 && req.Plan.RegisteredAfter >= req.Plan.RegisteredBefore) {
+		common.ApiErrorT(c, "Invalid registration window")
+		return
+	}
 	req.Plan.UpgradeGroup = strings.TrimSpace(req.Plan.UpgradeGroup)
 	if req.Plan.UpgradeGroup != "" {
 		if _, ok := ratio_setting.GetGroupRatioCopy()[req.Plan.UpgradeGroup]; !ok {
@@ -294,6 +322,8 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 			"creem_product_id":           req.Plan.CreemProductId,
 			"waffo_pancake_product_id":   req.Plan.WaffoPancakeProductId,
 			"max_purchase_per_user":      req.Plan.MaxPurchasePerUser,
+			"registered_after":           req.Plan.RegisteredAfter,
+			"registered_before":          req.Plan.RegisteredBefore,
 			"total_amount":               req.Plan.TotalAmount,
 			"upgrade_group":              req.Plan.UpgradeGroup,
 			"downgrade_group":            req.Plan.DowngradeGroup,
