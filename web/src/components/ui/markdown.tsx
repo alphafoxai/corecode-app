@@ -17,11 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import DOMPurify from 'dompurify'
-import * as katex from 'katex'
-
-import 'katex/dist/katex.min.css'
 import { Marked, Renderer, type MarkedExtension, type Tokens } from 'marked'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -182,7 +179,27 @@ function normalizeMathSource(source: string): string {
     .replace(/\\\]$/, '')
 }
 
+// KaTeX and its stylesheet are about 0.6 MB and most content has no math, so
+// they load the first time a document contains some. Until then the source is
+// shown as code, and Markdown renders again once KaTeX is ready.
+type KatexModule = typeof import('./markdown-katex')
+let katex: KatexModule | null = null
+let katexLoading: Promise<void> | null = null
+
+function loadKatex(): Promise<void> {
+  katexLoading ??= import('./markdown-katex').then((module) => {
+    katex = module
+  })
+  return katexLoading
+}
+
+const MATH_PATTERN = /\$\$|^\s*```\s*(?:math|katex|latex)\b/im
+
 function renderMath(source: string, displayMode: boolean): string {
+  if (!katex) {
+    const code = `<code>${escapeHtml(source)}</code>`
+    return displayMode ? `<pre>${code}</pre>` : code
+  }
   return katex.renderToString(normalizeMathSource(source), {
     displayMode,
     output: 'htmlAndMathml',
@@ -763,9 +780,25 @@ function renderMarkdown(
 }
 
 export function Markdown(props: MarkdownProps) {
+  const needsMath = MATH_PATTERN.test(props.children)
+  const [katexReady, setKatexReady] = useState(() => katex !== null)
+
+  useEffect(() => {
+    if (!needsMath || katexReady) return
+    let cancelled = false
+    void loadKatex().then(() => {
+      if (!cancelled) setKatexReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [needsMath, katexReady])
+
   const html = useMemo(
     () => renderMarkdown(props.children, props.breaks, props.baseUrl),
-    [props.breaks, props.children, props.baseUrl]
+    // katexReady re-renders math that was shown as code while KaTeX loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.breaks, props.children, props.baseUrl, katexReady]
   )
 
   return (

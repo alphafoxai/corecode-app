@@ -17,14 +17,35 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ContentSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { AnnouncementsSection } from './announcements-section'
-import { ApiInfoSection } from './api-info-section'
-import { ChatSettingsSection } from './chat-settings-section'
-import { DashboardSection } from './dashboard-section'
-import { DrawingSettingsSection } from './drawing-settings-section'
-import { FAQSection } from './faq-section'
-import { UptimeKumaSection } from './uptime-kuma-section'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const AnnouncementsSection = lazySection(() =>
+  import('./announcements-section').then((m) => m.AnnouncementsSection)
+)
+
+const ApiInfoSection = lazySection(() =>
+  import('./api-info-section').then((m) => m.ApiInfoSection)
+)
+
+const ChatSettingsSection = lazySection(() =>
+  import('./chat-settings-section').then((m) => m.ChatSettingsSection)
+)
+
+const DashboardSection = lazySection(() =>
+  import('./dashboard-section').then((m) => m.DashboardSection)
+)
+
+const DrawingSettingsSection = lazySection(() =>
+  import('./drawing-settings-section').then((m) => m.DrawingSettingsSection)
+)
+
+const FAQSection = lazySection(() =>
+  import('./faq-section').then((m) => m.FAQSection)
+)
+
+const UptimeKumaSection = lazySection(() =>
+  import('./uptime-kuma-section').then((m) => m.UptimeKumaSection)
+)
 
 /**
  * Validate and coerce DataExportDefaultTime to a safe value

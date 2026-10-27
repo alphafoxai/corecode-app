@@ -16,13 +16,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { IoNetDeploymentSettingsSection } from '../integrations/ionet-deployment-settings-section'
 import type { ModelSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { ClaudeSettingsCard } from './claude-settings-card'
-import { GeminiSettingsCard } from './gemini-settings-card'
-import { GlobalSettingsCard } from './global-settings-card'
-import { GrokSettingsCard } from './grok-settings-card'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const IoNetDeploymentSettingsSection = lazySection(() =>
+  import('../integrations/ionet-deployment-settings-section').then(
+    (m) => m.IoNetDeploymentSettingsSection
+  )
+)
+
+const ClaudeSettingsCard = lazySection(() =>
+  import('./claude-settings-card').then((m) => m.ClaudeSettingsCard)
+)
+
+const GeminiSettingsCard = lazySection(() =>
+  import('./gemini-settings-card').then((m) => m.GeminiSettingsCard)
+)
+
+const GlobalSettingsCard = lazySection(() =>
+  import('./global-settings-card').then((m) => m.GlobalSettingsCard)
+)
+
+const GrokSettingsCard = lazySection(() =>
+  import('./grok-settings-card').then((m) => m.GrokSettingsCard)
+)
 
 function formatJsonForEditor(value: string, fallback: string) {
   const raw = (value ?? '').toString().trim()

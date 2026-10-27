@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useParams } from '@tanstack/react-router'
-import { useMemo, useState, type ReactNode } from 'react'
+import { Suspense, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
@@ -128,12 +128,16 @@ export function SettingsPage<
       : baseSettings
   }, [data?.data, defaultSettings, resolveSettings])
 
+  const loading = (
+    <div className='text-muted-foreground flex min-h-40 items-center justify-center text-sm'>
+      {t(loadingMessage)}
+    </div>
+  )
+
   if (isLoading) {
     return (
       <SettingsPageFrame title={t(sectionMeta.titleKey)}>
-        <div className='text-muted-foreground flex min-h-40 items-center justify-center text-sm'>
-          {t(loadingMessage)}
-        </div>
+        {loading}
       </SettingsPageFrame>
     )
   }
@@ -157,7 +161,8 @@ export function SettingsPage<
 
   return (
     <SettingsPageFrame title={t(sectionMeta.titleKey)}>
-      {sectionContent}
+      {/* Section panels load on demand (lazySection). */}
+      <Suspense fallback={loading}>{sectionContent}</Suspense>
     </SettingsPageFrame>
   )
 }

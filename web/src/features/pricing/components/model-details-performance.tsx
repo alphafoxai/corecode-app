@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, HeartPulse, Timer } from 'lucide-react'
-import { useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -42,8 +42,19 @@ import { cn } from '@/lib/utils'
 
 import type { UptimeDayPoint } from '../lib/mock-stats'
 import type { PricingModel } from '../types'
-import { LatencyTrendChart, UptimeTrendChart } from './model-details-charts'
 import { UptimeSparkline } from './model-details-uptime-sparkline'
+
+// VChart is about 2 MB; load it when a model's details first show its charts.
+const LatencyTrendChart = lazy(() =>
+  import('./model-details-charts').then((m) => ({
+    default: m.LatencyTrendChart,
+  }))
+)
+const UptimeTrendChart = lazy(() =>
+  import('./model-details-charts').then((m) => ({
+    default: m.UptimeTrendChart,
+  }))
+)
 
 function StatCard(props: {
   icon: React.ComponentType<{ className?: string }>
@@ -265,7 +276,9 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
           title={t('Latency trend (last 24h)')}
           description={t('Average TTFT')}
         />
-        <LatencyTrendChart series={latencySeries} />
+        <Suspense fallback={<div className='h-64 sm:h-72' />}>
+          <LatencyTrendChart series={latencySeries} />
+        </Suspense>
       </section>
 
       <section>
@@ -286,7 +299,9 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
             ) : null
           }
         />
-        <UptimeTrendChart series={uptimeSeries} />
+        <Suspense fallback={<div className='h-56 sm:h-64' />}>
+          <UptimeTrendChart series={uptimeSeries} />
+        </Suspense>
       </section>
     </div>
   )

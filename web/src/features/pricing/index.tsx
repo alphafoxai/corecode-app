@@ -16,21 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-transition'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 
-import {
-  LoadingSkeleton,
-  ModelDetailsDrawer,
-  ClaudeCodeEstimator,
-  PriceBoard,
-} from './components'
+import { LoadingSkeleton, ClaudeCodeEstimator, PriceBoard } from './components'
 import { VIEW_MODES } from './constants'
 import { usePricingData } from './hooks/use-pricing-data'
+
+// The drawer opens on a model click; its code stays out of the page's first load.
+const ModelDetailsDrawer = lazy(() =>
+  import('./components/model-details').then((m) => ({
+    default: m.ModelDetailsDrawer,
+  }))
+)
 
 export function Pricing() {
   const { t } = useTranslation()
@@ -115,25 +117,27 @@ export function Pricing() {
           </main>
 
           {selectedModel && (
-            <ModelDetailsDrawer
-              open={Boolean(selectedModel)}
-              onOpenChange={(open) => {
-                if (!open) setSelectedModelName(null)
-              }}
-              model={selectedModel}
-              groupRatio={groupRatio || {}}
-              usableGroup={usableGroup || {}}
-              endpointMap={
-                (endpointMap as Record<
-                  string,
-                  { path?: string; method?: string }
-                >) || {}
-              }
-              autoGroups={autoGroups || []}
-              priceRate={priceRate ?? 1}
-              usdExchangeRate={usdExchangeRate ?? 1}
-              tokenUnit='M'
-            />
+            <Suspense fallback={null}>
+              <ModelDetailsDrawer
+                open={Boolean(selectedModel)}
+                onOpenChange={(open) => {
+                  if (!open) setSelectedModelName(null)
+                }}
+                model={selectedModel}
+                groupRatio={groupRatio || {}}
+                usableGroup={usableGroup || {}}
+                endpointMap={
+                  (endpointMap as Record<
+                    string,
+                    { path?: string; method?: string }
+                  >) || {}
+                }
+                autoGroups={autoGroups || []}
+                priceRate={priceRate ?? 1}
+                usdExchangeRate={usdExchangeRate ?? 1}
+                tokenUnit='M'
+              />
+            </Suspense>
           )}
         </PageTransition>
       </div>

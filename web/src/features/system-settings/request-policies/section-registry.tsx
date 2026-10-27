@@ -16,12 +16,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createSectionRegistry } from '../utils/section-registry'
-import { ChannelHealthSection } from './channel-health-section'
-import { ClaudeCodeClientsSection } from './claude-code-clients-section'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
 import type { RequestPolicySettings } from './defaults'
-import { RequestChecksSection } from './request-checks-section'
-import { RoutingPolicySection } from './routing-section'
+
+const ChannelHealthSection = lazySection(() =>
+  import('./channel-health-section').then((m) => m.ChannelHealthSection)
+)
+
+const ClaudeCodeClientsSection = lazySection(() =>
+  import('./claude-code-clients-section').then(
+    (m) => m.ClaudeCodeClientsSection
+  )
+)
+
+const RequestChecksSection = lazySection(() =>
+  import('./request-checks-section').then((m) => m.RequestChecksSection)
+)
+
+const RoutingPolicySection = lazySection(() =>
+  import('./routing-section').then((m) => m.RoutingPolicySection)
+)
 
 const POLICY_SECTIONS = [
   {

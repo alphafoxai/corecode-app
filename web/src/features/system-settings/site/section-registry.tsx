@@ -16,19 +16,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SystemInfoSection } from '../general/system-info-section'
 import {
   parseHeaderNavModules,
   parseSidebarModulesAdmin,
   serializeHeaderNavModules,
   serializeSidebarModulesAdmin,
 } from '../maintenance/config'
-import { HeaderNavigationSection } from '../maintenance/header-navigation-section'
-import { NoticeSection } from '../maintenance/notice-section'
-import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { AnalyticsSection } from './analytics-section'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const SystemInfoSection = lazySection(() =>
+  import('../general/system-info-section').then((m) => m.SystemInfoSection)
+)
+
+const HeaderNavigationSection = lazySection(() =>
+  import('../maintenance/header-navigation-section').then(
+    (m) => m.HeaderNavigationSection
+  )
+)
+
+const NoticeSection = lazySection(() =>
+  import('../maintenance/notice-section').then((m) => m.NoticeSection)
+)
+
+const SidebarModulesSection = lazySection(() =>
+  import('../maintenance/sidebar-modules-section').then(
+    (m) => m.SidebarModulesSection
+  )
+)
+
+const AnalyticsSection = lazySection(() =>
+  import('./analytics-section').then((m) => m.AnalyticsSection)
+)
 
 const SITE_SECTIONS = [
   {
