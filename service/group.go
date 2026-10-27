@@ -11,7 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetUserUsableGroups(userGroup string) map[string]string {
+// GetUserOfferedGroups returns the groups the operator offers a user: UserUsableGroups with
+// the user group's special additions and removals. It leaves out the user's own group, which
+// GetUserUsableGroups adds so that existing keys keep authenticating; offering it would let a
+// customer pick a group that may route to no channel.
+func GetUserOfferedGroups(userGroup string) map[string]string {
 	groupsCopy := setting.GetUserUsableGroupsCopy()
 	if userGroup != "" {
 		specialSettings, b := ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup.Get(userGroup)
@@ -32,8 +36,15 @@ func GetUserUsableGroups(userGroup string) map[string]string {
 				}
 			}
 		}
-		// 如果userGroup不在UserUsableGroups中，返回UserUsableGroups + userGroup。
-		// 描述是英文源文本，由 web 控制台翻译；管理员配置的描述原样显示。
+	}
+	return groupsCopy
+}
+
+func GetUserUsableGroups(userGroup string) map[string]string {
+	groupsCopy := GetUserOfferedGroups(userGroup)
+	// 如果userGroup不在UserUsableGroups中，返回UserUsableGroups + userGroup。
+	// 描述是英文源文本，由 web 控制台翻译；管理员配置的描述原样显示。
+	if userGroup != "" {
 		if _, ok := groupsCopy[userGroup]; !ok {
 			groupsCopy[userGroup] = "User group"
 		}
