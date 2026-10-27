@@ -217,14 +217,12 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
       >
         <BarSeries
           ariaLabel={t('Hourly peak concurrency')}
+          series={[{ label: t('Peak concurrency') }]}
           points={(data?.hourly ?? []).map((hour) => ({
             key: hour.hour,
+            title: fmt.time(hour.hour),
             values: [hour.peak_concurrency],
-            label: t('{{time}}: peak {{peak}}, {{requests}} requests', {
-              time: fmt.time(hour.hour),
-              peak: hour.peak_concurrency,
-              requests: hour.requests,
-            }),
+            extra: [{ label: t('Requests'), value: fmt.num(hour.requests) }],
           }))}
         />
       </Panel>
@@ -233,21 +231,14 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         <Panel title={t('Rejections by hour')}>
           <BarSeries
             ariaLabel={t('Rejections by hour')}
-            legend={[
-              t('Engine account concurrency full'),
-              t('Claude upstream rate limit'),
+            series={[
+              { label: t('Engine account concurrency full') },
+              { label: t('Claude upstream rate limit') },
             ]}
             points={(data?.hourly ?? []).map((hour) => ({
               key: hour.hour,
+              title: fmt.time(hour.hour),
               values: [hour.engine_rejections, hour.upstream_rate_limits],
-              label: t(
-                '{{time}}: {{engine}} pool full, {{upstream}} upstream limit',
-                {
-                  time: fmt.time(hour.hour),
-                  engine: hour.engine_rejections,
-                  upstream: hour.upstream_rate_limits,
-                }
-              ),
             }))}
           />
         </Panel>

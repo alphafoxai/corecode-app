@@ -81,10 +81,14 @@ export function RiskTab(props: { data: RiskInsights | undefined }) {
       <Panel title={t('Sign-ups over time')}>
         <BarSeries
           ariaLabel={t('Sign-ups over time')}
+          series={[{ label: t('Sign-ups') }]}
           points={(data?.signup_series ?? []).map((point) => ({
             key: point.at,
+            title:
+              data?.series_unit === 'day'
+                ? fmt.day(point.at)
+                : fmt.time(point.at),
             values: [point.count],
-            label: `${data?.series_unit === 'day' ? fmt.day(point.at) : fmt.time(point.at)}: ${point.count}`,
           }))}
         />
       </Panel>

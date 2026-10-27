@@ -32,6 +32,7 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -111,88 +112,179 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
 
 export type BarPoint = {
   key: string | number
-  /** Stacked segments, bottom first. */
+  /** The date or hour, shown atop the tooltip and on the axis. */
+  title: string
+  /** Stacked segments, bottom first, one per series. */
   values: number[]
+  /** Further figures listed in the tooltip below the series. */
+  extra?: { label: string; value: string }[]
+}
+
+export type BarSeriesItem = {
   label: string
+  format?: (value: number) => string
 }
 
 const SEGMENT_COLORS = [
-  'bg-primary/60 group-hover/bar:bg-primary',
-  'bg-sky-500/60 group-hover/bar:bg-sky-500',
-  'bg-amber-500/60 group-hover/bar:bg-amber-500',
-  'bg-rose-500/60 group-hover/bar:bg-rose-500',
+  'bg-primary/60 group-hover/bar:bg-primary group-focus-visible/bar:bg-primary',
+  'bg-sky-500/60 group-hover/bar:bg-sky-500 group-focus-visible/bar:bg-sky-500',
+  'bg-amber-500/60 group-hover/bar:bg-amber-500 group-focus-visible/bar:bg-amber-500',
+  'bg-rose-500/60 group-hover/bar:bg-rose-500 group-focus-visible/bar:bg-rose-500',
 ]
 
-/** A bar per point; each bar's tooltip is its label. */
+const DOT_COLORS = ['bg-primary', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500']
+
+/**
+ * A bar per point with a value axis and the first and last titles below.
+ * Hovering or focusing a bar shows each series' value; the tooltip opens
+ * at once and follows the pointer from bar to bar.
+ */
 export function BarSeries(props: {
   points: BarPoint[]
-  legend?: string[]
+  series: BarSeriesItem[]
   className?: string
   ariaLabel: string
 }) {
-  const max = Math.max(
-    0,
-    ...props.points.map((point) => point.values.reduce((a, b) => a + b, 0))
-  )
+  const { t } = useTranslation()
+  const fmt = useInsightsFormat()
+  const formatOf = (index: number) =>
+    props.series[index]?.format ?? props.series[0]?.format ?? fmt.num
+  const sum = (values: number[]) => values.reduce((a, b) => a + b, 0)
+  const max = Math.max(0, ...props.points.map((point) => sum(point.values)))
+  const stacked = props.series.length > 1
+  const first = props.points.at(0)
+  const last = props.points.at(-1)
   return (
     <div className={cn('grid gap-2', props.className)}>
-      <ol
-        className='flex h-40 items-end gap-px sm:gap-0.5'
-        aria-label={props.ariaLabel}
-      >
-        {props.points.map((point) => {
-          const total = point.values.reduce((a, b) => a + b, 0)
-          const segments = point.values.map((value, index) => ({
-            id: `segment-${index}`,
-            value,
-            color: SEGMENT_COLORS[index % SEGMENT_COLORS.length],
-          }))
-          return (
-            <li key={point.key} className='flex h-full min-w-0 flex-1'>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <div
-                      tabIndex={0}
-                      aria-label={point.label}
-                      className='group/bar focus-visible:ring-ring/50 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3'
-                    />
-                  }
-                >
-                  {total === 0 ? (
-                    <span className='bg-border min-h-px w-full' />
-                  ) : (
-                    segments.map((segment) => (
-                      <span
-                        key={segment.id}
-                        className={cn(
-                          'w-full first:rounded-b-none last:rounded-t-[3px]',
-                          segment.color
-                        )}
-                        style={{
-                          height: `${max > 0 ? (segment.value / max) * 100 : 0}%`,
-                        }}
-                      />
-                    ))
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>{point.label}</TooltipContent>
-              </Tooltip>
-            </li>
-          )
-        })}
-      </ol>
-      {props.legend && props.legend.length > 1 && (
+      <div className='grid grid-cols-[auto_1fr] gap-2'>
+        <div
+          aria-hidden
+          className='text-muted-foreground flex h-40 flex-col justify-between text-right text-[10px] tabular-nums'
+        >
+          <span className='-translate-y-1/2'>{formatOf(0)(max)}</span>
+          <span className='translate-y-1/2'>{formatOf(0)(0)}</span>
+        </div>
+        <TooltipProvider delay={0}>
+          <ol
+            className='border-border/60 flex h-40 items-end gap-px border-t border-dashed sm:gap-0.5'
+            aria-label={props.ariaLabel}
+          >
+            {props.points.map((point) => {
+              const total = sum(point.values)
+              const rows = point.values.map((value, index) => ({
+                id: `series-${index}`,
+                label: props.series[index]?.label ?? '',
+                value: formatOf(index)(value),
+                dot: DOT_COLORS[index % DOT_COLORS.length],
+              }))
+              if (stacked) {
+                rows.push({
+                  id: 'total',
+                  label: t('Total'),
+                  value: formatOf(0)(total),
+                  dot: '',
+                })
+              }
+              const ariaLabel = [
+                point.title,
+                ...rows.map((row) => `${row.label} ${row.value}`),
+                ...(point.extra ?? []).map(
+                  (row) => `${row.label} ${row.value}`
+                ),
+              ].join(', ')
+              return (
+                <li key={point.key} className='flex h-full min-w-0 flex-1'>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <div
+                          tabIndex={0}
+                          aria-label={ariaLabel}
+                          className='group/bar focus-visible:ring-ring/50 hover:bg-muted/40 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3'
+                        />
+                      }
+                    >
+                      {total === 0 ? (
+                        <span className='bg-border min-h-px w-full' />
+                      ) : (
+                        point.values.map((value, index) => (
+                          <span
+                            key={rows[index].id}
+                            className={cn(
+                              'w-full first:rounded-b-none last:rounded-t-[3px]',
+                              SEGMENT_COLORS[index % SEGMENT_COLORS.length]
+                            )}
+                            style={{
+                              height: `${max > 0 ? (value / max) * 100 : 0}%`,
+                            }}
+                          />
+                        ))
+                      )}
+                    </TooltipTrigger>
+                    <TooltipContent className='block min-w-40 py-2'>
+                      <p className='mb-1.5 font-semibold'>{point.title}</p>
+                      <dl className='grid grid-cols-[1fr_auto] gap-x-4 gap-y-1'>
+                        {rows.map((row) => (
+                          <div key={row.id} className='contents'>
+                            <dt
+                              className={cn(
+                                'flex items-center gap-1.5 opacity-80',
+                                row.id === 'total' && 'font-medium opacity-100'
+                              )}
+                            >
+                              {row.dot && (
+                                <span
+                                  className={cn('size-2 rounded-sm', row.dot)}
+                                />
+                              )}
+                              {row.label}
+                            </dt>
+                            <dd
+                              className={cn(
+                                'text-right tabular-nums',
+                                row.id === 'total' && 'font-medium'
+                              )}
+                            >
+                              {row.value}
+                            </dd>
+                          </div>
+                        ))}
+                        {(point.extra ?? []).map((row) => (
+                          <div key={row.label} className='contents'>
+                            <dt className='opacity-80'>{row.label}</dt>
+                            <dd className='text-right tabular-nums'>
+                              {row.value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </TooltipContent>
+                  </Tooltip>
+                </li>
+              )
+            })}
+          </ol>
+        </TooltipProvider>
+        <span aria-hidden />
+        <div
+          aria-hidden
+          className='text-muted-foreground -mt-1 flex justify-between gap-2 text-[10px] tabular-nums'
+        >
+          <span>{first?.title}</span>
+          {last !== first && <span>{last?.title}</span>}
+        </div>
+      </div>
+      {stacked && (
         <ul className='text-muted-foreground flex flex-wrap gap-3 text-xs'>
-          {props.legend.map((name, index) => (
-            <li key={name} className='flex items-center gap-1.5'>
+          {props.series.map((item, index) => (
+            <li key={item.label} className='flex items-center gap-1.5'>
               <span
                 className={cn(
                   'size-2 rounded-sm',
-                  SEGMENT_COLORS[index % SEGMENT_COLORS.length].split(' ')[0]
+                  DOT_COLORS[index % DOT_COLORS.length]
                 )}
               />
-              {name}
+              {item.label}
             </li>
           ))}
         </ul>
