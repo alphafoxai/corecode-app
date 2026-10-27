@@ -18,14 +18,38 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { parseCurrencyDisplayType } from '@/lib/currency'
 
-import { AffiliateSection } from '../affiliate/affiliate-section'
-import { CheckinSettingsSection } from '../general/checkin-settings-section'
-import { PricingSection } from '../general/pricing-section'
-import { QuotaSettingsSection } from '../general/quota-settings-section'
-import { PaymentSettingsSection } from '../integrations/payment-settings-section'
-import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const AffiliateSection = lazySection(() =>
+  import('../affiliate/affiliate-section').then((m) => m.AffiliateSection)
+)
+
+const CheckinSettingsSection = lazySection(() =>
+  import('../general/checkin-settings-section').then(
+    (m) => m.CheckinSettingsSection
+  )
+)
+
+const PricingSection = lazySection(() =>
+  import('../general/pricing-section').then((m) => m.PricingSection)
+)
+
+const QuotaSettingsSection = lazySection(() =>
+  import('../general/quota-settings-section').then(
+    (m) => m.QuotaSettingsSection
+  )
+)
+
+const PaymentSettingsSection = lazySection(() =>
+  import('../integrations/payment-settings-section').then(
+    (m) => m.PaymentSettingsSection
+  )
+)
+
+const RatioSettingsCard = lazySection(() =>
+  import('../models/ratio-settings-card').then((m) => m.RatioSettingsCard)
+)
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,

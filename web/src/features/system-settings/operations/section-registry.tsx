@@ -16,15 +16,48 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SystemBehaviorSection } from '../general/system-behavior-section'
-import { EmailSettingsSection } from '../integrations/email-settings-section'
-import { MonitoringSettingsSection } from '../integrations/monitoring-settings-section'
-import { WorkerSettingsSection } from '../integrations/worker-settings-section'
-import { LogSettingsSection } from '../maintenance/log-settings-section'
-import { PerformanceSection } from '../maintenance/performance-section'
-import { UpdateCheckerSection } from '../maintenance/update-checker-section'
 import type { OperationsSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const SystemBehaviorSection = lazySection(() =>
+  import('../general/system-behavior-section').then(
+    (m) => m.SystemBehaviorSection
+  )
+)
+
+const EmailSettingsSection = lazySection(() =>
+  import('../integrations/email-settings-section').then(
+    (m) => m.EmailSettingsSection
+  )
+)
+
+const MonitoringSettingsSection = lazySection(() =>
+  import('../integrations/monitoring-settings-section').then(
+    (m) => m.MonitoringSettingsSection
+  )
+)
+
+const WorkerSettingsSection = lazySection(() =>
+  import('../integrations/worker-settings-section').then(
+    (m) => m.WorkerSettingsSection
+  )
+)
+
+const LogSettingsSection = lazySection(() =>
+  import('../maintenance/log-settings-section').then(
+    (m) => m.LogSettingsSection
+  )
+)
+
+const PerformanceSection = lazySection(() =>
+  import('../maintenance/performance-section').then((m) => m.PerformanceSection)
+)
+
+const UpdateCheckerSection = lazySection(() =>
+  import('../maintenance/update-checker-section').then(
+    (m) => m.UpdateCheckerSection
+  )
+)
 
 const OPERATIONS_SECTIONS = [
   {

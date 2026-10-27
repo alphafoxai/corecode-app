@@ -16,8 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { HtmlContent, type HtmlContentVariant } from '@/components/html-content'
-import { Markdown } from '@/components/ui/markdown'
+import { lazy, Suspense } from 'react'
+
+import type { HtmlContentVariant } from '@/components/html-content'
+
+// The header's notification popover renders this on every console page, so the
+// renderers (KaTeX, marked, DOMPurify) load when content is first shown rather
+// than with the layout.
+const HtmlContent = lazy(() =>
+  import('@/components/html-content').then((m) => ({ default: m.HtmlContent }))
+)
+const Markdown = lazy(() =>
+  import('@/components/ui/markdown').then((m) => ({ default: m.Markdown }))
+)
 
 type RichContentMode = 'markdown' | 'html'
 
@@ -30,19 +41,19 @@ interface RichContentProps {
 }
 
 export function RichContent(props: RichContentProps) {
-  if (props.mode === 'html') {
-    return (
-      <HtmlContent
-        content={props.content}
-        className={props.className}
-        variant={props.htmlVariant}
-      />
-    )
-  }
-
   return (
-    <Markdown breaks={props.breaks} className={props.className}>
-      {props.content}
-    </Markdown>
+    <Suspense fallback={null}>
+      {props.mode === 'html' ? (
+        <HtmlContent
+          content={props.content}
+          className={props.className}
+          variant={props.htmlVariant}
+        />
+      ) : (
+        <Markdown breaks={props.breaks} className={props.className}>
+          {props.content}
+        </Markdown>
+      )}
+    </Suspense>
   )
 }

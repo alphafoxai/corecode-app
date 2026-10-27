@@ -17,12 +17,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { AuthSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { BasicAuthSection } from './basic-auth-section'
-import { BotProtectionSection } from './bot-protection-section'
-import { CustomOAuthSection } from './custom-oauth/custom-oauth-section'
-import { OAuthSection } from './oauth-section'
-import { PasskeySection } from './passkey-section'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const BasicAuthSection = lazySection(() =>
+  import('./basic-auth-section').then((m) => m.BasicAuthSection)
+)
+
+const BotProtectionSection = lazySection(() =>
+  import('./bot-protection-section').then((m) => m.BotProtectionSection)
+)
+
+const CustomOAuthSection = lazySection(() =>
+  import('./custom-oauth/custom-oauth-section').then(
+    (m) => m.CustomOAuthSection
+  )
+)
+
+const OAuthSection = lazySection(() =>
+  import('./oauth-section').then((m) => m.OAuthSection)
+)
+
+const PasskeySection = lazySection(() =>
+  import('./passkey-section').then((m) => m.PasskeySection)
+)
 
 const AUTH_SECTIONS = [
   {

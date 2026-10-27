@@ -16,12 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { RateLimitSection } from '../request-limits/rate-limit-section'
-import { SSRFSection } from '../request-limits/ssrf-section'
-import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { ViolationGuardSection } from '../violation-guard/violation-guard-section'
+import { createSectionRegistry, lazySection } from '../utils/section-registry'
+
+const RateLimitSection = lazySection(() =>
+  import('../request-limits/rate-limit-section').then((m) => m.RateLimitSection)
+)
+
+const SSRFSection = lazySection(() =>
+  import('../request-limits/ssrf-section').then((m) => m.SSRFSection)
+)
+
+const TokenLimitSection = lazySection(() =>
+  import('../request-limits/token-limit-section').then(
+    (m) => m.TokenLimitSection
+  )
+)
+
+const ViolationGuardSection = lazySection(() =>
+  import('../violation-guard/violation-guard-section').then(
+    (m) => m.ViolationGuardSection
+  )
+)
 
 const SECURITY_SECTIONS = [
   {

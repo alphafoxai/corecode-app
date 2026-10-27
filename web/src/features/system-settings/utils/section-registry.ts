@@ -17,7 +17,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { TFunction } from 'i18next'
-import type { ReactNode } from 'react'
+import { lazy, type ComponentType, type ReactNode } from 'react'
+
+/**
+ * Load a section panel the first time it renders. Routes and the sidebar read
+ * a registry's ids and titles at startup; importing every panel statically put
+ * all of them in the entry chunk, so each registry loads its panels this way.
+ * The page rendering the section supplies the Suspense boundary.
+ */
+export function lazySection<TProps extends object>(
+  load: () => Promise<ComponentType<TProps>>
+) {
+  return lazy(async () => ({ default: await load() }))
+}
 
 /**
  * Section definition for settings pages
