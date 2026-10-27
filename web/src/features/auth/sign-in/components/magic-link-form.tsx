@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { zodResolver } from '@hookform/resolvers/zod'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { ArrowLeft, ArrowRight, Loader2, Mail, MailCheck } from 'lucide-react'
-import { type ReactNode, useCallback, useEffect, useId, useState } from 'react'
+import { type ReactNode, useCallback, useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -88,7 +88,8 @@ export function MagicLinkForm({
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
   const [sentTo, setSentTo] = useState('')
-  const [agreedToLegal, setAgreedToLegal] = useState(false)
+  // Consent starts checked; the customer can still uncheck it.
+  const [agreedToLegal, setAgreedToLegal] = useState(true)
   // An invitation link (?aff=CODE) lands here; keep its code for the send below.
   const [inviteCode, setInviteCode] = useState(() =>
     typeof window === 'undefined'
@@ -103,10 +104,6 @@ export function MagicLinkForm({
     status?.user_agreement_enabled || status?.privacy_policy_enabled
   )
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
-
-  useEffect(() => {
-    setAgreedToLegal(!requiresLegalConsent)
-  }, [requiresLegalConsent])
 
   const countdown = useCountdown({ initialSeconds: MAGIC_LINK_COUNTDOWN })
 

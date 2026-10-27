@@ -263,7 +263,7 @@ describe('MagicLinkForm', () => {
     )
   })
 
-  it('withholds the link until the legal terms are accepted', async () => {
+  it('starts agreed and withholds the link once the legal terms are unchecked', async () => {
     const post = vi.spyOn(api, 'post')
 
     renderInRouter(SignInHarness, '/', {
@@ -271,10 +271,14 @@ describe('MagicLinkForm', () => {
       privacy_policy_enabled: true,
     })
     const user = userEvent.setup()
+    const consent = await screen.findByRole('checkbox')
+    expect(consent).toBeChecked()
+
+    await user.click(consent)
     await submitEmail(user)
     expect(post).not.toHaveBeenCalled()
 
-    await user.click(await screen.findByRole('checkbox'))
+    await user.click(consent)
     await user.click(screen.getByRole('button', { name: /Send sign-in code/ }))
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
   })

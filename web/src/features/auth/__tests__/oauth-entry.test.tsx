@@ -149,7 +149,7 @@ describe('sign-up OAuth entry', () => {
 })
 
 describe('MagicLinkForm OAuth consent', () => {
-  it('holds OAuth until the legal terms are accepted', async () => {
+  it('starts agreed and holds OAuth once the legal terms are unchecked', async () => {
     renderAuthPage(() => <MagicLinkForm showOAuthProviders />, '/sign-in', {
       ...linkWithLinuxDO,
       user_agreement_enabled: true,
@@ -158,10 +158,11 @@ describe('MagicLinkForm OAuth consent', () => {
     const linuxDO = await screen.findByRole('button', {
       name: /Continue with LinuxDO/,
     })
-    expect(linuxDO).toBeDisabled()
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(linuxDO).toBeEnabled()
 
     await user.click(screen.getByRole('checkbox'))
 
-    expect(linuxDO).toBeEnabled()
+    expect(linuxDO).toBeDisabled()
   })
 })

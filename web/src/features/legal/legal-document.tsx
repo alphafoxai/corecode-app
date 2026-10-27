@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { FileWarning } from 'lucide-react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
@@ -54,6 +55,12 @@ export function LegalDocument({
   const isUrl = hasContent && isHttpUrl(rawContent)
   const contentIsHtml = hasContent && isLikelyHtml(rawContent)
   const success = data?.success ?? false
+
+  // A document configured as a link opens that page directly; the card below
+  // stays as a fallback while the browser navigates.
+  useEffect(() => {
+    if (success && isUrl) window.location.replace(rawContent)
+  }, [success, isUrl, rawContent])
 
   if (isLoading) {
     return (
