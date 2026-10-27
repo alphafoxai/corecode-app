@@ -8042,6 +8042,7 @@
     "{{share}} of the {{size}} users who signed up {{day}} sent requests on D{{n}}": "{{day}} 註冊的 {{size}} 人中，{{share}} 在 D{{n}} 仍發請求",
     "{{success}} ok · {{failure}} failed": "成功 {{success}} · 失敗 {{failure}}",
     "Paid {{amount}} in total": "累計儲值 {{amount}}",
+    "Total Paid": "累計儲值",
     "Concurrency limit": "並發上限",
     "Requests at once, across all of your API keys": "所有 API 金鑰合計可同時進行的請求數",
     "Your limit was set for your account.": "這是為你的帳號單獨設定的上限。",

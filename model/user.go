@@ -28,6 +28,10 @@ var userSortColumns = map[string]string{
 	"last_login_at": "last_login_at",
 }
 
+// userSortPaidTotal sorts by what each user paid, which is not a users
+// column but a sum over their top-ups.
+const userSortPaidTotal = "paid_total"
+
 type UserSortOptions struct {
 	SortBy    string
 	SortOrder string
@@ -36,7 +40,7 @@ type UserSortOptions struct {
 func NewUserSortOptions(sortBy string, sortOrder string) UserSortOptions {
 	normalizedSortBy := strings.ToLower(strings.TrimSpace(sortBy))
 	normalizedSortOrder := strings.ToLower(strings.TrimSpace(sortOrder))
-	if _, ok := userSortColumns[normalizedSortBy]; !ok {
+	if _, ok := userSortColumns[normalizedSortBy]; !ok && normalizedSortBy != userSortPaidTotal {
 		normalizedSortBy = "id"
 		normalizedSortOrder = "desc"
 	} else if normalizedSortOrder != "asc" {
@@ -50,13 +54,25 @@ func NewUserSortOptions(sortBy string, sortOrder string) UserSortOptions {
 }
 
 func (options UserSortOptions) Apply(query *gorm.DB) *gorm.DB {
+	desc := options.SortOrder != "asc"
+	if options.SortBy == userSortPaidTotal {
+		paid := paidTopUps(query.Session(&gorm.Session{NewDB: true})).
+			Select("COALESCE(SUM(money), 0)").Where("top_ups.user_id = users.id")
+		direction := "ASC"
+		if desc {
+			direction = "DESC"
+		}
+		// One expression: GORM drops an ORDER BY expression when a column
+		// order is merged after it.
+		return query.Order(clause.OrderBy{Expression: clause.Expr{SQL: "(?) " + direction + ", id DESC", Vars: []any{paid}}})
+	}
 	columnName, ok := userSortColumns[options.SortBy]
 	if !ok {
 		columnName = "id"
 	}
 	q := query.Order(clause.OrderByColumn{
 		Column: clause.Column{Name: columnName},
-		Desc:   options.SortOrder != "asc",
+		Desc:   desc,
 	})
 	if columnName != "id" {
 		q = q.Order(clause.OrderByColumn{

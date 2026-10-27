@@ -144,15 +144,43 @@ func createAffiliateReferralWithTx(tx *gorm.DB, userId int, inviterId int) error
 	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&AffiliateReferral{UserId: userId}).Error
 }
 
-// AffiliatePaidMoney sums what a user paid through payment gateways, in the
-// payment currency. Purchases paid from the wallet are excluded because that
+// paidTopUps selects the top-ups that count as paid: completed, through a
+// payment gateway. Purchases paid from the wallet are excluded because that
 // money was counted when the wallet was topped up.
+func paidTopUps(tx *gorm.DB) *gorm.DB {
+	return tx.Model(&TopUp{}).
+		Where("top_ups.status = ? AND (top_ups.payment_provider IS NULL OR top_ups.payment_provider <> ?)", common.TopUpStatusSuccess, PaymentProviderBalance)
+}
+
+// AffiliatePaidMoney sums what a user paid through payment gateways, in the
+// payment currency.
 func AffiliatePaidMoney(tx *gorm.DB, userId int) (float64, error) {
 	var total float64
-	err := tx.Model(&TopUp{}).
-		Where("user_id = ? AND status = ? AND (payment_provider IS NULL OR payment_provider <> ?)", userId, common.TopUpStatusSuccess, PaymentProviderBalance).
+	err := paidTopUps(tx).Where("user_id = ?", userId).
 		Select("COALESCE(SUM(money), 0)").Scan(&total).Error
 	return total, err
+}
+
+// UsersPaidMoney is AffiliatePaidMoney for several users in one query. A user
+// who has paid nothing is absent from the map.
+func UsersPaidMoney(userIds []int) (map[int]float64, error) {
+	paid := make(map[int]float64, len(userIds))
+	if len(userIds) == 0 {
+		return paid, nil
+	}
+	var rows []struct {
+		UserId int
+		Total  float64
+	}
+	err := paidTopUps(DB).Where("user_id IN ?", userIds).
+		Select("user_id, SUM(money) AS total").Group("user_id").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		paid[row.UserId] = row.Total
+	}
+	return paid, nil
 }
 
 func affiliatePaidCents(tx *gorm.DB, userId int) (int64, error) {

@@ -59,6 +59,8 @@ export const userSchema = z.object({
   last_login_at: z.number().optional(),
   DeletedAt: z.any().nullable().optional(),
   remark: z.string().optional(),
+  /** What the user paid through payment gateways, in the payment currency */
+  paid_total: z.number().optional(),
   admin_permissions: z
     .record(z.string(), z.record(z.string(), z.boolean()))
     .optional(),
@@ -85,6 +87,7 @@ export type UserSortBy =
   | 'group'
   | 'created_at'
   | 'last_login_at'
+  | 'paid_total'
 
 export type UserSortOrder = 'asc' | 'desc'
 

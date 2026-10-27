@@ -276,6 +276,7 @@ async function renderUsersList(emptyInvitation = false) {
             aff_count: emptyInvitation ? 0 : 2,
             aff_history_quota: emptyInvitation ? 0 : 500000,
             inviter_id: emptyInvitation ? 0 : 42,
+            paid_total: 300,
           },
         ],
         total: 1,
@@ -315,6 +316,20 @@ async function renderUsersList(emptyInvitation = false) {
   await screen.findByText('long-user-name-for-table-layout')
   return get
 }
+
+it('sends paid-total sorting to the server', async () => {
+  const get = await renderUsersList()
+  await userEvent.click(screen.getByRole('button', { name: 'Total Paid' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Desc' }))
+  await waitFor(() =>
+    expect(get).toHaveBeenCalledWith('/api/user/', {
+      params: expect.objectContaining({
+        sort_by: 'paid_total',
+        sort_order: 'desc',
+      }),
+    })
+  )
+})
 
 it('sends balance sorting to the server and keeps invitation details on two lines', async () => {
   const get = await renderUsersList()

@@ -32,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { formatPaymentMoney } from '@/features/wallet/lib'
 import { getCurrencyDisplay } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 import { useSystemConfigStore } from '@/stores/system-config-store'
@@ -193,6 +194,24 @@ export function useUsersColumns(): ColumnDef<User>[] {
         size: 180,
         minSize: 160,
         meta: { mobileOrder: 40 },
+      },
+      {
+        id: 'paid_total',
+        accessorKey: 'paid_total',
+        header: t('Total Paid'),
+        cell: ({ row }) => {
+          const paid = row.original.paid_total ?? 0
+          if (paid <= 0) {
+            return <span className='text-muted-foreground text-sm'>—</span>
+          }
+          return (
+            <span className='text-sm tabular-nums'>
+              {formatPaymentMoney(paid)}
+            </span>
+          )
+        },
+        size: 120,
+        meta: { mobileOrder: 45 },
       },
       {
         accessorKey: 'group',
