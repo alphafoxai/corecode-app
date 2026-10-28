@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/QuantumNous/new-api/pkg/riskpolicy"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -20,9 +21,9 @@ const (
 
 // RiskGateSetting configures the stages a relay request passes before billing
 // and channel selection: distillation, hard regex, refusal cache and decision
-// model. The rule lists hold one "name | regex" per line and the questions one
-// "id | question" per line. They live in the options table, not in the source,
-// because this repository is public.
+// model. Distillation accepts a structured JSON policy or legacy "name | regex"
+// lines; hard rules and questions remain named lines. Policies live in options,
+// not in this public repository.
 type RiskGateSetting struct {
 	Enabled bool   `json:"enabled"`
 	Mode    string `json:"mode"`
@@ -133,7 +134,22 @@ func ValidateRiskGateOption(field string, value string) error {
 		if value != RiskGateModeObserve && value != RiskGateModeEnforce {
 			return fmt.Errorf("Risk gate mode must be observe or enforce")
 		}
-	case "distill_rules", "hard_regex_rules":
+	case "distill_rules":
+		if strings.HasPrefix(strings.TrimSpace(value), "{") {
+			if err := riskpolicy.ValidateDistill(value); err != nil {
+				return err
+			}
+			return riskpolicy.ValidateHard(GetRiskGateSetting().HardRegexRules)
+		}
+		if _, err := ParseRiskGateLines(value, true); err != nil {
+			return err
+		}
+		_, err := ParseRiskGateLines(GetRiskGateSetting().HardRegexRules, true)
+		return err
+	case "hard_regex_rules":
+		if strings.HasPrefix(strings.TrimSpace(GetRiskGateSetting().DistillRules), "{") {
+			return riskpolicy.ValidateHard(value)
+		}
 		_, err := ParseRiskGateLines(value, true)
 		return err
 	case "decision_questions":

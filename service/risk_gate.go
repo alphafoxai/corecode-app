@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/riskpolicy"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -58,14 +59,42 @@ func CheckRiskGate(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErr
 	}
 	hit := riskGateHit{c: c, info: info, gate: gate, messages: messages, latest: latest}
 
-	if gate.DistillEnabled {
-		if rule := riskgate.CompileRules(gate.DistillRules).Match(systemText(info.Request), latest); rule != "" {
-			return hit.apply(model.RiskGateStageDistill, rule, "", gate.DistillStrike)
+	if strings.HasPrefix(strings.TrimSpace(gate.DistillRules), "{") {
+		switch info.Request.(type) {
+		case *dto.ClaudeRequest, *dto.GeneralOpenAIRequest, *dto.OpenAIResponsesRequest, *dto.OpenAIResponsesCompactionRequest:
+			input, err := riskGatePolicyInput(c, gate.DistillRules)
+			if err != nil {
+				return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+			verdict, err := riskpolicy.Evaluate(gate.DistillRules, gate.HardRegexRules, input, gate.DistillEnabled, gate.HardRegexEnabled)
+			if err != nil {
+				if gate.Mode != operation_setting.RiskGateModeEnforce {
+					hit.record(model.RiskGateStageHardRegex, "unavailable", err.Error(), model.RiskGateActionFailOpen)
+					return nil
+				}
+				return types.NewErrorWithStatusCode(err, types.ErrorCodeRiskGateBlocked, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+			}
+			if verdict.Stage != "" {
+				if hit.latest == "" {
+					hit.latest = verdict.Excerpt
+				}
+				strike := gate.HardRegexStrike
+				if verdict.Stage == model.RiskGateStageDistill {
+					strike = gate.DistillStrike
+				}
+				return hit.apply(verdict.Stage, verdict.Rule, verdict.Detail, strike)
+			}
 		}
-	}
-	if gate.HardRegexEnabled {
-		if rule := riskgate.CompileRules(gate.HardRegexRules).Match(messages...); rule != "" {
-			return hit.apply(model.RiskGateStageHardRegex, rule, "", gate.HardRegexStrike)
+	} else {
+		if gate.DistillEnabled {
+			if rule := riskgate.CompileRules(gate.DistillRules).Match(systemText(info.Request), latest); rule != "" {
+				return hit.apply(model.RiskGateStageDistill, rule, "", gate.DistillStrike)
+			}
+		}
+		if gate.HardRegexEnabled {
+			if rule := riskgate.CompileRules(gate.HardRegexRules).Match(messages...); rule != "" {
+				return hit.apply(model.RiskGateStageHardRegex, rule, "", gate.HardRegexStrike)
+			}
 		}
 	}
 

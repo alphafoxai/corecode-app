@@ -54,8 +54,7 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
 
-// Mirrors ValidateRiskGateOption on the server, which also checks that every
-// rule line is "name | regex" and compiles.
+// The server also validates rule formats and compiles expressions.
 const riskGateSchema = z.object({
   enabled: z.boolean(),
   mode: z.enum(['observe', 'enforce']),
@@ -269,7 +268,7 @@ export function RiskGateForm(props: RiskGateFormProps) {
             'distill_enabled',
             t('1 · Distillation'),
             t(
-              'Matches the system prompt and the latest message against harvest templates and question fingerprints.'
+              'Checks the system prompt and latest user message against the configured distillation rules.'
             )
           )}
           <SettingsControlChildren className='space-y-4'>
@@ -277,9 +276,14 @@ export function RiskGateForm(props: RiskGateFormProps) {
               'distill_rules',
               t('Distillation rules'),
               t(
-                'One rule per line, written as name | regular expression. Lines starting with # are ignored. Add (?i) to ignore case.'
+                'Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).'
               ),
-              { multiline: true, placeholder: rulePlaceholder }
+              {
+                multiline: true,
+                placeholder: t(
+                  'vm2api distill-rules.json or name | regular expression, one per line'
+                ),
+              }
             )}
             {switchField(
               'distill_strike',
@@ -304,7 +308,7 @@ export function RiskGateForm(props: RiskGateFormProps) {
               'hard_regex_rules',
               t('Hard regex rules'),
               t(
-                'One rule per line, written as name | regular expression. Lines starting with # are ignored. Add (?i) to ignore case.'
+                'One rule per line as name | regular expression. Lines starting with # are ignored. With structured JSON distillation, matching ignores case and uses JavaScript-compatible syntax, including lookbehind. With legacy distillation lines, Go regular expressions apply; add (?i) to ignore case.'
               ),
               { multiline: true, placeholder: rulePlaceholder }
             )}

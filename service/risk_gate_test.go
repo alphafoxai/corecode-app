@@ -21,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 func checkRiskGate(t *testing.T, userId int, request dto.Request) *types.NewAPIError {
@@ -262,4 +263,86 @@ func TestRiskGateRulesAndSimilarity(t *testing.T) {
 
 	state := riskgate.DecisionState([]string{"first\n", "second\n"})
 	assert.Equal(t, "first\n[current ask] second", state)
+}
+
+func TestRiskGateStructuredPolicy(t *testing.T) {
+	previousGate := *operation_setting.GetRiskGateSetting()
+	previousGuard := *operation_setting.GetViolationGuardSetting()
+	t.Cleanup(func() {
+		*operation_setting.GetRiskGateSetting() = previousGate
+		*operation_setting.GetViolationGuardSetting() = previousGuard
+	})
+	useViolationTestDB(t, "sqlite")
+	*operation_setting.GetViolationGuardSetting() = operation_setting.ViolationGuardSetting{}
+	const policy = `{"enabled":true,"skip_official":true,"skip_zero":true,"hard_needles":["harvest wrapper"],"needles":["<answer>"],"patterns":[],"fingerprints":[],"structure":{"min_max_tokens":8192,"require_no_tools":true,"require_single_turn":true,"contest_pattern":"prove that"}}`
+	gate := operation_setting.RiskGateSetting{Enabled: true, Mode: "enforce", DistillEnabled: true, DistillRules: policy, HardRegexEnabled: true, HardRegexRules: `vm2api.crack.01 | (?<![\w-])(?:keygen|warez)(?![\w-])`}
+	*operation_setting.GetRiskGateSetting() = gate
+	require.NoError(t, operation_setting.ValidateRiskGateOption("distill_rules", policy))
+	require.NoError(t, operation_setting.ValidateRiskGateOption("hard_regex_rules", gate.HardRegexRules))
+	for _, tc := range []struct {
+		name, body, ua string
+		blocked        bool
+	}{
+		{"ordinary needle", `{"model":"claude-opus-5-5","messages":[{"role":"user","content":"<answer>42</answer>"}]}`, "", true},
+		{"official exemption", `{"model":"claude-opus-5-5","system":"You are Claude Code","metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"s\"}"},"messages":[{"role":"user","content":"<answer>42</answer>"}]}`, "claude-cli/2.1.303", false},
+		{"hard wrapper ignores official exemption", `{"model":"claude-opus-5-5","system":"You are Claude Code","metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"s\"}"},"messages":[{"role":"user","content":"harvest wrapper"}]}`, "claude-cli/2.1.303", true},
+		{"Responses uses original body", `{"model":"claude-opus-5-5","input":"harvest wrapper"}`, "", true},
+		{"GPT bypass", `{"model":"gpt-6","input":"harvest wrapper keygen"}`, "", false},
+		{"lookbehind keeps hyphen token", `{"model":"claude-opus-5-5","messages":[{"role":"user","content":"ssh-keygen"}]}`, "", false},
+		{"lookbehind standalone hit", `{"model":"claude-opus-5-5","messages":[{"role":"user","content":"keygen"}]}`, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(tc.body))
+			c.Request.Header.Set("User-Agent", tc.ua)
+			t.Cleanup(func() { common.CleanupBodyStorage(c) })
+			got := CheckRiskGate(c, &relaycommon.RelayInfo{Request: claudeConversation(t, tc.body)})
+			if tc.blocked {
+				require.NotNil(t, got)
+				assert.Equal(t, types.ErrorCodeRiskGateBlocked, got.GetErrorCode())
+			} else {
+				assert.Nil(t, got)
+			}
+		})
+	}
+	gate.Mode = "observe"
+	*operation_setting.GetRiskGateSetting() = gate
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-5-5","messages":[{"role":"user","content":"harvest wrapper"}]}`))
+	t.Cleanup(func() { common.CleanupBodyStorage(c) })
+	assert.Nil(t, CheckRiskGate(c, &relaycommon.RelayInfo{Request: &dto.ClaudeRequest{}}), "observe mode does not enforce a structured hit")
+	events := riskGateEvents(t, 0, 5)
+	observed := 0
+	for _, event := range events {
+		if event.Action == model.RiskGateActionObserved {
+			observed++
+		}
+	}
+	assert.Equal(t, 1, observed)
+	other, _ := gin.CreateTestContext(httptest.NewRecorder())
+	other.Request = httptest.NewRequest(http.MethodPost, "/v1/audio/transcriptions", strings.NewReader("multipart binary payload"))
+	assert.Nil(t, CheckRiskGate(other, &relaycommon.RelayInfo{Request: &dto.AudioRequest{}}), "structured chat rules do not parse multipart audio")
+}
+
+func TestRiskGateOfficialClient(t *testing.T) {
+	base := `{"system":"You are Claude Code","metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"s\"}"}}`
+	for _, tc := range []struct {
+		name, body, ua, beta string
+		proxy, want          bool
+	}{
+		{"official", base, "claude-cli/2.1.303", "", true, true},
+		{"missing metadata", `{"system":"You are Claude Code"}`, "claude-cli/2.1.303", "", true, false},
+		{"OpenAI tools are not official", `{"system":"You are Claude Code","metadata":{"user_id":{"device_id":"d","session_id":"s"}},"tools":[{"type":"function","function":{"name":"read"}}]}`, "claude-cli/2.1.303", "", true, false},
+		{"proxied billing", `{"system":"x-anthropic-billing-header: cc_entrypoint=cli"}`, "Go-http-client/1.1", "", true, true},
+		{"proxy detection disabled", `{"system":"x-anthropic-billing-header: cc_entrypoint=cli"}`, "Go-http-client/1.1", "", false, false},
+		{"proxied beta", base, "Go-http-client/1.1", "claude-code-20250219", true, true},
+		{"harness rejects spoofed UA", `{"system":"You are Claude Code. oh my pi","metadata":{"user_id":{"device_id":"d","session_id":"s"}}}`, "claude-cli/2.1.303", "", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := http.Header{}
+			h.Set("User-Agent", tc.ua)
+			h.Set("anthropic-beta", tc.beta)
+			assert.Equal(t, tc.want, riskGateOfficialClient(h, gjson.Parse(tc.body), tc.proxy))
+		})
+	}
 }
