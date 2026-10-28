@@ -17,14 +17,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /**
- * CoreCode fork: one place that tells a customer how to point Claude Code at
- * this gateway, with their own key filled in.
+ * CoreCode fork: one place that tells a customer how to point their tools at
+ * this gateway, with their own key filled in. The clients offered follow the
+ * key's group (`useSetupClients`): Claude Code alone for a Claude Code only
+ * group, and Codex or OpenAI-compatible tools where the group serves them.
  *
  * The snippet on screen shows a masked key; the copy button fetches the real
  * key and copies the snippet with it. That is why this does not use
  * `CodeBlockCopyButton` or `CopyButton`: both copy the text they display.
  */
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRightLeft,
@@ -34,7 +36,7 @@ import {
   Loader2,
   TriangleAlert,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -50,9 +52,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useStatus } from '@/hooks/use-status'
-import { getUserModels } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
-import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
 import { fetchTokenKey } from '../api'
@@ -60,12 +60,17 @@ import {
   buildCCSwitchURL,
   buildClientSetupSnippet,
   buildMagpieImportURL,
-  CLIENT_SETUP_TARGETS,
+  buildVerifyCommand,
+  CLIENT_TARGETS,
   getAnthropicBaseUrl,
+  getSetupTitle,
   maskApiKey,
   pickClaudeModels,
+  pickCodexModel,
   type ClientSetupTarget,
+  type SetupClient,
 } from '../lib/client-setup'
+import { useSetupClients } from '../lib/use-setup-clients'
 import type { ApiKey } from '../types'
 
 const TARGET_LABELS: Record<ClientSetupTarget, string> = {
@@ -74,6 +79,19 @@ const TARGET_LABELS: Record<ClientSetupTarget, string> = {
   powershell: 'Windows',
   'cc-switch': 'CC Switch',
   magpie: 'Magpie',
+  'codex-config': 'config.toml',
+  'codex-shell': 'macOS / Linux',
+  'codex-powershell': 'Windows',
+  'codex-cc-switch': 'CC Switch',
+  'openai-shell': 'macOS / Linux',
+  'openai-powershell': 'Windows',
+  'openai-curl': 'curl',
+}
+
+const CLIENT_LABELS: Record<SetupClient, string> = {
+  'claude-code': 'Claude Code',
+  codex: 'Codex',
+  openai: 'Other tools',
 }
 
 /** What the snippet is: a file to edit or the shell to paste it into. */
@@ -83,6 +101,13 @@ const TARGET_SOURCES: Record<ClientSetupTarget, string> = {
   powershell: 'PowerShell',
   'cc-switch': 'CC Switch · settings.json',
   magpie: 'bash / zsh',
+  'codex-config': '~/.codex/config.toml',
+  'codex-shell': 'bash / zsh',
+  'codex-powershell': 'PowerShell',
+  'codex-cc-switch': 'CC Switch · config.toml',
+  'openai-shell': 'bash / zsh',
+  'openai-powershell': 'PowerShell',
+  'openai-curl': 'bash / zsh',
 }
 
 function getTargetHint(
@@ -110,6 +135,34 @@ function getTargetHint(
       return t(
         'Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.'
       )
+    case 'codex-config':
+      return t(
+        'Recommended. Add this to ~/.codex/config.toml (Windows: %USERPROFILE%\\.codex\\config.toml). Codex reads the key from the variable named in env_key; set it on the macOS / Linux or Windows tab.'
+      )
+    case 'codex-shell':
+      return t(
+        'Sets the key Codex reads, for the current terminal only. Add the export line to ~/.zshrc or ~/.bashrc to keep it.'
+      )
+    case 'codex-powershell':
+      return t(
+        'Sets the key Codex reads, for the current PowerShell window only. Use setx to keep it, then reopen the terminal.'
+      )
+    case 'codex-cc-switch':
+      return t(
+        'Import with one click, or add a custom Codex provider in CC Switch with this config. New Codex sessions use it after you switch.'
+      )
+    case 'openai-shell':
+      return t(
+        'For SDKs and tools that speak the OpenAI API and read these variables. Anthropic SDKs take the address without /v1.'
+      )
+    case 'openai-powershell':
+      return t(
+        'For SDKs and tools that speak the OpenAI API, in the current PowerShell window only. Anthropic SDKs take the address without /v1.'
+      )
+    case 'openai-curl':
+      return t(
+        'A Chat Completions request. Any tool that lets you set an OpenAI base URL works with the same address and key.'
+      )
   }
 }
 
@@ -118,6 +171,8 @@ interface ClientSetupGuideProps {
   keys: ApiKey[]
   keysLoading?: boolean
   className?: string
+  /** Renders a heading above the guide from the selected key's setup title. */
+  renderHeading?: (title: string) => ReactNode
 }
 
 export function ClientSetupGuide(props: ClientSetupGuideProps) {
@@ -125,6 +180,7 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
   const queryClient = useQueryClient()
   const { status } = useStatus()
   const { copyToClipboard } = useCopyToClipboard({ notify: false })
+  const [client, setClient] = useState<SetupClient>('claude-code')
   const [target, setTarget] = useState<ClientSetupTarget>('settings')
   const [pickedKeyId, setPickedKeyId] = useState<number | null>(null)
   const [busy, setBusy] = useState<
@@ -132,18 +188,14 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
   >(null)
   const [copied, setCopied] = useState<'copy' | 'verify' | null>(null)
 
-  const modelsQuery = useQuery({
-    queryKey: ['client-setup', 'user-models'],
-    queryFn: async () => {
-      const result = requireServerSuccess(await getUserModels())
-      return result.data ?? []
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
   const usableKeys = props.keys.filter((key) => key.status === 1)
   const selectedKey =
     usableKeys.find((key) => key.id === pickedKeyId) ?? usableKeys[0] ?? null
+  const { clients, models } = useSetupClients(selectedKey)
+  // Switching to a key that offers other clients falls back to its first one.
+  const activeClient = clients.includes(client) ? client : clients[0]
+  const targets = CLIENT_TARGETS[activeClient]
+  const activeTarget = targets.includes(target) ? target : targets[0]
   const providerName = status?.system_name?.trim() || 'CoreCode'
   const baseUrl = getAnthropicBaseUrl(
     typeof status?.server_address === 'string'
@@ -151,15 +203,18 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
       : undefined,
     window.location.origin
   )
-  const models = pickClaudeModels(modelsQuery.data ?? [])
   const placeholderKey = t('sk-your-key')
-  const snippet = buildClientSetupSnippet(target, {
+  const snippet = buildClientSetupSnippet(activeTarget, {
     baseUrl,
     apiKey: selectedKey ? maskApiKey(selectedKey.key) : placeholderKey,
     providerName,
     models,
   })
-  const verifyCommand = `claude -p "${t('Reply with ok')}"`
+  const verifyCommand = buildVerifyCommand(
+    activeClient,
+    baseUrl,
+    t('Reply with ok')
+  )
 
   const resolveKey = async (): Promise<string | null> => {
     if (!selectedKey) return null
@@ -188,7 +243,7 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
     try {
       const apiKey = selectedKey ? await resolveKey() : placeholderKey
       if (!apiKey) return
-      const text = buildClientSetupSnippet(target, {
+      const text = buildClientSetupSnippet(activeTarget, {
         baseUrl,
         apiKey,
         providerName,
@@ -197,7 +252,7 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
       if (await copyToClipboard(text)) {
         flashCopied('copy')
         toast.success(
-          selectedKey
+          selectedKey && text.includes(apiKey)
             ? t('Copied with your full API key')
             : t('Copied to clipboard')
         )
@@ -213,18 +268,23 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
     if (await copyToClipboard(verifyCommand)) flashCopied('verify')
   }
 
-  const handleOpenCCSwitch = async () => {
+  const handleOpenCCSwitch = async (app: 'claude' | 'codex') => {
     setBusy('cc-switch')
     try {
       const apiKey = await resolveKey()
       if (!apiKey) return
       window.open(
         buildCCSwitchURL({
-          app: 'claude',
+          app,
           name: providerName,
           serverAddress: baseUrl,
           apiKey,
-          models: { model: models[0] },
+          models: {
+            model:
+              app === 'codex'
+                ? pickCodexModel(models)
+                : pickClaudeModels(models)[0],
+          },
         }),
         '_blank'
       )
@@ -250,17 +310,37 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-3', props.className)}>
+      {props.renderHeading?.(t(getSetupTitle(clients)))}
+      {clients.length > 1 && (
+        <Tabs
+          value={activeClient}
+          onValueChange={(value) => setClient(value as SetupClient)}
+          className='max-w-full min-w-0'
+        >
+          <TabsList
+            variant='line'
+            aria-label={t('Client')}
+            className='no-scrollbar max-w-full justify-start overflow-x-auto'
+          >
+            {clients.map((item) => (
+              <TabsTrigger key={item} value={item} className='flex-none px-2.5'>
+                {t(CLIENT_LABELS[item])}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
       <div className='flex flex-wrap items-center justify-between gap-2'>
         <Tabs
-          value={target}
+          value={activeTarget}
           onValueChange={(value) => setTarget(value as ClientSetupTarget)}
           className='max-w-full min-w-0'
         >
           <TabsList
-            aria-label={t('Client')}
+            aria-label={t('Setup method')}
             className='no-scrollbar max-w-full justify-start overflow-x-auto'
           >
-            {CLIENT_SETUP_TARGETS.map((item) => (
+            {targets.map((item) => (
               <TabsTrigger key={item} value={item} className='flex-none px-2.5'>
                 {TARGET_LABELS[item]}
               </TabsTrigger>
@@ -293,13 +373,13 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
       </div>
 
       <p className='text-muted-foreground text-xs leading-relaxed text-pretty'>
-        {getTargetHint(target, t)}
+        {getTargetHint(activeTarget, t)}
       </p>
 
       <div className='bg-muted/40 min-w-0 overflow-hidden rounded-xl border'>
         <div className='flex items-center justify-between gap-2 border-b py-1.5 pr-1.5 pl-4'>
           <span className='text-muted-foreground truncate font-mono text-xs'>
-            {TARGET_SOURCES[target]}
+            {TARGET_SOURCES[activeTarget]}
           </span>
           <Button
             variant='ghost'
@@ -327,23 +407,28 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
         </pre>
       </div>
 
-      {target === 'cc-switch' && selectedKey && (
-        <Button
-          className='self-start'
-          size='sm'
-          onClick={handleOpenCCSwitch}
-          disabled={busy === 'cc-switch'}
-        >
-          {busy === 'cc-switch' ? (
-            <Loader2 className='animate-spin' data-icon='inline-start' />
-          ) : (
-            <ArrowRightLeft data-icon='inline-start' />
-          )}
-          {t('Import to CC Switch')}
-        </Button>
-      )}
+      {(activeTarget === 'cc-switch' || activeTarget === 'codex-cc-switch') &&
+        selectedKey && (
+          <Button
+            className='self-start'
+            size='sm'
+            onClick={() =>
+              handleOpenCCSwitch(
+                activeTarget === 'codex-cc-switch' ? 'codex' : 'claude'
+              )
+            }
+            disabled={busy === 'cc-switch'}
+          >
+            {busy === 'cc-switch' ? (
+              <Loader2 className='animate-spin' data-icon='inline-start' />
+            ) : (
+              <ArrowRightLeft data-icon='inline-start' />
+            )}
+            {t('Import to CC Switch')}
+          </Button>
+        )}
 
-      {target === 'magpie' && selectedKey && (
+      {activeTarget === 'magpie' && selectedKey && (
         <Button
           className='self-start'
           size='sm'
@@ -391,15 +476,17 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
             )}
           </Button>
         </div>
-        <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
-          <TriangleAlert
-            className='text-warning mt-px size-3.5 shrink-0'
-            aria-hidden
-          />
-          {t(
-            'Unset ANTHROPIC_API_KEY and run /logout first if you signed in to claude.ai.'
-          )}
-        </p>
+        {activeClient === 'claude-code' && (
+          <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
+            <TriangleAlert
+              className='text-warning mt-px size-3.5 shrink-0'
+              aria-hidden
+            />
+            {t(
+              'Unset ANTHROPIC_API_KEY and run /logout first if you signed in to claude.ai.'
+            )}
+          </p>
+        )}
       </div>
     </div>
   )

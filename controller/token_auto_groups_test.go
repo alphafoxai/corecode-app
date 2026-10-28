@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -210,4 +211,28 @@ func TestGetTokenAutoGroupsReturnsFullFilteredGlobalOrderAndLimit(t *testing.T) 
 	require.NoError(t, common.Unmarshal(response.Data, &data))
 	assert.Equal(t, []string{"vip", "default"}, data.Groups)
 	assert.Equal(t, 1, data.MaxCount)
+}
+
+func TestGetUserGroupsMarksClaudeCodeOnlyGroups(t *testing.T) {
+	configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"default":"Default","vip":"VIP","auto":"Auto"}`))
+	ccSetting := operation_setting.GetClaudeCodeClientSetting()
+	originalGroups := ccSetting.Groups
+	ccSetting.Groups = []string{"vip"}
+	t.Cleanup(func() { ccSetting.Groups = originalGroups })
+	user := setupTokenAutoGroupsControllerTest(t)
+
+	ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodGet, "/api/user/self/groups", nil, user.Id)
+	GetUserGroups(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var data map[string]struct {
+		ClaudeCodeOnly bool `json:"claude_code_only"`
+	}
+	require.NoError(t, common.Unmarshal(response.Data, &data))
+	require.Contains(t, data, "auto")
+	assert.True(t, data["vip"].ClaudeCodeOnly)
+	assert.False(t, data["default"].ClaudeCodeOnly)
+	assert.False(t, data["auto"].ClaudeCodeOnly)
 }

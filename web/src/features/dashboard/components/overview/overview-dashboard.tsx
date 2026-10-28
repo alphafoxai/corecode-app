@@ -113,22 +113,22 @@ export function OverviewDashboard() {
                 aria-labelledby='overview-setup-title'
                 className='bg-card h-full min-w-0 rounded-2xl border p-4 shadow-xs sm:p-5'
               >
-                <div className='mb-4 flex flex-col gap-1'>
-                  <h2
-                    id='overview-setup-title'
-                    className='text-lg leading-tight'
-                  >
-                    {t('Connect Claude Code')}
-                  </h2>
-                  <p className='text-muted-foreground text-sm'>
-                    {t(
-                      'Copy the config with your key filled in. Base URL is the root address, without /v1.'
-                    )}
-                  </p>
-                </div>
                 <ClientSetupGuide
                   keys={overview.keys}
                   keysLoading={overview.keysLoading}
+                  renderHeading={(title) => (
+                    <div className='mb-1 flex flex-col gap-1'>
+                      <h2
+                        id='overview-setup-title'
+                        className='text-lg leading-tight'
+                      >
+                        {title}
+                      </h2>
+                      <p className='text-muted-foreground text-sm'>
+                        {t('Copy the config with your key filled in.')}
+                      </p>
+                    </div>
+                  )}
                 />
               </section>
             </CardStaggerItem>

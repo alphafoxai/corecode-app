@@ -153,4 +153,46 @@ describe('ClientSetupGuide', () => {
       'sk-bbbb…2222'
     )
   })
+
+  it('offers only Claude Code for a Claude Code only group', async () => {
+    mockGroupAndModels({ claude_code_only: true }, ['claude-opus-5-5'])
+    await renderGuide([key({ group: 'cc' })])
+
+    expect(
+      await screen.findByRole('tab', { name: 'settings.json' })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('tablist', { name: 'Client' })
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers Codex for a GPT group and shows its config.toml', async () => {
+    const user = userEvent.setup()
+    mockGroupAndModels({ claude_code_only: false }, ['gpt-6.1-sol'])
+    await renderGuide([key({ group: 'cc' })])
+
+    expect(await screen.findByRole('tab', { name: 'Codex' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    await user.click(screen.getByRole('tab', { name: 'config.toml' }))
+    expect(screen.getByLabelText('Configuration snippet')).toHaveTextContent(
+      'base_url = "https://corecode.live/v1"'
+    )
+    expect(screen.getByText('codex exec "Reply with ok"')).toBeInTheDocument()
+  })
 })
+
+function mockGroupAndModels(
+  group: { claude_code_only: boolean },
+  models: string[]
+) {
+  vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
+    if (url === '/api/user/self/groups') {
+      return {
+        data: { success: true, data: { cc: { desc: '', ratio: 1, ...group } } },
+      }
+    }
+    return { data: { success: true, data: models } }
+  })
+}

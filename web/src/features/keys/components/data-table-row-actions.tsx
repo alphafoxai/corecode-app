@@ -58,7 +58,12 @@ import { handleServerError } from '@/lib/handle-server-error'
 
 import { updateApiKeyStatus } from '../api'
 import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
-import { buildMagpieImportURL, getAnthropicBaseUrl } from '../lib/client-setup'
+import {
+  buildMagpieImportURL,
+  getAnthropicBaseUrl,
+  getSetupTitle,
+} from '../lib/client-setup'
+import { useSetupClients } from '../lib/use-setup-clients'
 import { apiKeySchema } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
@@ -95,6 +100,7 @@ export function DataTableRowActions<TData>({
   const isEnabled = apiKey.status === API_KEY_STATUS.ENABLED
   const { chatPresets, serverAddress } = useChatPresets()
   const { status } = useStatus()
+  const { clients: setupClients } = useSetupClients(apiKey)
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
   const isRealKeyLoading = Boolean(loadingKeys[apiKey.id])
 
@@ -187,6 +193,8 @@ export function DataTableRowActions<TData>({
     statusIcon = <PowerOff className='size-4' />
   }
 
+  const setupTitle = t(getSetupTitle(setupClients))
+
   return (
     <div className='-ml-1.5 flex items-center gap-1'>
       <Tooltip>
@@ -200,13 +208,13 @@ export function DataTableRowActions<TData>({
                 setOpen('setup')
               }}
               disabled={!isEnabled}
-              aria-label={t('Connect Claude Code')}
+              aria-label={setupTitle}
             />
           }
         >
           <TerminalSquare />
         </TooltipTrigger>
-        <TooltipContent>{t('Connect Claude Code')}</TooltipContent>
+        <TooltipContent>{setupTitle}</TooltipContent>
       </Tooltip>
 
       <Tooltip>

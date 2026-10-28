@@ -6,6 +6,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -35,13 +36,16 @@ func GetUserGroups(c *gin.Context) {
 			usableGroups[groupName] = map[string]any{
 				"ratio": service.GetUserGroupRatio(userGroup, groupName),
 				"desc":  desc,
+				// CoreCode fork: the console offers only Claude Code setup for these.
+				"claude_code_only": operation_setting.IsClaudeCodeOnlyGroup(groupName),
 			}
 		}
 	}
 	if _, ok := userUsableGroups["auto"]; ok {
 		usableGroups["auto"] = map[string]any{
-			"ratio": "auto",
-			"desc":  setting.GetUsableGroupDescription("auto"),
+			"ratio":            "auto",
+			"desc":             setting.GetUsableGroupDescription("auto"),
+			"claude_code_only": false,
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
