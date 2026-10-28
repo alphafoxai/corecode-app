@@ -18,13 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { AxiosRequestConfig } from 'axios'
 
+import type { Invitee, InviteeTotals } from '@/features/invitations/types'
 import type {
   AffiliateAdminView,
   AffiliateCommission,
   AffiliatePage,
   AffiliatePageParams,
+  AffiliateTier,
 } from '@/features/wallet/types'
-import type { Invitee, InviteeTotals } from '@/features/invitations/types'
 import type { PermissionCatalog } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import type { CustomOAuthBinding } from '@/lib/oauth'
@@ -296,7 +297,7 @@ export async function getUserAffiliate(
 
 export async function updateUserAffiliate(
   userId: number,
-  body: { rate: number; channel: boolean }
+  body: { rate: number; tier: AffiliateTier }
 ): Promise<AffiliateAdminView> {
   const res = await api.put<ApiResponse<AffiliateAdminView>>(
     `/api/affiliate/admin/users/${userId}`,

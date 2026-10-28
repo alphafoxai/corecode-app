@@ -33,6 +33,9 @@ Status: implemented
 - **`affiliate_setting.gift_plan_id`** names the plan inviters can gift. `0`,
   the default, turns gifting off. A plan that is disabled or deleted turns it
   off too. The option is set in the invitation program settings.
+- Superseded on 2026-10-28: invitees receive their channel tier's plan at
+  sign-up and the manual gift is retired; see
+  `2026-10-28-channel-tiers-and-signup-gift.md`.
 - **Only a promotion channel can gift:** an `affiliates` row with
   `channel = true` and `rate > 0`. Rate 0 removes invite rights, so a revoked
   channel loses gifting too. `AffiliateGiftPlan(userId)` answers nil for

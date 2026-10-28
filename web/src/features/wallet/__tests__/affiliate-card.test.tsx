@@ -39,12 +39,13 @@ const baseSummary: AffiliateSummary = {
 
 function account(
   overrides: Partial<NonNullable<AffiliateSummary['affiliate']>>
-) {
+): NonNullable<AffiliateSummary['affiliate']> {
   return {
     id: 1,
     user_id: 7,
     rate: 10,
     channel: false,
+    tier: '',
     granted_by: 0,
     balance: 0,
     earned: 0,

@@ -383,6 +383,7 @@ func migrateDB() error {
 		&AffiliateReferral{},
 		&AffiliateCommission{},
 		&AffiliateWithdrawal{},
+		&AffiliateSignupGift{},
 		&EnterpriseApplication{},
 		&UserConcurrencyRejection{},
 		&InsightHour{},
@@ -399,6 +400,9 @@ func migrateDB() error {
 		return fmt.Errorf("initialize legacy access token deadline: %w", err)
 	}
 	if err := InitializeExternalIdentityClaims(); err != nil {
+		return err
+	}
+	if err := MigrateAffiliateTiers(); err != nil {
 		return err
 	}
 	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {

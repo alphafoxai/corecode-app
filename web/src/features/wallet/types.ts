@@ -313,14 +313,22 @@ export interface CompleteOrderRequest {
 // Invitation commission (affiliate) program
 // ============================================================================
 
+/**
+ * A promotion channel's tier; empty for an ordinary inviter. Both tiers
+ * withdraw cash and their invitees receive the tier's gift plan at sign-up;
+ * only a distributor earns second-level commission.
+ */
+export type AffiliateTier = '' | 'retail' | 'distributor'
+
 /** The user's affiliate account. Amounts are quota units. */
 export interface AffiliateAccount {
   id: number
   user_id: number
   /** Commission rate in percent */
   rate: number
-  /** Promotion channel: second-level commission and cash withdrawals */
+  /** Promotion channel of either tier: cash withdrawals */
   channel: boolean
+  tier: AffiliateTier
   granted_by: number
   balance: number
   earned: number

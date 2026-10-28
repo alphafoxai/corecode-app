@@ -87,9 +87,10 @@ func GetSelfAffiliateCommissions(c *gin.Context) {
 }
 
 // GetSelfAffiliateInvitees pages the users the caller invited, with totals
-// over all of them and the title of the plan the caller can gift them, empty
-// when gifting is off or the caller is not a promotion channel. It answers even when the program is off, because users
-// invited earlier stay the caller's invitees.
+// over all of them and the title of the plan they receive at sign-up, empty
+// when the caller is not a promotion channel or their tier has no plan. It
+// answers even when the program is off, because users invited earlier stay
+// the caller's invitees.
 func GetSelfAffiliateInvitees(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
@@ -120,8 +121,8 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 	})
 }
 
-// notifyAffiliateGift emails the invitee about a gift without holding up the
-// inviter's response. Tests replace it.
+// notifyAffiliateGift emails the invitee about a gift in the background, so
+// a slow mail server never holds up the sign-up. Tests replace it.
 var notifyAffiliateGift = func(lang string, inviterId int, inviteeId int, plan *model.SubscriptionPlan, subscription *model.UserSubscription) {
 	gopool.Go(func() {
 		invitee, err := model.GetUserById(inviteeId, false)
@@ -140,22 +141,28 @@ var notifyAffiliateGift = func(lang string, inviterId int, inviteeId int, plan *
 	})
 }
 
-// GiftSelfAffiliateInvitee gives one of a promotion channel's invitees the
-// gift plan and emails the invitee when they have an address.
-func GiftSelfAffiliateInvitee(c *gin.Context) {
-	inviteeId, err := strconv.Atoi(c.Param("id"))
-	if err != nil || inviteeId <= 0 {
-		common.ApiErrorT(c, "Invalid parameters")
+// giveAffiliateSignupGift gives a user who just signed up their channel
+// inviter's gift plan and emails them about it. A failure is logged and never
+// fails the sign-up, which has already committed.
+func giveAffiliateSignupGift(c *gin.Context, userId int, inviterId int) {
+	if userId <= 0 || inviterId <= 0 {
 		return
 	}
-	inviterId := c.GetInt("id")
-	plan, subscription, err := model.GiftAffiliatePlan(inviterId, inviteeId)
+	plan, subscription, err := model.GiveAffiliateSignupGift(userId, inviterId, c.ClientIP())
 	if err != nil {
-		common.ApiError(c, err)
+		common.SysLog(common.LogText("failed to give user %d the sign-up gift of inviter %d: %v", userId, inviterId, err))
 		return
 	}
-	notifyAffiliateGift(service.AccountMailLanguage(c, inviteeId), inviterId, inviteeId, plan, subscription)
-	common.ApiSuccessT(c, "Gave {{plan}}", nil, map[string]any{"plan": plan.Title})
+	if plan == nil {
+		return
+	}
+	notifyAffiliateGift(service.AccountMailLanguage(c, userId), inviterId, userId, plan, subscription)
+}
+
+// GiftSelfAffiliateInvitee is the retired manual gift. Invitees receive the
+// plan when they sign up; the route answers until no console calls it.
+func GiftSelfAffiliateInvitee(c *gin.Context) {
+	common.ApiError(c, model.ErrAffiliateGiftAutomatic)
 }
 
 type affiliateTransferRequest struct {
@@ -282,13 +289,18 @@ func AdminGetUserAffiliate(c *gin.Context) {
 	common.ApiSuccess(c, view)
 }
 
+// adminAffiliateRequest sets a rate and a channel tier. A console from before
+// tiers sends only Channel: true keeps the user's tier, or makes them a
+// distributor, which is what a channel was; false makes them an ordinary
+// inviter.
 type adminAffiliateRequest struct {
-	Rate    int  `json:"rate"`
-	Channel bool `json:"channel"`
+	Rate    int     `json:"rate"`
+	Channel bool    `json:"channel"`
+	Tier    *string `json:"tier"`
 }
 
 // AdminSetUserAffiliate sets a user's commission rate, up to the configured
-// maximum, and the promotion-channel mark.
+// maximum, and their promotion-channel tier.
 func AdminSetUserAffiliate(c *gin.Context) {
 	user, ok := affiliateManagedUser(c)
 	if !ok {
@@ -304,7 +316,20 @@ func AdminSetUserAffiliate(c *gin.Context) {
 		common.ApiErrorT(c, "Commission rate must be between 0 and {{max}}%", map[string]any{"max": maxRate})
 		return
 	}
-	if _, err := model.SetAffiliate(user.Id, req.Rate, req.Channel, c.GetInt("id")); err != nil {
+	tier := ""
+	if req.Tier != nil {
+		tier = *req.Tier
+	} else if req.Channel {
+		tier = model.AffiliateTierDistributor
+		if current, err := model.GetAffiliate(user.Id); err == nil && current != nil && current.Tier != "" {
+			tier = current.Tier
+		}
+	}
+	if !model.ValidAffiliateTier(tier) {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	if _, err := model.SetAffiliate(user.Id, req.Rate, tier, c.GetInt("id")); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -313,7 +338,8 @@ func AdminSetUserAffiliate(c *gin.Context) {
 		"id":                user.Id,
 		"action":            "set_affiliate",
 		"affiliate_rate":    req.Rate,
-		"affiliate_channel": req.Channel,
+		"affiliate_channel": tier != "",
+		"affiliate_tier":    tier,
 	})
 	view, err := buildAdminAffiliateView(user)
 	if err != nil {

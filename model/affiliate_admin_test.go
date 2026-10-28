@@ -28,7 +28,7 @@ func TestAffiliateAdminDatabaseMatrix(t *testing.T) {
 			// A channel with two invitees, B a default affiliate with one, and
 			// a user with no affiliate row and no invitees.
 			a := registerAffiliateTestUser(t, "adm_a", "")
-			_, err := SetAffiliate(a.Id, 25, true, 1)
+			_, err := SetAffiliate(a.Id, 25, AffiliateTierDistributor, 1)
 			require.NoError(t, err)
 			b := registerAffiliateTestUser(t, "adm_b", a.AffCode)
 			registerAffiliateTestUser(t, "adm_b2", a.AffCode)
@@ -57,7 +57,7 @@ func TestAffiliateAdminDatabaseMatrix(t *testing.T) {
 			require.Len(t, items, 1)
 			assert.Equal(t, AffiliateListItem{
 				UserId: a.Id, Username: "adm_a", DisplayName: "adm_a", Status: common.UserStatusEnabled,
-				AffCode: a.AffCode, HasAffiliate: true, Rate: 25, Channel: true, InviteeCount: 2,
+				AffCode: a.AffCode, HasAffiliate: true, Rate: 25, Channel: true, Tier: AffiliateTierDistributor, InviteeCount: 2,
 			}, *items[0])
 			items, _, err = ListAffiliates(AffiliateListFilter{Keyword: "adm_d"}, page())
 			require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestAffiliateAdminDatabaseMatrix(t *testing.T) {
 			assert.False(t, items[0].HasAffiliate)
 			assert.EqualValues(t, 1, items[0].InviteeCount)
 
-			_, err = SetAffiliate(c.Id, 0, false, 1)
+			_, err = SetAffiliate(c.Id, 0, "", 1)
 			require.NoError(t, err)
 			assert.Equal(t, []int{c.Id}, listed(AffiliateListFilter{Type: "revoked"}))
 

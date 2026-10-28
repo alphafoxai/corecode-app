@@ -203,14 +203,15 @@ export function AffiliateRewardsCard(props: AffiliateRewardsCardProps) {
     [t('Commission balance'), formatQuota(account.balance)],
     [t('Total Earned'), formatQuota(account.earned)],
   ]
-  const desc = account.channel
-    ? t(
-        'You earn {{rate}}% from your invitees and {{second}}% from the users they invite.',
-        { rate: account.rate, second: summary.second_level_rate }
-      )
-    : t('You earn {{rate}}% of what your invitees pay for and use.', {
-        rate: account.rate,
-      })
+  const desc =
+    account.tier === 'distributor'
+      ? t(
+          'You earn {{rate}}% from your invitees and {{second}}% from the users they invite.',
+          { rate: account.rate, second: summary.second_level_rate }
+        )
+      : t('You earn {{rate}}% of what your invitees pay for and use.', {
+          rate: account.rate,
+        })
 
   return (
     <CardShell>

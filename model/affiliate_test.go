@@ -66,7 +66,7 @@ func useAffiliateTestDB(t *testing.T, dialect string) {
 	*operation_setting.GetAffiliateSetting() = operation_setting.AffiliateSetting{
 		Enabled: true, SelfServeRate: 10, MaxRate: 30, SecondLevelRate: 5, MinWithdrawal: 100,
 	}
-	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{},
+	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{}, &AffiliateSignupGift{},
 		&SubscriptionPlan{}, &SubscriptionOrder{}, &UserSubscription{}}
 	for _, table := range tables {
 		require.False(t, db.Migrator().HasTable(table), "use an empty test database")
@@ -147,7 +147,7 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 
 			// A is a 30% promotion channel granted by an administrator.
 			a := registerAffiliateTestUser(t, "aff_a", "")
-			_, err := SetAffiliate(a.Id, 30, true, 1)
+			_, err := SetAffiliate(a.Id, 30, AffiliateTierDistributor, 1)
 			require.NoError(t, err)
 
 			// Every enabled user's code binds and gives them the default rate.
@@ -213,7 +213,7 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 			}, affiliateTestCredits(t, c.Id))
 
 			// Users C invites belong to C alone: neither B nor A earns from them.
-			_, err = SetAffiliate(c.Id, 10, false, 1)
+			_, err = SetAffiliate(c.Id, 10, "", 1)
 			require.NoError(t, err)
 			d := registerAffiliateTestUser(t, "aff_d", c.AffCode)
 			payAffiliateTestTopUp(t, d.Id, 100, PaymentProviderEpay)
@@ -295,7 +295,7 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 			// Only channels withdraw; a rejection returns the quota.
 			_, err = RequestAffiliateWithdrawal(b.Id, dollars(5), "alipay b")
 			assert.ErrorIs(t, err, ErrAffiliateNotChannel)
-			_, err = SetAffiliate(a.Id, 30, true, 1)
+			_, err = SetAffiliate(a.Id, 30, AffiliateTierDistributor, 1)
 			require.NoError(t, err)
 			require.NoError(t, DB.Model(&Affiliate{}).Where("user_id = ?", a.Id).Update("balance", dollars(250)).Error)
 			_, err = RequestAffiliateWithdrawal(a.Id, dollars(99), "alipay a")
@@ -327,7 +327,7 @@ func TestAffiliateCommissionDatabaseMatrix(t *testing.T) {
 
 			// An administrator's rate 0 removes invite rights; the default
 			// rate does not come back.
-			_, err = SetAffiliate(b.Id, 0, false, 1)
+			_, err = SetAffiliate(b.Id, 0, "", 1)
 			require.NoError(t, err)
 			assert.Zero(t, InviterIdForAffCode(b.AffCode))
 			require.NoError(t, EnsureDefaultAffiliate(b.Id))
@@ -370,10 +370,10 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 
 			// A is a channel; B, D and E are A's invitees, and C is B's.
 			a := registerAffiliateTestUser(t, "aff_a", "")
-			_, err := SetAffiliate(a.Id, 30, true, 1)
+			_, err := SetAffiliate(a.Id, 30, AffiliateTierDistributor, 1)
 			require.NoError(t, err)
 			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
-			_, err = SetAffiliate(b.Id, 10, false, 1)
+			_, err = SetAffiliate(b.Id, 10, "", 1)
 			require.NoError(t, err)
 			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
 			d := registerAffiliateTestUser(t, "aff_d", a.AffCode)
@@ -423,107 +423,263 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 	}
 }
 
-func TestAffiliateGiftDatabaseMatrix(t *testing.T) {
+func TestAffiliateSignupGiftDatabaseMatrix(t *testing.T) {
 	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			useAffiliateTestDB(t, dialect)
+			setting := operation_setting.GetAffiliateSetting()
 
-			// B and E are A's invitees, D is B's, and C signed up without a code.
-			a := registerAffiliateTestUser(t, "aff_a", "")
-			b := registerAffiliateTestUser(t, "aff_b", a.AffCode)
-			c := registerAffiliateTestUser(t, "aff_c", "")
-			d := registerAffiliateTestUser(t, "aff_d", b.AffCode)
-			e := registerAffiliateTestUser(t, "aff_e", a.AffCode)
-			require.NoError(t, DB.Model(&User{}).Where("id = ?", b.Id).Update("email", "b@example.com").Error)
+			trial := &SubscriptionPlan{Title: "trial", PriceAmount: 9.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true}
+			retailTrial := &SubscriptionPlan{Title: "retail trial", DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true}
+			for _, plan := range []*SubscriptionPlan{trial, retailTrial} {
+				require.NoError(t, DB.Create(plan).Error)
+				InvalidateSubscriptionPlanCache(plan.Id)
+				t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
+			}
 
-			plan := &SubscriptionPlan{Title: "trial", PriceAmount: 9.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true}
-			require.NoError(t, DB.Create(plan).Error)
-			InvalidateSubscriptionPlanCache(plan.Id)
-			t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
-
-			_, _, err := GiftAffiliatePlan(a.Id, b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "no gift plan is configured")
-			operation_setting.GetAffiliateSetting().GiftPlanId = plan.Id
-
-			// Only a promotion channel with invite rights can gift.
-			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "A is an ordinary inviter")
-			_, err = SetAffiliate(a.Id, 0, true, 1)
+			// O is an ordinary inviter, D a distributor and R a retail channel.
+			o := registerAffiliateTestUser(t, "aff_o", "")
+			d := registerAffiliateTestUser(t, "aff_d", "")
+			_, err := SetAffiliate(d.Id, 30, AffiliateTierDistributor, 1)
 			require.NoError(t, err)
-			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable, "a channel at rate 0 has lost its invite rights")
-			_, err = SetAffiliate(a.Id, 10, true, 1)
+			r := registerAffiliateTestUser(t, "aff_r", "")
+			_, err = SetAffiliate(r.Id, 30, AffiliateTierRetail, 1)
 			require.NoError(t, err)
+			ip := 0
+			signUp := func(name string, inviter *User, email string) (*User, *SubscriptionPlan) {
+				t.Helper()
+				user := registerAffiliateTestUser(t, name, inviter.AffCode)
+				if email != "" {
+					require.NoError(t, DB.Model(&User{}).Where("id = ?", user.Id).Update("email", email).Error)
+				}
+				ip++
+				plan, _, err := GiveAffiliateSignupGift(user.Id, user.InviterId, fmt.Sprintf("203.0.113.%d", ip))
+				require.NoError(t, err)
+				return user, plan
+			}
+			giftStatus := func(user *User) string {
+				t.Helper()
+				var gift AffiliateSignupGift
+				if err := DB.Where("user_id = ?", user.Id).First(&gift).Error; err != nil {
+					return ""
+				}
+				return gift.Status
+			}
 
-			_, _, err = GiftAffiliatePlan(a.Id, c.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee)
-			_, _, err = GiftAffiliatePlan(a.Id, d.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftNotInvitee, "an invitee's invitee is not the caller's")
+			// With no plan configured for a tier, its invitees receive nothing.
+			_, plan := signUp("aff_d0", d, "")
+			assert.Nil(t, plan)
+			setting.GiftPlanId, setting.RetailGiftPlanId = trial.Id, retailTrial.Id
 
-			gifted, giftedSubscription, err := GiftAffiliatePlan(a.Id, b.Id)
-			require.NoError(t, err)
-			assert.Equal(t, plan.Id, gifted.Id)
+			_, plan = signUp("aff_o1", o, "")
+			assert.Nil(t, plan, "an ordinary inviter's invitees receive nothing")
+
+			d1, plan := signUp("aff_d1", d, "d1@example.com")
+			require.NotNil(t, plan)
+			assert.Equal(t, trial.Id, plan.Id, "a distributor's invitees receive the distributor plan")
 			var subscription UserSubscription
-			require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", b.Id, plan.Id).First(&subscription).Error)
-			assert.Equal(t, subscription.Id, giftedSubscription.Id)
-			assert.Equal(t, subscription.EndTime, giftedSubscription.EndTime)
+			require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", d1.Id, trial.Id).First(&subscription).Error)
 			assert.Equal(t, SubscriptionSourceAffiliateGift, subscription.Source)
 			assert.Equal(t, "active", subscription.Status)
-			_, _, err = GiftAffiliatePlan(a.Id, b.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftTaken, "a plan is gifted once")
+			again, _, err := GiveAffiliateSignupGift(d1.Id, d.Id, "198.51.100.1")
+			require.NoError(t, err)
+			assert.Nil(t, again, "a user is handled once")
 
-			// The gifted invitee cannot buy the plan, by any payment, but an
-			// administrator can still bind it.
-			assert.ErrorIs(t, CheckSubscriptionPurchase(b.Id, plan), ErrSubscriptionGifted)
-			require.NoError(t, DB.Model(&User{}).Where("id = ?", b.Id).Update("quota", 100*affiliateDollar).Error)
-			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(b.Id, plan.Id), ErrSubscriptionGifted)
-			_, err = AdminBindSubscription(b.Id, plan.Id, "")
+			r1, plan := signUp("aff_r1", r, "")
+			require.NotNil(t, plan)
+			assert.Equal(t, retailTrial.Id, plan.Id, "a retail channel's invitees receive the retail plan")
+
+			// The gifted invitee cannot buy the plan, but an administrator can
+			// still bind it.
+			assert.ErrorIs(t, CheckSubscriptionPurchase(d1.Id, trial), ErrSubscriptionGifted)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", d1.Id).Update("quota", 100*affiliateDollar).Error)
+			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(d1.Id, trial.Id), ErrSubscriptionGifted)
+			_, err = AdminBindSubscription(d1.Id, trial.Id, "")
 			require.NoError(t, err)
 
-			// An invitee who bought the plan cannot be given it.
+			// A second sign-up from an address that received a gift in the last
+			// 24 hours receives none; the row records why.
+			r2 := registerAffiliateTestUser(t, "aff_r2", r.AffCode)
+			plan, _, err = GiveAffiliateSignupGift(r2.Id, r.Id, fmt.Sprintf("203.0.113.%d", ip))
+			require.NoError(t, err)
+			assert.Nil(t, plan)
+			assert.Equal(t, AffiliateSignupGiftIpUsed, giftStatus(r2))
+			r3 := registerAffiliateTestUser(t, "aff_r3", r.AffCode)
+			require.NoError(t, DB.Model(&AffiliateSignupGift{}).Where("user_id = ?", r1.Id).
+				Update("created_at", common.GetTimestamp()-affiliateSignupGiftWindow-1).Error)
+			require.NoError(t, DB.Model(&AffiliateSignupGift{}).Where("user_id = ?", r2.Id).Update("ip", "").Error)
+			r1Ip := fmt.Sprintf("203.0.113.%d", ip)
+			plan, _, err = GiveAffiliateSignupGift(r3.Id, r.Id, r1Ip)
+			require.NoError(t, err)
+			require.NotNil(t, plan, "an address's earlier gift stops counting after 24 hours")
+
+			// A blocked address domain, or a parent of it, receives nothing.
+			setting.GiftBlockedEmailDomains = "mailinator.com\n@throwaway.test"
+			blocked, plan := signUp("aff_r4", r, "r4@inbox.throwaway.test")
+			assert.Nil(t, plan)
+			assert.Equal(t, AffiliateSignupGiftEmailBlocked, giftStatus(blocked))
+			_, plan = signUp("aff_r5", r, "r5@notthrowaway.test")
+			assert.NotNil(t, plan, "only the domain and its subdomains are blocked")
+
+			// The daily cap counts one channel's gifts; concurrent sign-ups
+			// through that channel never pass it.
+			setting.GiftDailyCap = 5
+			var given int64
+			countGiven := func() {
+				t.Helper()
+				require.NoError(t, DB.Model(&AffiliateSignupGift{}).Where("inviter_id = ? AND status = ? AND created_at >= ?",
+					r.Id, AffiliateSignupGiftGiven, common.GetTimestamp()-affiliateSignupGiftWindow).Count(&given).Error)
+			}
+			countGiven()
+			require.EqualValues(t, 2, given, "R's gifts inside the window: r3 and r5")
+			users := make([]*User, 0, 8)
+			for i := range 8 {
+				users = append(users, registerAffiliateTestUser(t, fmt.Sprintf("aff_cap%d", i), r.AffCode))
+			}
+			var wg sync.WaitGroup
+			for i, user := range users {
+				wg.Go(func() {
+					_, _, err := GiveAffiliateSignupGift(user.Id, r.Id, fmt.Sprintf("192.0.2.%d", i))
+					assert.NoError(t, err)
+				})
+			}
+			wg.Wait()
+			countGiven()
+			assert.EqualValues(t, 5, given)
+			var capped int64
+			require.NoError(t, DB.Model(&AffiliateSignupGift{}).Where("inviter_id = ? AND status = ?", r.Id, AffiliateSignupGiftCapReached).Count(&capped).Error)
+			assert.EqualValues(t, 5, capped)
+			_, plan = signUp("aff_d2", d, "")
+			assert.NotNil(t, plan, "another channel has its own cap")
+			setting.GiftDailyCap = 0
+
+			// A channel at rate 0, a disabled plan, and the program off give
+			// nothing.
+			_, err = SetAffiliate(r.Id, 0, AffiliateTierRetail, 1)
+			require.NoError(t, err)
+			late := registerAffiliateTestUser(t, "aff_late", "")
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", late.Id).Update("inviter_id", r.Id).Error)
+			plan, _, err = GiveAffiliateSignupGift(late.Id, r.Id, "198.51.100.2")
+			require.NoError(t, err)
+			assert.Nil(t, plan)
+			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", trial.Id).Update("enabled", false).Error)
+			InvalidateSubscriptionPlanCache(trial.Id)
+			_, plan = signUp("aff_d3", d, "")
+			assert.Nil(t, plan)
+			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", trial.Id).Update("enabled", true).Error)
+			InvalidateSubscriptionPlanCache(trial.Id)
+			setting.Enabled = false
+			stray := registerAffiliateTestUser(t, "aff_stray", d.AffCode)
+			setting.Enabled = true
+			plan, _, err = GiveAffiliateSignupGift(stray.Id, d.Id, "198.51.100.3")
+			require.NoError(t, err)
+			assert.NotNil(t, plan, "the binding, not the program at sign-up, decides; the program is on again")
+			setting.Enabled = false
+			offline := registerAffiliateTestUser(t, "aff_offline", d.AffCode)
+			plan, _, err = GiveAffiliateSignupGift(offline.Id, d.Id, "198.51.100.4")
+			require.NoError(t, err)
+			assert.Nil(t, plan, "the program is off")
+			setting.Enabled = true
+
+			// The gift is for the inviter the user is bound to.
+			plan, _, err = GiveAffiliateSignupGift(offline.Id, r.Id, "198.51.100.5")
+			require.NoError(t, err)
+			assert.Nil(t, plan)
+
+			// The invitee list shows who received the plan at sign-up.
+			e := registerAffiliateTestUser(t, "aff_e", d.AffCode)
 			require.NoError(t, DB.Model(&User{}).Where("id = ?", e.Id).Update("quota", 100*affiliateDollar).Error)
-			require.NoError(t, PurchaseSubscriptionWithBalance(e.Id, plan.Id))
-			_, _, err = GiftAffiliatePlan(a.Id, e.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftTaken)
-			assert.NoError(t, CheckSubscriptionPurchase(e.Id, plan), "a purchase does not block buying again")
-
-			invitees, _, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 1, PageSize: 10})
+			require.NoError(t, PurchaseSubscriptionWithBalance(e.Id, trial.Id))
+			invitees, _, err := ListAffiliateInvitees(d.Id, &common.PageInfo{Page: 1, PageSize: 20})
 			require.NoError(t, err)
-			require.Len(t, invitees, 2)
-			assert.Equal(t, "owned", invitees[0].GiftPlan)
-			assert.Equal(t, "aff_b", invitees[1].Name)
-			assert.Equal(t, "b@example.com", invitees[1].Email)
-			assert.Equal(t, "gifted", invitees[1].GiftPlan, "a gift outranks the administrator's later binding")
+			byName := map[string]*AffiliateInvitee{}
+			for _, invitee := range invitees {
+				byName[invitee.Name] = invitee
+			}
+			assert.Equal(t, "owned", byName["aff_e"].GiftPlan)
+			assert.Equal(t, "gifted", byName["aff_d1"].GiftPlan, "a gift outranks the administrator's later binding")
+			assert.Equal(t, "d1@example.com", byName["aff_d1"].Email)
+			assert.Empty(t, byName["aff_d0"].GiftPlan)
 
-			// A disabled plan cannot be gifted.
-			_, err = SetAffiliate(b.Id, 10, true, 1)
-			require.NoError(t, err)
-			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", plan.Id).Update("enabled", false).Error)
-			InvalidateSubscriptionPlanCache(plan.Id)
-			_, _, err = GiftAffiliatePlan(b.Id, d.Id)
-			assert.ErrorIs(t, err, ErrAffiliateGiftUnavailable)
-
-			// Once the plan is only for users registered before a cutoff, a
-			// later registrant cannot buy it but can still be gifted it, and a
-			// newcomer plan takes the opposite side of the same cutoff.
+			// A plan only for users registered before a cutoff is still given
+			// at sign-up to a later registrant, who cannot buy it; a newcomer
+			// plan takes the opposite side of the same cutoff.
 			const cutoff = int64(2_000_000_000)
-			require.NoError(t, DB.Model(&User{}).Where("id = ?", c.Id).Update("created_at", cutoff-1).Error)
-			require.NoError(t, DB.Model(&User{}).Where("id = ?", d.Id).Update("created_at", cutoff).Error)
-			plan.Enabled, plan.RegisteredBefore = true, cutoff
-			require.NoError(t, DB.Model(plan).Updates(map[string]any{"enabled": true, "registered_before": cutoff}).Error)
-			InvalidateSubscriptionPlanCache(plan.Id)
-			assert.NoError(t, CheckSubscriptionPurchase(c.Id, plan))
-			assert.ErrorIs(t, CheckSubscriptionPurchase(d.Id, plan), ErrSubscriptionNotEligible)
-			_, _, err = GiftAffiliatePlan(b.Id, d.Id)
-			require.NoError(t, err, "a gift ignores the registration window")
+			require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", trial.Id).Update("registered_before", cutoff).Error)
+			InvalidateSubscriptionPlanCache(trial.Id)
+			trial.RegisteredBefore = cutoff
+			early := registerAffiliateTestUser(t, "aff_early", "")
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", early.Id).Update("created_at", cutoff-1).Error)
+			newcomer := registerAffiliateTestUser(t, "aff_newcomer", d.AffCode)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", newcomer.Id).Update("created_at", cutoff).Error)
+			assert.NoError(t, CheckSubscriptionPurchase(early.Id, trial))
+			assert.ErrorIs(t, CheckSubscriptionPurchase(newcomer.Id, trial), ErrSubscriptionNotEligible)
+			plan, _, err = GiveAffiliateSignupGift(newcomer.Id, d.Id, "198.51.100.6")
+			require.NoError(t, err)
+			assert.NotNil(t, plan, "a gift ignores the registration window")
 
-			newcomer := &SubscriptionPlan{Title: "newcomer", PriceAmount: 29.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true, RegisteredAfter: cutoff}
-			require.NoError(t, DB.Create(newcomer).Error)
-			require.NoError(t, DB.Model(&User{}).Where("id = ?", c.Id).Update("quota", 100*affiliateDollar).Error)
-			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(c.Id, newcomer.Id), ErrSubscriptionNotEligible)
-			assert.NoError(t, CheckSubscriptionPurchase(d.Id, newcomer))
-			_, err = AdminBindSubscription(c.Id, newcomer.Id, "")
+			newcomerPlan := &SubscriptionPlan{Title: "newcomer", PriceAmount: 29.9, DurationUnit: SubscriptionDurationDay, DurationValue: 7, Enabled: true, RegisteredAfter: cutoff}
+			require.NoError(t, DB.Create(newcomerPlan).Error)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", early.Id).Update("quota", 100*affiliateDollar).Error)
+			assert.ErrorIs(t, PurchaseSubscriptionWithBalance(early.Id, newcomerPlan.Id), ErrSubscriptionNotEligible)
+			assert.NoError(t, CheckSubscriptionPurchase(newcomer.Id, newcomerPlan))
+			_, err = AdminBindSubscription(early.Id, newcomerPlan.Id, "")
 			require.NoError(t, err, "an administrator can bind it to anyone")
+		})
+	}
+}
+
+func TestAffiliateTiersDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useAffiliateTestDB(t, dialect)
+			dollars := func(n int) int64 { return int64(n * affiliateDollar) }
+
+			// A channel from before tiers becomes a distributor; others keep no tier.
+			legacy := registerAffiliateTestUser(t, "aff_legacy", "")
+			plain := registerAffiliateTestUser(t, "aff_plain", "")
+			require.NoError(t, DB.Create(&Affiliate{UserId: legacy.Id, Rate: 30, Channel: true}).Error)
+			require.NoError(t, EnsureDefaultAffiliate(plain.Id))
+			require.NoError(t, MigrateAffiliateTiers())
+			require.NoError(t, MigrateAffiliateTiers(), "migrating twice changes nothing more")
+			legacyAffiliate, err := GetAffiliate(legacy.Id)
+			require.NoError(t, err)
+			assert.Equal(t, AffiliateTierDistributor, legacyAffiliate.Tier)
+			plainAffiliate, err := GetAffiliate(plain.Id)
+			require.NoError(t, err)
+			assert.Empty(t, plainAffiliate.Tier)
+
+			// A retail channel earns its own rate but nothing at the second
+			// level, and can withdraw.
+			r := registerAffiliateTestUser(t, "aff_r", "")
+			retail, err := SetAffiliate(r.Id, 30, AffiliateTierRetail, 1)
+			require.NoError(t, err)
+			assert.True(t, retail.Channel, "both tiers are channels")
+			b := registerAffiliateTestUser(t, "aff_b", r.AffCode)
+			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
+			payAffiliateTestTopUp(t, b.Id, 100, PaymentProviderEpay)
+			payAffiliateTestTopUp(t, c.Id, 100, PaymentProviderEpay)
+			consumeAffiliateTestQuota(t, b.Id, 100)
+			consumeAffiliateTestQuota(t, c.Id, 100)
+			settleAffiliateTestUser(t, b.Id)
+			settleAffiliateTestUser(t, c.Id)
+			assert.Equal(t, []affiliateTestCredit{{r.Id, 1, 30, dollars(30)}}, affiliateTestCredits(t, b.Id))
+			assert.Equal(t, []affiliateTestCredit{{b.Id, 1, 10, dollars(10)}}, affiliateTestCredits(t, c.Id), "no second level for a retail channel")
+			operation_setting.GetAffiliateSetting().MinWithdrawal = 10
+			_, err = RequestAffiliateWithdrawal(r.Id, dollars(30), "alipay:r")
+			require.NoError(t, err)
+
+			// Clearing the tier makes the user an ordinary inviter.
+			ordinary, err := SetAffiliate(r.Id, 10, "", 1)
+			require.NoError(t, err)
+			assert.False(t, ordinary.Channel)
+			assert.Empty(t, ordinary.Tier)
+
+			items, _, err := ListAffiliates(AffiliateListFilter{Type: AffiliateTierDistributor}, &common.PageInfo{Page: 1, PageSize: 10})
+			require.NoError(t, err)
+			require.Len(t, items, 1)
+			assert.Equal(t, legacy.Id, items[0].UserId)
+			assert.Equal(t, AffiliateTierDistributor, items[0].Tier)
 		})
 	}
 }

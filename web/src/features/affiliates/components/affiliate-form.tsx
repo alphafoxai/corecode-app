@@ -42,8 +42,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { getAdminPlans } from '@/features/subscriptions/api'
-
 import {
   SettingsForm,
   SettingsFormGrid,
@@ -62,6 +62,9 @@ const affiliateSchema = z
     second_level_rate: z.number().int().min(0).max(100),
     min_withdrawal: z.number().int().min(0),
     gift_plan_id: z.number().int().min(0),
+    retail_gift_plan_id: z.number().int().min(0),
+    gift_daily_cap: z.number().int().min(0),
+    gift_blocked_email_domains: z.string(),
   })
   .refine((v) => v.self_serve_rate <= v.max_rate, {
     path: ['self_serve_rate'],
@@ -77,6 +80,9 @@ export type AffiliateValues = {
   'affiliate_setting.second_level_rate': number
   'affiliate_setting.min_withdrawal': number
   'affiliate_setting.gift_plan_id': number
+  'affiliate_setting.retail_gift_plan_id': number
+  'affiliate_setting.gift_daily_cap': number
+  'affiliate_setting.gift_blocked_email_domains': string
 }
 
 type AffiliateFormProps = {
@@ -90,6 +96,9 @@ const toFormValues = (d: AffiliateValues): AffiliateFormValues => ({
   second_level_rate: d['affiliate_setting.second_level_rate'],
   min_withdrawal: d['affiliate_setting.min_withdrawal'],
   gift_plan_id: d['affiliate_setting.gift_plan_id'],
+  retail_gift_plan_id: d['affiliate_setting.retail_gift_plan_id'],
+  gift_daily_cap: d['affiliate_setting.gift_daily_cap'],
+  gift_blocked_email_domains: d['affiliate_setting.gift_blocked_email_domains'],
 })
 
 const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
@@ -99,9 +108,17 @@ const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
   'affiliate_setting.second_level_rate': v.second_level_rate,
   'affiliate_setting.min_withdrawal': v.min_withdrawal,
   'affiliate_setting.gift_plan_id': v.gift_plan_id,
+  'affiliate_setting.retail_gift_plan_id': v.retail_gift_plan_id,
+  'affiliate_setting.gift_daily_cap': v.gift_daily_cap,
+  'affiliate_setting.gift_blocked_email_domains':
+    v.gift_blocked_email_domains.trim(),
 })
 
-type NumberName = Exclude<keyof AffiliateFormValues, 'enabled' | 'gift_plan_id'>
+type PlanName = 'gift_plan_id' | 'retail_gift_plan_id'
+type NumberName = Exclude<
+  keyof AffiliateFormValues,
+  'enabled' | 'gift_blocked_email_domains' | PlanName
+>
 
 export function AffiliateForm(props: AffiliateFormProps) {
   const { t } = useTranslation()
@@ -167,6 +184,39 @@ export function AffiliateForm(props: AffiliateFormProps) {
     />
   )
 
+  const planField = (name: PlanName, label: string, description: string) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <Select
+            items={giftPlanItems}
+            onValueChange={(value) => field.onChange(Number(value))}
+            value={String(field.value)}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent alignItemWithTrigger={false}>
+              <SelectGroup>
+                {giftPlanItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <FormDescription>{description}</FormDescription>
+        </FormItem>
+      )}
+    />
+  )
+
   return (
     <Form {...form}>
       <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
@@ -216,7 +266,7 @@ export function AffiliateForm(props: AffiliateFormProps) {
             'second_level_rate',
             t('Second-level rate (%)'),
             t(
-              'Extra commission promotion channels earn from users their invitees invite.'
+              'Extra commission distributor channels earn from users their invitees invite.'
             )
           )}
           {numberField(
@@ -226,35 +276,39 @@ export function AffiliateForm(props: AffiliateFormProps) {
               'The smallest cash payout a promotion channel can request, in the payment currency.'
             )
           )}
+          {planField(
+            'retail_gift_plan_id',
+            t('Retail channel gift plan'),
+            t(
+              'Every user who signs up with a retail channel code receives this plan, free. An invitee who received it cannot buy it.'
+            )
+          )}
+          {planField(
+            'gift_plan_id',
+            t('Distributor channel gift plan'),
+            t(
+              'Every user who signs up with a distributor channel code receives this plan, free. An invitee who received it cannot buy it.'
+            )
+          )}
+          {numberField(
+            'gift_daily_cap',
+            t('Daily gifts per channel'),
+            t(
+              'The most sign-up gifts one channel gives in 24 hours; later sign-ups still bind but receive nothing. 0 is no limit. One address receives at most one gift in 24 hours.'
+            )
+          )}
           <FormField
             control={form.control}
-            name='gift_plan_id'
+            name='gift_blocked_email_domains'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('Gift plan')}</FormLabel>
-                <Select
-                  items={giftPlanItems}
-                  onValueChange={(value) => field.onChange(Number(value))}
-                  value={String(field.value)}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      {giftPlanItems.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <FormLabel>{t('Blocked email domains')}</FormLabel>
+                <FormControl>
+                  <Textarea rows={3} placeholder='mailinator.com' {...field} />
+                </FormControl>
                 <FormDescription>
                   {t(
-                    'Promotion channels can give each of their invitees this plan once, free. An invitee who received it cannot buy it.'
+                    'One per line. Sign-ups from these domains and their subdomains receive no gift.'
                   )}
                 </FormDescription>
               </FormItem>

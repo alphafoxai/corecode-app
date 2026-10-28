@@ -21,7 +21,7 @@ var affiliateCodePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{3,32}$`)
 
 // AffiliateListItem is one user on the administrators' invitation page: an
 // affiliate, or a user who invited someone before they had an affiliate row.
-// Rate, Channel, Balance and Earned are zero when HasAffiliate is false.
+// Rate, Channel, Tier, Balance and Earned are zero when HasAffiliate is false.
 type AffiliateListItem struct {
 	UserId       int    `json:"user_id"`
 	Username     string `json:"username"`
@@ -32,13 +32,15 @@ type AffiliateListItem struct {
 	HasAffiliate bool   `json:"has_affiliate"`
 	Rate         int    `json:"rate"`
 	Channel      bool   `json:"channel"`
+	Tier         string `json:"tier"`
 	InviteeCount int64  `json:"invitee_count"`
 	Balance      int64  `json:"balance"`
 	Earned       int64  `json:"earned"`
 }
 
 // AffiliateListFilter narrows ListAffiliates. Type is "" for every listed
-// user, "channel" for promotion channels, "inviting" for users with at
+// user, "channel" for promotion channels of either tier, "retail" or
+// "distributor" for one tier, "inviting" for users with at
 // least one invitee and "revoked" for users an administrator set to rate 0.
 // Sort is "invitees" (the default), "earned" or "recent".
 type AffiliateListFilter struct {
@@ -59,6 +61,8 @@ func ListAffiliates(filter AffiliateListFilter, pageInfo *common.PageInfo) ([]*A
 	switch filter.Type {
 	case "channel":
 		query = query.Where("affiliates.channel = ?", true)
+	case AffiliateTierRetail, AffiliateTierDistributor:
+		query = query.Where("affiliates.tier = ?", filter.Type)
 	case "inviting":
 		query = query.Where("invitees.invitee_count > 0")
 	case "revoked":
@@ -100,12 +104,13 @@ func ListAffiliates(filter AffiliateListFilter, pageInfo *common.PageInfo) ([]*A
 		AffiliateId  *int
 		Rate         *int
 		Channel      *bool
+		Tier         *string
 		InviteeCount *int64
 		Balance      *int64
 		Earned       *int64
 	}
 	if err := query.Select("users.id AS user_id, users.username, users.display_name, users.email, users.status, users.aff_code, " +
-		"affiliates.id AS affiliate_id, affiliates.rate, affiliates.channel, affiliates.balance, affiliates.earned, invitees.invitee_count").
+		"affiliates.id AS affiliate_id, affiliates.rate, affiliates.channel, affiliates.tier, affiliates.balance, affiliates.earned, invitees.invitee_count").
 		Order("users.id DESC").Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
@@ -126,6 +131,9 @@ func ListAffiliates(filter AffiliateListFilter, pageInfo *common.PageInfo) ([]*A
 		if row.Channel != nil {
 			item.Channel = *row.Channel
 		}
+		if row.Tier != nil {
+			item.Tier = *row.Tier
+		}
 		if row.InviteeCount != nil {
 			item.InviteeCount = *row.InviteeCount
 		}
@@ -142,6 +150,8 @@ func ListAffiliates(filter AffiliateListFilter, pageInfo *common.PageInfo) ([]*A
 
 // AffiliateOverview sums the invitation program over every user. Inviters
 // counts users with at least one invitee; amounts are quota units.
+// SignupGifts and SignupGiftsWithheld count sign-up gifts given and withheld
+// by a limit in the last 24 hours.
 type AffiliateOverview struct {
 	Inviters               int64 `json:"inviters"`
 	Channels               int64 `json:"channels"`
@@ -150,6 +160,8 @@ type AffiliateOverview struct {
 	Balance                int64 `json:"balance"`
 	PendingWithdrawals     int64 `json:"pending_withdrawals"`
 	PendingWithdrawalQuota int64 `json:"pending_withdrawal_quota"`
+	SignupGifts            int64 `json:"signup_gifts"`
+	SignupGiftsWithheld    int64 `json:"signup_gifts_withheld"`
 }
 
 func GetAffiliateOverview() (*AffiliateOverview, error) {
@@ -182,6 +194,17 @@ func GetAffiliateOverview() (*AffiliateOverview, error) {
 		return nil, err
 	}
 	overview.PendingWithdrawals, overview.PendingWithdrawalQuota = pending.Count, pending.Quota
+	var gifts struct {
+		Given    int64
+		Withheld int64
+	}
+	if err := DB.Model(&AffiliateSignupGift{}).Where("created_at >= ?", common.GetTimestamp()-affiliateSignupGiftWindow).
+		Select("COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS given, COALESCE(SUM(CASE WHEN status <> ? THEN 1 ELSE 0 END), 0) AS withheld",
+			AffiliateSignupGiftGiven, AffiliateSignupGiftGiven).
+		Scan(&gifts).Error; err != nil {
+		return nil, err
+	}
+	overview.SignupGifts, overview.SignupGiftsWithheld = gifts.Given, gifts.Withheld
 	return &overview, nil
 }
 

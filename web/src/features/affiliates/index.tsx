@@ -89,6 +89,13 @@ export function Affiliates() {
               {
                 label: t('Invitees'),
                 value: data?.overview.invitees ?? 0,
+                hint: t('{{given}} gifts in 24h, {{withheld}} withheld', {
+                  given: data?.overview.signup_gifts ?? 0,
+                  withheld: data?.overview.signup_gifts_withheld ?? 0,
+                }),
+                tone: data?.overview.signup_gifts_withheld
+                  ? 'warning'
+                  : 'default',
               },
               {
                 label: t('Total Earned'),
