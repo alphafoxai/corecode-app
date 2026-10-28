@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { ChevronLeft, ChevronRight, CircleHelp } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState, type PointerEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -130,7 +130,9 @@ export type MetricItem = {
   /** A headline figure: wider, larger, with its trend drawn. */
   featured?: boolean
   /** The figure over the range, oldest first, drawn on a featured card. */
-  trend?: number[]
+  trend?: TrendPoint[]
+  /** How a trend point's value reads out; plain numbers by default. */
+  trendFormat?: (value: number) => string
 }
 
 const TONES = {
@@ -271,44 +273,130 @@ export function DeltaBadge(props: { delta: MetricDelta }) {
   )
 }
 
-/** A small line of a figure's values over the range. */
-export function Sparkline(props: { values: number[]; className?: string }) {
-  const values = props.values
-  if (values.length < 2) return null
+export type TrendPoint = {
+  /** The date or hour of the point, shown when it is read. */
+  title: string
+  value: number
+}
+
+/**
+ * A small line of a figure's values over the range. Hovering, or focusing
+ * and pressing the arrow keys, marks the nearest point and reads out its
+ * date and value.
+ */
+export function Sparkline(props: {
+  points: TrendPoint[]
+  format: (value: number) => string
+  label: string
+  className?: string
+}) {
+  const { t } = useTranslation()
+  const [active, setActive] = useState<number | null>(null)
+  const points = props.points
+  if (points.length < 2) return null
+  const values = points.map((point) => point.value)
   const max = Math.max(...values)
   const min = Math.min(0, ...values)
   const span = max - min || 1
-  const step = 100 / (values.length - 1)
+  const last = points.length - 1
+  const xOf = (index: number) => (index / last) * 100
+  const yOf = (value: number) => 28 - ((value - min) / span) * 26
   const path = values
-    .map((value, index) => {
-      const y = 28 - ((value - min) / span) * 26
-      return `${index === 0 ? 'M' : 'L'}${(index * step).toFixed(2)},${y.toFixed(2)}`
-    })
+    .map(
+      (value, index) =>
+        `${index === 0 ? 'M' : 'L'}${xOf(index).toFixed(2)},${yOf(value).toFixed(2)}`
+    )
     .join(' ')
+  const nearest = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    const share = (event.clientX - box.left) / Math.max(box.width, 1)
+    return Math.min(last, Math.max(0, Math.round(share * last)))
+  }
+  const point = active === null ? null : points[active]
+  const x = active === null ? 0 : xOf(active)
+  const latest = points[last]
   return (
-    <svg
-      aria-hidden
-      viewBox='0 0 100 30'
-      preserveAspectRatio='none'
+    <div
+      tabIndex={0}
+      role='img'
+      aria-label={t('{{label}} from {{first}} to {{last}}, latest {{value}}', {
+        label: props.label,
+        first: points[0].title,
+        last: latest.title,
+        value: props.format(latest.value),
+      })}
       className={cn(
-        'text-primary h-8 w-full overflow-visible',
+        'focus-visible:ring-ring/50 relative cursor-crosshair rounded-sm outline-none focus-visible:ring-2',
         props.className
       )}
+      onPointerMove={(event) => setActive(nearest(event))}
+      onPointerLeave={() => setActive(null)}
+      onFocus={() => setActive(last)}
+      onBlur={() => setActive(null)}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault()
+          setActive((current) => Math.max(0, (current ?? last) - 1))
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault()
+          setActive((current) => Math.min(last, (current ?? last) + 1))
+        }
+      }}
     >
-      <path d={`${path} L100,30 L0,30 Z`} className='fill-current opacity-10' />
-      <path
-        d={path}
-        fill='none'
-        stroke='currentColor'
-        strokeWidth={1.5}
-        vectorEffect='non-scaling-stroke'
-        strokeLinejoin='round'
-      />
-    </svg>
+      <svg
+        aria-hidden
+        viewBox='0 0 100 30'
+        preserveAspectRatio='none'
+        className='text-primary block h-8 w-full overflow-visible'
+      >
+        <path
+          d={`${path} L100,30 L0,30 Z`}
+          className='fill-current opacity-10'
+        />
+        <path
+          d={path}
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={1.5}
+          vectorEffect='non-scaling-stroke'
+          strokeLinejoin='round'
+        />
+      </svg>
+      {point && (
+        <>
+          <span
+            aria-hidden
+            className='border-foreground/30 pointer-events-none absolute inset-y-0 border-l border-dashed'
+            style={{ left: `${x}%` }}
+          />
+          <span
+            aria-hidden
+            className='bg-primary ring-background pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2'
+            style={{ left: `${x}%`, top: `${(yOf(point.value) / 30) * 100}%` }}
+          />
+          <span
+            role='status'
+            className={cn(
+              'bg-popover text-popover-foreground pointer-events-none absolute bottom-full mb-1 rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-sm',
+              x < 20 && 'translate-x-0',
+              x >= 20 && x <= 80 && '-translate-x-1/2',
+              x > 80 && '-translate-x-full'
+            )}
+            style={{ left: `${x}%` }}
+          >
+            <span className='text-muted-foreground'>{point.title}</span>{' '}
+            <span className='font-medium tabular-nums'>
+              {props.format(point.value)}
+            </span>
+          </span>
+        </>
+      )}
+    </div>
   )
 }
 
 export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
+  const fmt = useInsightsFormat()
   return (
     <TooltipProvider delay={HELP_DELAY}>
       <dl className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
@@ -357,7 +445,11 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
             )}
             {item.featured && item.trend && !props.loading && (
               <dd className='-mx-0.5'>
-                <Sparkline values={item.trend} />
+                <Sparkline
+                  points={item.trend}
+                  format={item.trendFormat ?? fmt.num}
+                  label={item.label}
+                />
               </dd>
             )}
             {item.hint != null && (

@@ -46,7 +46,10 @@ reading them took work. On 2026-10-28, against production:
   is merely fine is uncolored, and green marks only a change for the better.
 - **Hierarchy.** Each tab leads with one featured card, wider, with a
   sparkline of the figure over the range; the other cards are fewer, with
-  minor figures moved into hints.
+  minor figures moved into hints. The sparkline answers hover, and focus with
+  the arrow keys, with a guide, a dot and the point's date and value: a line
+  that looks readable but says nothing when pointed at was the first thing
+  the owner reported after release.
 - **Panels state a finding** in their subtitle ("最高 10，出现在 10/26 21:34，
   占账号池 70 个并发的 14.3%"), and definitions move behind a `?` icon
   (`Panel.help`).

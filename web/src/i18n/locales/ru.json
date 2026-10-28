@@ -8243,6 +8243,7 @@
     "Revenue & growth": "Revenue & growth",
     "Live · refreshes every 15 seconds": "Live · refreshes every 15 seconds",
     "×{{value}}": "×{{value}}",
+    "{{label}} from {{first}} to {{last}}, latest {{value}}": "{{label}} from {{first}} to {{last}}, latest {{value}}",
     "Model check": "Model check",
     "Fingerprinted with the open-source ModelTrace every 3 days. Probability each model is Claude on {{date}}:": "Fingerprinted with the open-source ModelTrace every 3 days. Probability each model is Claude on {{date}}:",
     "Every 3 days we fingerprint each Claude model with the open-source ModelTrace and publish the results.": "Every 3 days we fingerprint each Claude model with the open-source ModelTrace and publish the results.",

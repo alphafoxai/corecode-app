@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { InsightsView } from '../../api'
@@ -29,7 +29,7 @@ import type {
   RiskInsights,
 } from '../../types'
 import { OverviewTab } from '../overview-tab'
-import { BarSeries, DeltaBadge, SimpleTable } from '../shared'
+import { BarSeries, DeltaBadge, SimpleTable, Sparkline } from '../shared'
 
 describe('change against the previous period', () => {
   it('colors a rise by whether rising is better', () => {
@@ -243,5 +243,38 @@ describe('overview signals', () => {
     expect(
       debt.compareDocumentPosition(rate) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
+  })
+})
+
+describe('sparkline', () => {
+  const points = [
+    { title: '10/26', value: 100 },
+    { title: '10/27', value: 300 },
+    { title: '10/28', value: 200 },
+  ]
+
+  it('reads out the point under the pointer', () => {
+    render(
+      <Sparkline points={points} format={(v) => `¥${v}`} label='Revenue' />
+    )
+    const line = screen.getByRole('img', { name: /^Revenue/ })
+    line.getBoundingClientRect = () =>
+      ({ left: 0, width: 200, top: 0, height: 32 }) as DOMRect
+    fireEvent.pointerMove(line, { clientX: 100 })
+    expect(screen.getByRole('status')).toHaveTextContent('10/27 ¥300')
+
+    fireEvent.pointerLeave(line)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('steps through points with the arrow keys', () => {
+    render(
+      <Sparkline points={points} format={(v) => `¥${v}`} label='Revenue' />
+    )
+    const line = screen.getByRole('img', { name: /^Revenue/ })
+    fireEvent.focus(line)
+    expect(screen.getByRole('status')).toHaveTextContent('10/28 ¥200')
+    fireEvent.keyDown(line, { key: 'ArrowLeft' })
+    expect(screen.getByRole('status')).toHaveTextContent('10/27 ¥300')
   })
 })

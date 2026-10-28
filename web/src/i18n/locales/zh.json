@@ -8243,6 +8243,7 @@
     "Revenue & growth": "经营",
     "Live · refreshes every 15 seconds": "实时 · 每 15 秒刷新",
     "×{{value}}": "×{{value}}",
+    "{{label}} from {{first}} to {{last}}, latest {{value}}": "{{label}}：{{first}} 至 {{last}}，最新 {{value}}",
     "Model check": "模型检测",
     "Fingerprinted with the open-source ModelTrace every 3 days. Probability each model is Claude on {{date}}:": "每 3 天用开源的 ModelTrace 指纹检测一次。{{date}} 各模型判为 Claude 的概率：",
     "Every 3 days we fingerprint each Claude model with the open-source ModelTrace and publish the results.": "我们每 3 天用开源的 ModelTrace 给每个 Claude 模型做一次指纹检测，并公开结果。",

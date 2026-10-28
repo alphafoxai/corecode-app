@@ -62,7 +62,11 @@ export function FinanceTab(props: {
               previous: previous?.revenue,
               better: 'up',
             },
-            trend: daily.map((day) => day.topup + day.subscription),
+            trend: daily.map((day) => ({
+              title: fmt.day(day.day),
+              value: day.topup + day.subscription,
+            })),
+            trendFormat: fmt.cny,
             hint: t(
               '{{orders}} orders · {{users}} payers · top-ups {{topup}} · plans {{plans}}',
               {

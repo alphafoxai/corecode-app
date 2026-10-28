@@ -114,7 +114,10 @@ export function GrowthTab(props: {
               previous: previous?.funnel.registered,
               better: 'up',
             },
-            trend: (data?.daily ?? []).map((day) => day.registered),
+            trend: (data?.daily ?? []).map((day) => ({
+              title: fmt.day(day.day),
+              value: day.registered,
+            })),
           },
           {
             label: t('Activated'),
@@ -224,7 +227,10 @@ export function ActivityTab(props: {
               previous: previous?.active_users,
               better: 'up',
             },
-            trend: daily.map((day) => day.dau),
+            trend: daily.map((day) => ({
+              title: fmt.day(day.day),
+              value: day.dau,
+            })),
             hint: t('DAU {{dau}} · WAU {{wau}} on the last day', {
               dau: fmt.num(last?.dau ?? 0),
               wau: fmt.num(last?.wau ?? 0),
