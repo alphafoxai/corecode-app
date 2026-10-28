@@ -18,31 +18,15 @@ func newTokenAutoGroupsContext() *gin.Context {
 	return ctx
 }
 
-func TestSetupContextForTokenPreservesCustomAutoGroupsOrder(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `["vip","default"]`}
+func TestSetupContextForTokenIgnoresStoredAutoGroups(t *testing.T) {
+	for _, stored := range []string{`["vip","default"]`, `[]`, `not-json`} {
+		t.Run(stored, func(t *testing.T) {
+			ctx := newTokenAutoGroupsContext()
+			token := &model.Token{Id: 1, UserId: 2, AutoGroups: stored}
 
-	require.NoError(t, SetupContextForToken(ctx, token))
-	value, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	require.True(t, ok)
-	assert.Equal(t, []string{"vip", "default"}, value)
-}
-
-func TestSetupContextForTokenTreatsStoredEmptyArrayAsInheritance(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `[]`}
-
-	require.NoError(t, SetupContextForToken(ctx, token))
-	_, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	assert.False(t, ok)
-}
-
-func TestSetupContextForTokenMalformedAutoGroupsFailsClosed(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `not-json`}
-
-	require.NoError(t, SetupContextForToken(ctx, token))
-	value, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	require.True(t, ok)
-	assert.Equal(t, []string{}, value)
+			require.NoError(t, SetupContextForToken(ctx, token))
+			_, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
+			assert.False(t, ok, "an Auto token follows the operator's AutoGroups order")
+		})
+	}
 }
