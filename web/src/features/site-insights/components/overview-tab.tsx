@@ -346,9 +346,11 @@ export function OverviewTab(props: {
               previous: previousFinance?.revenue,
               better: 'up',
             },
-            trend: (finance?.daily ?? []).map(
-              (day) => day.topup + day.subscription
-            ),
+            trend: (finance?.daily ?? []).map((day) => ({
+              title: fmt.day(day.day),
+              value: day.topup + day.subscription,
+            })),
+            trendFormat: fmt.cny,
             hint: t('{{orders}} orders · {{users}} payers', {
               orders: finance?.orders ?? 0,
               users: finance?.paying_users ?? 0,
@@ -363,7 +365,10 @@ export function OverviewTab(props: {
               previous: previousQuality?.requests,
               better: 'neutral',
             },
-            trend: (quality?.daily ?? []).map((day) => day.requests),
+            trend: (quality?.daily ?? []).map((day) => ({
+              title: fmt.day(day.day),
+              value: day.requests,
+            })),
             hint: t('Consumption {{amount}} at list price', {
               amount: fmt.usd(finance?.consumption_usd ?? 0),
             }),

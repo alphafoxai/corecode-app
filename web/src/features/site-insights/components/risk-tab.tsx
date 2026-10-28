@@ -70,7 +70,10 @@ export function RiskTab(props: {
               previous: previous?.signups,
               better: 'neutral',
             },
-            trend: (data?.signup_series ?? []).map((point) => point.count),
+            trend: (data?.signup_series ?? []).map((point) => ({
+              title: pointTitle(point.at),
+              value: point.count,
+            })),
             hint: data?.peak_signups.count
               ? t('Busiest {{unit}}: {{count}} at {{time}}', {
                   unit: data.series_unit === 'day' ? t('day') : t('hour'),

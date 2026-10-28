@@ -8242,6 +8242,7 @@
     "Flat": "Flat",
     "Revenue & growth": "Revenue & growth",
     "Live · refreshes every 15 seconds": "Live · refreshes every 15 seconds",
-    "×{{value}}": "×{{value}}"
+    "×{{value}}": "×{{value}}",
+    "{{label}} from {{first}} to {{last}}, latest {{value}}": "{{label}} from {{first}} to {{last}}, latest {{value}}"
   }
 }

@@ -75,7 +75,10 @@ export function QualityTab(props: {
               previous: previous?.requests,
               better: 'neutral',
             },
-            trend: daily.map((day) => day.requests),
+            trend: daily.map((day) => ({
+              title: fmt.day(day.day),
+              value: day.requests,
+            })),
             hint: t('{{count}} failed', { count: data?.errors ?? 0 }),
           },
           {

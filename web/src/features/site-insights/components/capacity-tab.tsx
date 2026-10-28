@@ -108,7 +108,10 @@ export function CapacityTab(props: {
               previous: previous?.requests,
               better: 'neutral',
             },
-            trend: hourly.map((hour) => hour.requests),
+            trend: hourly.map((hour) => ({
+              title: fmt.time(hour.hour),
+              value: hour.requests,
+            })),
             hint: data
               ? t('{{count}} failed · peak {{rpm}}/min at {{time}}', {
                   count: data.errors,
