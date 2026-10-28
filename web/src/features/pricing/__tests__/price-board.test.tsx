@@ -141,3 +141,29 @@ it('lists models from cheapest to most expensive', () => {
     'claude-fable-5-1',
   ])
 })
+
+it('puts Claude first and selects it even when another pool is cheaper', () => {
+  const gpt: PricingModel = {
+    ...opus,
+    id: 9,
+    model_name: 'gpt-6-luna',
+    enable_groups: ['GPT'],
+  }
+  render(
+    <PriceBoard
+      models={[opus, gpt]}
+      groupRatio={{ [GROUP]: 1.9, GPT: 0.8 }}
+      usableGroup={{ [GROUP]: '仅限 Claude Code CLI 使用', GPT: '' }}
+      priceRate={1}
+      usdExchangeRate={6.8}
+      onModelClick={vi.fn()}
+    />
+  )
+
+  const radios = screen.getAllByRole('radio')
+  expect(radios[0]).toHaveAccessibleName(new RegExp(GROUP))
+  expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+  expect(within(radios[0]).getByText('Claude Code')).toBeVisible()
+  expect(screen.getByText('Claude, made for Claude Code')).toBeVisible()
+  expect(screen.getByText('More models')).toBeVisible()
+})

@@ -129,3 +129,26 @@ it('renders nothing for a model priced per request', () => {
   )
   expect(container).toBeEmptyDOMElement()
 })
+
+it('offers only Claude models, not other pools or aliases into them', () => {
+  render(
+    <ClaudeCodeEstimator
+      models={[
+        {
+          ...sonnet,
+          id: 2,
+          model_name: 'gemini/claude-sonnet-5-5-high',
+          model_ratio: 0.1,
+        },
+        { ...sonnet, id: 3, model_name: 'gpt-6-luna', model_ratio: 0.05 },
+        sonnet,
+      ]}
+      priceRate={2}
+    />
+  )
+
+  expect(
+    screen.queryByRole('combobox', { name: 'Model' })
+  ).not.toBeInTheDocument()
+  expect(amount('Per turn')).toBe('¥0.1062')
+})

@@ -16,12 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { ArrowRight } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-transition'
 import { useDocumentTitle } from '@/hooks/use-document-title'
+import { getLobeIcon } from '@/lib/lobe-icon'
 
 import { LoadingSkeleton, ClaudeCodeEstimator, PriceBoard } from './components'
 import { VIEW_MODES } from './constants'
@@ -101,6 +103,21 @@ export function Pricing() {
                 'Official and group prices in CNY, side by side, so the cost is easy to compare.'
               )}
             </p>
+            {/* CoreCode fork: Claude Code is the product; lead with it. */}
+            <a
+              href='/docs/claude-code/'
+              className='border-primary/30 bg-primary/5 hover:bg-primary/10 mt-5 inline-flex max-w-full items-center gap-2 rounded-2xl border px-4 py-1.5 text-left text-sm font-medium transition-colors sm:rounded-full'
+            >
+              <span className='flex shrink-0 items-center' aria-hidden>
+                {getLobeIcon('Claude.Color', 18)}
+              </span>
+              <span className='text-pretty'>
+                {t(
+                  'Built for Claude Code: full Claude, below the official price'
+                )}
+              </span>
+              <ArrowRight className='size-4 shrink-0' aria-hidden />
+            </a>
           </header>
 
           <main className='min-w-0 space-y-4'>

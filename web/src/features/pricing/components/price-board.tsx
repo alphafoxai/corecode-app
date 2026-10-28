@@ -21,10 +21,18 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { EXCLUDED_GROUPS } from '../constants'
 import { getBillingDiscount, getDiscountKind } from '../lib/billing-discount'
+import {
+  CLAUDE_VENDOR,
+  groupVendor,
+  modelVendor,
+  orderGroups,
+  type GroupVendor,
+} from '../lib/group-vendors'
 import { getConfiguredGroupRatio } from '../lib/model-helpers'
 import {
   formatYuan,
@@ -47,12 +55,12 @@ function trimNumber(value: number, digits: number): string {
   return String(Number(value.toFixed(digits)))
 }
 
-/** Groups any listed model is enabled in, cheapest first. */
+/** Groups any listed model is enabled in: Claude first, cheapest first within. */
 function listGroups(
   models: PricingModel[],
   groupRatio: Record<string, number>,
   usableGroup: Record<string, unknown>
-): string[] {
+): { groups: string[]; vendors: Map<string, GroupVendor | null> } {
   const names = new Set<string>()
   for (const model of models) {
     for (const group of model.enable_groups ?? []) {
@@ -61,10 +69,21 @@ function listGroups(
       }
     }
   }
-  return [...names].sort(
-    (a, b) =>
-      getConfiguredGroupRatio(groupRatio, a) -
-      getConfiguredGroupRatio(groupRatio, b)
+  const vendors = new Map(
+    [...names].map((name) => [name, groupVendor(models, name)])
+  )
+  const groups = orderGroups([...names], vendors, (name) =>
+    getConfiguredGroupRatio(groupRatio, name)
+  )
+  return { groups, vendors }
+}
+
+function VendorIcon(props: { icon?: string; size: number }) {
+  if (!props.icon) return null
+  return (
+    <span className='flex shrink-0 items-center' aria-hidden>
+      {getLobeIcon(props.icon, props.size)}
+    </span>
   )
 }
 
@@ -92,7 +111,14 @@ export function PriceBoard(props: {
   onModelClick: (modelName: string) => void
 }) {
   const { t } = useTranslation()
-  const groups = listGroups(props.models, props.groupRatio, props.usableGroup)
+  const { groups, vendors } = listGroups(
+    props.models,
+    props.groupRatio,
+    props.usableGroup
+  )
+  const isClaude = (name: string) => vendors.get(name)?.name === CLAUDE_VENDOR
+  const claudeGroups = groups.filter(isClaude)
+  const otherGroups = groups.filter((name) => !isClaude(name))
   const [selected, setSelected] = useState<string | null>(null)
   const group = selected && groups.includes(selected) ? selected : groups[0]
   const ratio = group ? getConfiguredGroupRatio(props.groupRatio, group) : 1
@@ -155,7 +181,8 @@ export function PriceBoard(props: {
       <span className='text-muted-foreground'>—</span>
     )
   const modelName = (model: PricingModel) => (
-    <span className='flex min-w-0 items-center gap-1'>
+    <span className='flex min-w-0 items-center gap-1.5'>
+      <VendorIcon icon={modelVendor(model)?.icon} size={16} />
       <button
         type='button'
         onClick={() => props.onModelClick(model.model_name)}
@@ -171,6 +198,64 @@ export function PriceBoard(props: {
       />
     </span>
   )
+  const renderGroup = (name: string, featured: boolean) => {
+    const groupRatio = getConfiguredGroupRatio(props.groupRatio, name)
+    const groupCombined = discountAt(groupRatio)
+    const isDiscount = getDiscountKind(groupCombined) === 'discount'
+    const active = name === group
+    const forClaudeCode = /claude code/i.test(
+      groupDescription(props.usableGroup[name])
+    )
+    return (
+      <button
+        key={name}
+        type='button'
+        role='radio'
+        aria-checked={active}
+        onClick={() => setSelected(name)}
+        className={cn(
+          'hover:border-primary/50 flex min-w-0 flex-col gap-1 rounded-lg border text-left transition-colors',
+          featured ? 'px-4 py-3.5' : 'px-3 py-2.5',
+          active && 'border-primary bg-primary/5'
+        )}
+      >
+        <span className='flex min-w-0 items-center gap-2'>
+          <VendorIcon
+            icon={vendors.get(name)?.icon}
+            size={featured ? 22 : 18}
+          />
+          <span className={cn('truncate font-medium', featured && 'text-base')}>
+            {name}
+          </span>
+          {isDiscount && (
+            <span className='bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 font-mono text-xs font-semibold'>
+              {discountLabel(groupCombined)}
+            </span>
+          )}
+          {active && (
+            <Check
+              className='text-primary ml-auto size-4 shrink-0'
+              aria-hidden
+            />
+          )}
+        </span>
+        <span className='text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
+          {forClaudeCode && (
+            <span className='bg-primary text-primary-foreground rounded px-1.5 py-0.5 font-semibold'>
+              Claude Code
+            </span>
+          )}
+          <span>
+            {t('{{ratio}}x ratio', { ratio: trimNumber(groupRatio, 2) })}
+            {isDiscount &&
+              ` · ${t('About {{discount}}', {
+                discount: discountLabel(groupCombined),
+              })}`}
+          </span>
+        </span>
+      </button>
+    )
+  }
   const tierNote = (
     <span className='text-muted-foreground mt-0.5 block text-xs'>
       {t('Base tier; longer contexts cost more')}
@@ -211,6 +296,7 @@ export function PriceBoard(props: {
         <div className='flex flex-col gap-3 p-4'>
           {groups.length === 1 && (
             <div className='border-primary bg-primary/5 mx-auto flex max-w-full items-center gap-3 rounded-xl border px-6 py-4'>
+              <VendorIcon icon={vendors.get(group)?.icon} size={22} />
               <span className='truncate text-lg font-semibold'>{group}</span>
               {saving > 0 && (
                 <span className='bg-primary/10 text-primary shrink-0 rounded px-2 py-0.5 font-mono text-sm font-semibold'>
@@ -224,54 +310,33 @@ export function PriceBoard(props: {
             <div
               role='radiogroup'
               aria-label={t('Group')}
-              className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'
+              className='flex flex-col gap-4'
             >
-              {groups.map((name) => {
-                const groupRatio = getConfiguredGroupRatio(
-                  props.groupRatio,
-                  name
-                )
-                const groupCombined = discountAt(groupRatio)
-                const isDiscount = getDiscountKind(groupCombined) === 'discount'
-                const active = name === group
-                return (
-                  <button
-                    key={name}
-                    type='button'
-                    role='radio'
-                    aria-checked={active}
-                    onClick={() => setSelected(name)}
-                    className={cn(
-                      'hover:border-primary/50 flex min-w-0 flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
-                      active && 'border-primary bg-primary/5'
-                    )}
-                  >
-                    <span className='flex min-w-0 items-center gap-2'>
-                      <span className='truncate font-medium'>{name}</span>
-                      {isDiscount && (
-                        <span className='bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 font-mono text-xs font-semibold'>
-                          {discountLabel(groupCombined)}
-                        </span>
-                      )}
-                      {active && (
-                        <Check
-                          className='text-primary ml-auto size-4 shrink-0'
-                          aria-hidden
-                        />
-                      )}
-                    </span>
-                    <span className='text-muted-foreground text-xs'>
-                      {t('{{ratio}}x ratio', {
-                        ratio: trimNumber(groupRatio, 2),
-                      })}
-                      {isDiscount &&
-                        ` · ${t('About {{discount}}', {
-                          discount: discountLabel(groupCombined),
-                        })}`}
-                    </span>
-                  </button>
-                )
-              })}
+              {claudeGroups.length > 0 && (
+                <div className='flex flex-col gap-2'>
+                  {otherGroups.length > 0 && (
+                    <p className='flex items-center gap-2 text-sm font-semibold'>
+                      <VendorIcon icon='Claude.Color' size={18} />
+                      {t('Claude, made for Claude Code')}
+                    </p>
+                  )}
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    {claudeGroups.map((name) => renderGroup(name, true))}
+                  </div>
+                </div>
+              )}
+              {otherGroups.length > 0 && (
+                <div className='flex flex-col gap-2'>
+                  {claudeGroups.length > 0 && (
+                    <p className='text-muted-foreground text-sm font-medium'>
+                      {t('More models')}
+                    </p>
+                  )}
+                  <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                    {otherGroups.map((name) => renderGroup(name, false))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

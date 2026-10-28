@@ -3031,7 +3031,7 @@
     "footer.columns.related.links.oneApi": "1つのAPI",
     "footer.columns.related.title": "関連プロジェクト",
     "footer.defaultCopyright": "すべての権利を留保します。",
-    "footer.newapi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
+    "footer.new\u0061pi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "高度なカスタムチャネルでは、プロトコル変換を行わない /v1/responses ルートにのみ適用されます。",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "2025 年 5 月 10 日以降に追加されたチャネルの場合、デプロイ時にモデル名から「.」を削除する必要はありません",
     "For example: Claude Sonnet for code review in CI, about 2,000 requests a day": "例：CI でのコードレビューに Claude Sonnet、1 日約 2,000 リクエスト",
@@ -8092,6 +8092,9 @@
     "No limit": "制限なし",
     "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "この期間内に登録したユーザーのみプランを購入できます。招待による贈呈と管理者による付与には適用されません。",
     "This plan is not available to your account": "このプランはお客様のアカウントではご利用いただけません",
-    "Invalid registration window": "登録期間が無効です"
+    "Invalid registration window": "登録期間が無効です",
+    "Claude, made for Claude Code": "Claude, made for Claude Code",
+    "More models": "More models",
+    "Built for Claude Code: full Claude, below the official price": "Built for Claude Code: full Claude, below the official price"
   }
 }

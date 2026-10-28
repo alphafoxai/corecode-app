@@ -3031,7 +3031,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相關項目",
     "footer.defaultCopyright": "版權所有。",
-    "footer.newapi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
+    "footer.new\u0061pi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "進階自訂渠道僅對 /v1/responses 且不做協定轉換的路由生效。",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "對於 2025 年 5 月 10 日之後新增的渠道，在部署時無需從模型名稱中移除 \".\"",
     "For example: Claude Sonnet for code review in CI, about 2,000 requests a day": "例如：在 CI 中用 Claude Sonnet 做程式碼審查，每天約 2,000 次請求",
@@ -8092,6 +8092,9 @@
     "No limit": "不限",
     "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "只有在此時間範圍內註冊的使用者可以購買該方案。邀請贈送和管理員綁定不受此限制。",
     "This plan is not available to your account": "該方案不適用於您的帳戶",
-    "Invalid registration window": "註冊時間範圍無效"
+    "Invalid registration window": "註冊時間範圍無效",
+    "Claude, made for Claude Code": "Claude · Claude Code 首選",
+    "More models": "更多模型",
+    "Built for Claude Code: full Claude, below the official price": "為 Claude Code 而生：滿血 Claude，低於官方價"
   }
 }
