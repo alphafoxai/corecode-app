@@ -3,8 +3,10 @@ package service
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
@@ -99,4 +101,38 @@ func TestFetchEnginePool(t *testing.T) {
 
 	operation_setting.EngineControlKey = "wrong"
 	assert.Contains(t, FetchEnginePool().Error, "HTTP 401")
+}
+
+func TestRecentEnginePoolServesTheLastReadWhileRefreshing(t *testing.T) {
+	var reads atomic.Int32
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/group-concurrency":
+			n := reads.Add(1)
+			if n > 1 {
+				<-release // the background read stays in flight until released
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"observed_at_ms":` + strconv.Itoa(int(n)) + `,"credential_limit":1,"groups":[]}}`))
+		case "/api/group-concurrency/pool-estimate":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"five_hour":{},"week":{},"accounts":[]}}`))
+		}
+	}))
+	defer server.Close()
+	defer close(release)
+	previousURL, previousKey, previousTTL := operation_setting.EngineControlURL, operation_setting.EngineControlKey, enginePoolTTL
+	t.Cleanup(func() {
+		operation_setting.EngineControlURL, operation_setting.EngineControlKey, enginePoolTTL = previousURL, previousKey, previousTTL
+	})
+	operation_setting.EngineControlURL, operation_setting.EngineControlKey = server.URL, "recent"
+
+	first := RecentEnginePool(time.Minute)
+	require.Empty(t, first.Error)
+	assert.EqualValues(t, 1, first.ObservedAt, "without a read it waits for one")
+
+	enginePoolTTL = 0
+	stale := RecentEnginePool(time.Minute)
+	assert.EqualValues(t, 1, stale.ObservedAt, "an older read is returned without waiting for the engine")
+	assert.Eventually(t, func() bool { return reads.Load() == 2 }, time.Second, 10*time.Millisecond,
+		"the older read starts a new one in the background")
 }

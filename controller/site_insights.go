@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/middleware"
@@ -84,9 +85,11 @@ type CapacityResponse struct {
 
 func GetCapacityInsights(c *gin.Context) {
 	serveInsights(c, model.InsightsMaxLogDays, func(r model.InsightsRange) (*CapacityResponse, error) {
-		// The engine answers over the network; read it while the database works.
+		// Capacity shows the pool's totals, which change slowly, so it takes the
+		// last read of up to two minutes rather than waiting on the engine. The
+		// first read after a start still waits; it runs while the database works.
 		poolDone := make(chan service.EnginePool, 1)
-		go func() { poolDone <- service.FetchEnginePool() }()
+		go func() { poolDone <- service.RecentEnginePool(2 * time.Minute) }()
 		insights, err := model.GetCapacityInsights(r)
 		if err != nil {
 			return nil, err
