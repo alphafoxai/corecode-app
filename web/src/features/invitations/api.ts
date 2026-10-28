@@ -19,7 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 import { createServerError } from '@/lib/server-error-message'
 
-import type { AffiliatePageParams, ApiResponse } from '../wallet/types'
+import type {
+  AffiliatePageParams,
+  AffiliateSummary,
+  ApiResponse,
+} from '../wallet/types'
 import type { InviteePage } from './types'
 
 export async function getInvitees(
@@ -31,6 +35,20 @@ export async function getInvitees(
   )
   if (!res.data.success || res.data.data === undefined) {
     throw createServerError(res.data, 'Failed to load invitees')
+  }
+  return res.data.data
+}
+
+/** Replaces the caller's invite code with one they chose. */
+export async function updateSelfAffCode(
+  affCode: string
+): Promise<AffiliateSummary> {
+  const res = await api.put<ApiResponse<AffiliateSummary>>(
+    '/api/affiliate/self/code',
+    { aff_code: affCode }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to change the invite code')
   }
   return res.data.data
 }

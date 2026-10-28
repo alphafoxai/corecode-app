@@ -20,6 +20,9 @@ For commercial licensing, please contact support@quantumnous.com
 // Affiliate Functions
 // ============================================================================
 
+/** Mirrors affiliateCodePattern on the server. */
+export const AFF_CODE_PATTERN = /^[A-Za-z0-9_-]{3,32}$/
+
 /**
  * Generate the invitation link. Sign-in is the registration page: the emailed
  * link creates the account and reads the code from the address.

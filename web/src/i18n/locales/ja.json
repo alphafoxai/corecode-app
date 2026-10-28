@@ -8304,6 +8304,13 @@
     "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.": "段階とルールごとに集計しています。他より突出して多いルールは、まず誤検知を疑ってください。",
     "Nothing was stopped today": "本日ブロックされたリクエストはありません",
     "Intercept log": "インターセプト記録",
-    "Failed to load the risk audit": "リスク監査を読み込めませんでした"
+    "Failed to load the risk audit": "リスク監査を読み込めませんでした",
+    "This invite code is reserved": "この招待コードは予約されています",
+    "You have changed your invite code too many times": "招待コードの変更回数が上限に達しました",
+    "Customize": "カスタマイズ",
+    "Customize invite code": "招待コードをカスタマイズ",
+    "Brand names and simple codes such as 888 or 123 are reserved.": "ブランド名や 888、123 のような単純なコードは予約されています。",
+    "Reserved invite code words": "招待コードの予約語",
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "1 行に 1 つ。ユーザーはこれらの語そのものをコードにできません（大文字小文字・ハイフン・アンダースコアは無視）。語を含むだけのコードは使えます。888、6688、123 のような単純なコードは常に予約されます。あなたがユーザーに設定するコードは確認されません。"
   }
 }

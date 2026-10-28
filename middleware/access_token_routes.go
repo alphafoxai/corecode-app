@@ -145,6 +145,7 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 
 	// router/api-router.go: /api/affiliate
 	"GET /api/affiliate/self":                          accessTokenScopeRule("wallet:read"),
+	"PUT /api/affiliate/self/code":                     accessTokenScopeRule("wallet:write"),
 	"GET /api/affiliate/self/commissions":              accessTokenScopeRule("wallet:read"),
 	"GET /api/affiliate/self/invitees":                 accessTokenScopeRule("wallet:read"),
 	"POST /api/affiliate/self/invitees/:id/gift":       accessTokenScopeRule("wallet:write"),

@@ -386,6 +386,7 @@ func migrateDB() error {
 		&AffiliateCommission{},
 		&AffiliateWithdrawal{},
 		&AffiliateSignupGift{},
+		&AffiliateRetiredCode{},
 		&EnterpriseApplication{},
 		&Feedback{},
 		&UserConcurrencyRejection{},

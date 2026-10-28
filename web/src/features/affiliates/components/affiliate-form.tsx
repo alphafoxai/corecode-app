@@ -65,6 +65,7 @@ const affiliateSchema = z
     retail_gift_plan_id: z.number().int().min(0),
     gift_daily_cap: z.number().int().min(0),
     gift_blocked_email_domains: z.string(),
+    reserved_code_words: z.string(),
   })
   .refine((v) => v.self_serve_rate <= v.max_rate, {
     path: ['self_serve_rate'],
@@ -83,6 +84,7 @@ export type AffiliateValues = {
   'affiliate_setting.retail_gift_plan_id': number
   'affiliate_setting.gift_daily_cap': number
   'affiliate_setting.gift_blocked_email_domains': string
+  'affiliate_setting.reserved_code_words': string
 }
 
 type AffiliateFormProps = {
@@ -99,6 +101,7 @@ const toFormValues = (d: AffiliateValues): AffiliateFormValues => ({
   retail_gift_plan_id: d['affiliate_setting.retail_gift_plan_id'],
   gift_daily_cap: d['affiliate_setting.gift_daily_cap'],
   gift_blocked_email_domains: d['affiliate_setting.gift_blocked_email_domains'],
+  reserved_code_words: d['affiliate_setting.reserved_code_words'],
 })
 
 const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
@@ -112,12 +115,13 @@ const toOptionValues = (v: AffiliateFormValues): AffiliateValues => ({
   'affiliate_setting.gift_daily_cap': v.gift_daily_cap,
   'affiliate_setting.gift_blocked_email_domains':
     v.gift_blocked_email_domains.trim(),
+  'affiliate_setting.reserved_code_words': v.reserved_code_words.trim(),
 })
 
 type PlanName = 'gift_plan_id' | 'retail_gift_plan_id'
 type NumberName = Exclude<
   keyof AffiliateFormValues,
-  'enabled' | 'gift_blocked_email_domains' | PlanName
+  'enabled' | 'gift_blocked_email_domains' | 'reserved_code_words' | PlanName
 >
 
 export function AffiliateForm(props: AffiliateFormProps) {
@@ -309,6 +313,23 @@ export function AffiliateForm(props: AffiliateFormProps) {
                 <FormDescription>
                   {t(
                     'One per line. Sign-ups from these domains and their subdomains receive no gift.'
+                  )}
+                </FormDescription>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name='reserved_code_words'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Reserved invite code words')}</FormLabel>
+                <FormControl>
+                  <Textarea rows={3} placeholder='corecode' {...field} />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.'
                   )}
                 </FormDescription>
               </FormItem>

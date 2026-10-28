@@ -1,9 +1,11 @@
 package model
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +94,37 @@ func TestAffiliateAdminDatabaseMatrix(t *testing.T) {
 				_, err = SetUserAffCode(b.Id, invalid)
 				assert.ErrorIs(t, err, ErrAffiliateCodeInvalid, invalid)
 			}
+
+			// A retired code stays its owner's, even against root.
+			_, err = SetUserAffCode(b.Id, oldCode)
+			assert.ErrorIs(t, err, ErrAffiliateCodeTaken)
+
+			// A user cannot choose a reserved or simple code; root can.
+			operation_setting.GetAffiliateSetting().ReservedCodeWords = "corecode, official"
+			for _, reserved := range []string{"CoreCode", "core_code", "OFFICIAL", "888", "8_8_8", "6688", "1234", "987", "abc", "aaaa", "---"} {
+				_, err = SetSelfAffCode(b.Id, reserved)
+				assert.ErrorIs(t, err, ErrAffiliateCodeReserved, reserved)
+			}
+			_, err = SetUserAffCode(c.Id, "CoreCode-Partner")
+			require.NoError(t, err)
+			_, err = SetSelfAffCode(c.Id, "my-corecode-link")
+			require.NoError(t, err, "a code that only contains a reserved word is allowed")
+
+			// Each code a user gives up counts toward the cap, a return to one
+			// of their own included; root is not capped.
+			bCode := b.AffCode
+			for i := range affiliateSelfCodeChanges {
+				_, err = SetSelfAffCode(b.Id, fmt.Sprintf("bob-%d", 520+i))
+				require.NoError(t, err)
+			}
+			assert.Zero(t, InviterIdForAffCode(bCode))
+			_, err = SetSelfAffCode(b.Id, "bob-520")
+			assert.ErrorIs(t, err, ErrAffiliateCodeChangeLimit)
+			code, err = SetSelfAffCode(b.Id, "BOB-524")
+			require.NoError(t, err, "a change of case gives up nothing")
+			assert.Equal(t, b.Id, registerAffiliateTestUser(t, "adm_g", code).InviterId)
+			_, err = SetUserAffCode(b.Id, "bob-520")
+			require.NoError(t, err)
 		})
 	}
 }

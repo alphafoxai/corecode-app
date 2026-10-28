@@ -8304,6 +8304,13 @@
     "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.": "按关卡和规则归并。远高于其他规则的那条，先怀疑误伤。",
     "Nothing was stopped today": "今天没有拦下任何请求",
     "Intercept log": "拦截流水",
-    "Failed to load the risk audit": "风险审计加载失败"
+    "Failed to load the risk audit": "风险审计加载失败",
+    "This invite code is reserved": "该邀请码为保留码，不能使用",
+    "You have changed your invite code too many times": "邀请码修改次数已达上限",
+    "Customize": "自定义",
+    "Customize invite code": "自定义邀请码",
+    "Brand names and simple codes such as 888 or 123 are reserved.": "品牌名和 888、123 这类简单号码为保留码，不能使用。",
+    "Reserved invite code words": "邀请码保留词",
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "每行一个。用户不能把这些词本身设为邀请码，不区分大小写，忽略连字符和下划线；只是包含这些词的邀请码可以使用。888、6688、123 这类简单号码始终保留。你为用户设置的邀请码不受限制。"
   }
 }

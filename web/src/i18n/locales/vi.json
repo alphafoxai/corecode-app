@@ -8304,6 +8304,13 @@
     "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.": "Gộp theo giai đoạn và quy tắc. Quy tắc vượt xa các quy tắc khác là nghi vấn chặn nhầm đầu tiên.",
     "Nothing was stopped today": "Hôm nay chưa chặn yêu cầu nào",
     "Intercept log": "Nhật ký chặn",
-    "Failed to load the risk audit": "Không tải được kiểm tra rủi ro"
+    "Failed to load the risk audit": "Không tải được kiểm tra rủi ro",
+    "This invite code is reserved": "Mã mời này đã được giữ trước",
+    "You have changed your invite code too many times": "Bạn đã đổi mã mời quá nhiều lần",
+    "Customize": "Tùy chỉnh",
+    "Customize invite code": "Tùy chỉnh mã mời",
+    "Brand names and simple codes such as 888 or 123 are reserved.": "Tên thương hiệu và các mã đơn giản như 888 hoặc 123 đã được giữ trước.",
+    "Reserved invite code words": "Từ khóa giữ trước trong mã mời",
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "Mỗi dòng một từ. Người dùng không thể chọn chính các từ này làm mã, không phân biệt hoa thường, bỏ qua gạch nối và gạch dưới; mã chỉ chứa một từ như vậy vẫn được dùng. Các mã đơn giản như 888, 6688 hoặc 123 luôn được giữ trước. Mã bạn đặt cho người dùng không bị kiểm tra."
   }
 }
