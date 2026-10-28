@@ -538,6 +538,42 @@ func splitTokenKey(key string) []string {
 	return strings.Split(key, "-")
 }
 
+// ModelListAuth authenticates /v1/models like TokenAuth, except that a request
+// carrying no credential at all is let through as anonymous while the pricing
+// page is public: the list is then the one that page shows. Clients such as
+// Magpie fetch the model list before a key is entered. A wrong key still fails.
+func ModelListAuth() func(c *gin.Context) {
+	tokenAuth := TokenAuth()
+	return func(c *gin.Context) {
+		access := getHeaderNavAccess("pricing")
+		if access.Enabled && !access.RequireAuth && !hasModelListCredential(c) {
+			common.SetContextKey(c, constant.ContextKeyAnonymousModelList, true)
+			c.Next()
+			return
+		}
+		tokenAuth(c)
+	}
+}
+
+// hasModelListCredential reports whether the request names a key in any place
+// TokenAuth reads one from on a model list path. A blank header is no key.
+func hasModelListCredential(c *gin.Context) bool {
+	for _, header := range []string{"Authorization", "x-api-key", "x-goog-api-key", "mj-api-secret"} {
+		value := strings.TrimSpace(c.GetHeader(header))
+		if after, ok := strings.CutPrefix(strings.ToLower(value), "bearer"); ok {
+			value = strings.TrimSpace(after)
+		}
+		if value != "" {
+			return true
+		}
+	}
+	if c.Query("key") != "" {
+		return true
+	}
+	_, ok := apiKeyFromWebSocketSubprotocol(strings.Join(c.Request.Header.Values("Sec-WebSocket-Protocol"), ","))
+	return ok
+}
+
 func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		// 先检测是否为ws

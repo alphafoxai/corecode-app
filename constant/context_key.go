@@ -22,6 +22,8 @@ const (
 	ContextKeyTokenCrossGroupRetry   ContextKey = "token_cross_group_retry"
 	ContextKeyTokenAutoGroups        ContextKey = "token_auto_groups"
 	ContextKeyTokenUpstreamKey       ContextKey = "token_upstream_key"
+	// A model list request that carried no credential (middleware.ModelListAuth).
+	ContextKeyAnonymousModelList ContextKey = "anonymous_model_list"
 
 	/* channel related keys */
 	ContextKeyChannelId                ContextKey = "channel_id"
