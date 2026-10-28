@@ -28,12 +28,16 @@ server, not the transfer:
 
 ## Decision
 
-- **Open hours are reused for a minute** (`recentOpenInsightHour` in
-  `model/site_insights_hours.go`). A computed open hour is kept in process
-  memory for `insightOpenHourTTL`, and concurrent readers of one hour share a
-  single computation through `singleflight`. Final hours are unchanged: stored
-  once, read from the tables. Cached hours are read-only; every view builds its
-  own accumulators.
+- **Open hours are reused, then refreshed in the background**
+  (`recentOpenInsightHour` in `model/site_insights_hours.go`). A computed open
+  hour is kept in process memory and served as is for `insightOpenHourTTL`
+  (1 min). Up to `insightOpenHourStaleLimit` (5 min) it is still served at
+  once, and a new computation starts in the background; past that the read
+  waits for one. Concurrent readers of one hour share a single computation
+  through `singleflight`. Final hours are unchanged: stored once, read from the
+  tables. Cached hours are read-only; every view builds its own accumulators.
+  With a 1-minute TTL alone, capacity's 30 s refresh still took about 230 ms on
+  every other read, while the hours were rescanned.
 - **The pool read is concurrent and shared** (`service/engine_pool.go`).
   `readEnginePool` requests both engine endpoints at once. `FetchEnginePool`
   keeps a complete read for `enginePoolTTL` (5 s), keyed by the control URL and
@@ -73,13 +77,15 @@ server, not the transfer:
   business scans together on every page open. Prefetching on hover costs a
   request only for a tab the viewer is about to open.
 - **A longer open-hour TTL.** Open hours carry the last few hours' requests and
-  errors. A minute matches the capacity refresh and keeps them close to live;
-  the in-flight figures do not come from the hours.
+  errors. Serving the last computation while the next one runs keeps them about
+  one refresh behind; a TTL long enough to avoid the scans would keep them
+  minutes behind. The in-flight figures do not come from the hours.
 
 ## Consequences
 
 - The hourly figures for the open hours, and the requests, errors and peaks
-  they feed, can be up to a minute old. In-flight requests and users are read
+  they feed, are normally up to about one refresh behind, and at most five
+  minutes when no one has read them in between. In-flight requests and users are read
   live on each capacity request, as before.
 - Each server process keeps its own cache; during a blue/green release, the
   two colors compute their open hours independently.

@@ -412,10 +412,15 @@ func firstLogAt() (int64, error) {
 	return *first, nil
 }
 
-// insightOpenHourTTL is how long a computed open hour is served before the
-// logs are read again. The live figures (in-flight requests and users) do not
-// come from these hours.
-var insightOpenHourTTL = time.Minute
+// insightOpenHourTTL is how long a computed open hour is served as is. An
+// older one, up to insightOpenHourStaleLimit, is still served at once while a
+// new computation runs in the background, so the capacity view's 30 s refresh
+// does not wait on a log scan. The live figures (in-flight requests and users)
+// do not come from these hours.
+var (
+	insightOpenHourTTL        = time.Minute
+	insightOpenHourStaleLimit = 5 * time.Minute
+)
 
 type cachedInsightHour struct {
 	hour       *insightHour
@@ -430,18 +435,22 @@ var openInsightHours struct {
 	flight  singleflight.Group
 }
 
-// recentOpenInsightHour returns the open hour starting at start if it was
-// computed within insightOpenHourTTL, and otherwise computes it. Concurrent
-// callers for the same hour share one computation.
-func recentOpenInsightHour(start int64, compute func() (*insightHour, error)) (*insightHour, error) {
+// recentOpenInsightHour returns the open hour starting at start. One computed
+// within insightOpenHourTTL is returned as is; one computed within
+// insightOpenHourStaleLimit is returned too, and starts a new computation in
+// the background; otherwise the hour is computed now. Concurrent callers for
+// the same hour share one computation.
+func recentOpenInsightHour(start int64) (*insightHour, error) {
 	openInsightHours.mu.Lock()
 	cached, ok := openInsightHours.byStart[start]
 	openInsightHours.mu.Unlock()
-	if ok && time.Since(cached.computedAt) < insightOpenHourTTL {
-		return cached.hour, nil
-	}
-	value, err, _ := openInsightHours.flight.Do(strconv.FormatInt(start, 10), func() (any, error) {
-		hour, err := compute()
+	key := strconv.FormatInt(start, 10)
+	compute := func() (any, error) {
+		roots, err := rootUserIDs()
+		if err != nil {
+			return nil, err
+		}
+		hour, err := computeInsightHour(start, roots)
 		if err != nil {
 			return nil, err
 		}
@@ -451,13 +460,24 @@ func recentOpenInsightHour(start int64, compute func() (*insightHour, error)) (*
 			openInsightHours.byStart = make(map[int64]cachedInsightHour)
 		}
 		for key, entry := range openInsightHours.byStart {
-			if time.Since(entry.computedAt) >= insightOpenHourTTL {
+			if time.Since(entry.computedAt) >= insightOpenHourStaleLimit {
 				delete(openInsightHours.byStart, key)
 			}
 		}
 		openInsightHours.byStart[start] = cachedInsightHour{hour: hour, computedAt: time.Now()}
 		return hour, nil
-	})
+	}
+	if ok {
+		age := time.Since(cached.computedAt)
+		if age < insightOpenHourTTL {
+			return cached.hour, nil
+		}
+		if age < insightOpenHourStaleLimit {
+			openInsightHours.flight.DoChan(key, compute)
+			return cached.hour, nil
+		}
+	}
+	value, err, _ := openInsightHours.flight.Do(key, compute)
 	if err != nil {
 		return nil, err
 	}
@@ -519,28 +539,24 @@ func loadInsightHours(r InsightsRange) ([]*insightHour, error) {
 				result = append(result, &insightHour{start: start})
 				continue
 			}
-			compute := func() (*insightHour, error) {
-				if roots == nil {
-					var err error
-					if roots, err = rootUserIDs(); err != nil {
-						return nil, err
-					}
+			if !final {
+				if hour, err = recentOpenInsightHour(start); err != nil {
+					return nil, err
 				}
-				return computeInsightHour(start, roots)
+				result = append(result, hour)
+				continue
 			}
-			if final {
-				hour, err = compute()
-			} else {
-				hour, err = recentOpenInsightHour(start, compute)
+			if roots == nil {
+				if roots, err = rootUserIDs(); err != nil {
+					return nil, err
+				}
 			}
-			if err != nil {
+			if hour, err = computeInsightHour(start, roots); err != nil {
 				return nil, err
 			}
-			if final {
-				if err := hour.save(); err != nil {
-					// The other color stored it first; the figures are the same.
-					common.SysLog(common.LogText("site insights hour %d not stored: %s", start, err.Error()))
-				}
+			if err := hour.save(); err != nil {
+				// The other color stored it first; the figures are the same.
+				common.SysLog(common.LogText("site insights hour %d not stored: %s", start, err.Error()))
 			}
 		}
 		result = append(result, hour)
