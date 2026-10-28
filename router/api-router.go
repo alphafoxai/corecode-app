@@ -50,6 +50,16 @@ func SetApiRouter(router *gin.Engine) {
 			enterpriseAdminRoute.GET("", controller.GetEnterpriseApplications)
 			enterpriseAdminRoute.PATCH("/:id", controller.UpdateEnterpriseApplication)
 		}
+		feedbackRoute := apiRouter.Group("/feedback", middleware.DisableCache(), middleware.UserAuth())
+		{
+			feedbackRoute.POST("", middleware.UserCriticalRateLimit("feedback"), controller.SubmitFeedback)
+			feedbackRoute.GET("/self", controller.GetSelfFeedback)
+		}
+		feedbackAdminRoute := apiRouter.Group("/feedback/admin", middleware.DisableCache(), middleware.AdminAuth())
+		{
+			feedbackAdminRoute.GET("", controller.GetAllFeedback)
+			feedbackAdminRoute.PATCH("/:id", controller.UpdateFeedback)
+		}
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), middleware.PowCheck(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), middleware.PowCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ResetPassword)

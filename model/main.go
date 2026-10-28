@@ -385,6 +385,7 @@ func migrateDB() error {
 		&AffiliateWithdrawal{},
 		&AffiliateSignupGift{},
 		&EnterpriseApplication{},
+		&Feedback{},
 		&UserConcurrencyRejection{},
 		&InsightHour{},
 		&InsightUserHour{},
