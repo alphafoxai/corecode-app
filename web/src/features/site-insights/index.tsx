@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
 import { useState } from 'react'
@@ -58,13 +58,31 @@ export function SiteInsights() {
   // The end is fixed when the page or range changes, so cached results do
   // not refetch on every render; Refresh moves it to now.
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
-  const range = { start_time: now - days * 86400, end_time: now }
 
+  const queryClient = useQueryClient()
+  const insightsQuery = (tab: InsightsView) => {
+    const tabRange = {
+      start_time: now - Math.min(search.days ?? 7, VIEW_MAX_DAYS[tab]) * 86400,
+      end_time: now,
+    }
+    return {
+      queryKey: ['site-insights', tab, tabRange],
+      queryFn: () => getInsights(tab, tabRange),
+      // A tab prefetched on hover is still fresh when it opens.
+      staleTime: 30_000,
+    }
+  }
   const query = useQuery({
-    queryKey: ['site-insights', view, range],
-    queryFn: () => getInsights(view, range),
+    ...insightsQuery(view),
     refetchInterval: REFRESH_MS[view] ?? false,
+    // A new range keeps the old figures on screen until its own arrive. Only
+    // the same tab's data fits its component, so another tab starts empty.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === view ? previous : undefined,
   })
+  const prefetch = (tab: InsightsView) => {
+    if (tab !== view) void queryClient.prefetchQuery(insightsQuery(tab))
+  }
 
   const tabLabels: Record<InsightsView, string> = {
     capacity: t('Capacity'),
@@ -102,7 +120,12 @@ export function SiteInsights() {
             >
               <TabsList className='flex-wrap'>
                 {INSIGHTS_VIEWS.map((item) => (
-                  <TabsTrigger key={item} value={item}>
+                  <TabsTrigger
+                    key={item}
+                    value={item}
+                    onPointerEnter={() => prefetch(item)}
+                    onFocus={() => prefetch(item)}
+                  >
                     {tabLabels[item]}
                   </TabsTrigger>
                 ))}

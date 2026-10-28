@@ -7,10 +7,13 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // EngineAccount is one subscription account of corecode-engine's pool as the
@@ -240,22 +243,69 @@ func engineGet[T any](ctx context.Context, base string, key string, path string)
 	return envelope.Data, nil
 }
 
+// enginePoolTTL is how long one complete read of the pool is shared. The
+// capacity and pool views both show the pool, and the pool view refreshes
+// every 15 s.
+var enginePoolTTL = 5 * time.Second
+
+var enginePoolCache struct {
+	mu     sync.Mutex
+	source string
+	pool   EnginePool
+	readAt time.Time
+	flight singleflight.Group
+}
+
 // FetchEnginePool reads the pool from the engine's control API: every group
 // and account from /group-concurrency, the page the engine's own console
 // shows, and remaining dollars from its pool estimate. A missing URL or key
 // returns Configured false; a failed read returns the error in the result so
 // the rest of the dashboard still renders. A failed estimate leaves the
 // accounts in place.
-func FetchEnginePool(ctx context.Context) EnginePool {
+//
+// A complete read is reused for enginePoolTTL, and concurrent callers share
+// one read, which is not tied to any caller's request and gives up after 8 s.
+// The result is shared between callers and must not be modified.
+func FetchEnginePool() EnginePool {
 	base := strings.TrimRight(strings.TrimSpace(operation_setting.EngineControlURL), "/")
 	key := strings.TrimSpace(operation_setting.EngineControlKey)
-	pool := EnginePool{Groups: []EngineGroup{}, Accounts: []EngineAccount{}, Refills: []EngineRefill{}}
 	if base == "" || key == "" {
+		return EnginePool{Groups: []EngineGroup{}, Accounts: []EngineAccount{}, Refills: []EngineRefill{}}
+	}
+	source := base + "\x00" + key
+	enginePoolCache.mu.Lock()
+	if enginePoolCache.source == source && time.Since(enginePoolCache.readAt) < enginePoolTTL {
+		pool := enginePoolCache.pool
+		enginePoolCache.mu.Unlock()
 		return pool
 	}
-	pool.Configured = true
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	enginePoolCache.mu.Unlock()
+	value, _, _ := enginePoolCache.flight.Do(source, func() (any, error) {
+		pool := readEnginePool(base, key)
+		if pool.Error == "" && pool.EstimateError == "" {
+			enginePoolCache.mu.Lock()
+			enginePoolCache.source, enginePoolCache.pool, enginePoolCache.readAt = source, pool, time.Now()
+			enginePoolCache.mu.Unlock()
+		}
+		return pool, nil
+	})
+	return value.(EnginePool)
+}
+
+// readEnginePool asks the engine for the groups and the estimate at once and
+// joins them.
+func readEnginePool(base, key string) EnginePool {
+	pool := EnginePool{Configured: true, Groups: []EngineGroup{}, Accounts: []EngineAccount{}, Refills: []EngineRefill{}}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
+
+	var estimate engineEstimate
+	var estimateErr error
+	estimateDone := make(chan struct{})
+	go func() {
+		defer close(estimateDone)
+		estimate, estimateErr = engineGet[engineEstimate](ctx, base, key, "/group-concurrency/pool-estimate")
+	}()
 
 	snapshot, err := engineGet[engineConcurrency](ctx, base, key, "/group-concurrency")
 	if err != nil {
@@ -329,9 +379,9 @@ func FetchEnginePool(ctx context.Context) EnginePool {
 		pool.Groups = append(pool.Groups, row)
 	}
 
-	estimate, err := engineGet[engineEstimate](ctx, base, key, "/group-concurrency/pool-estimate")
-	if err != nil {
-		pool.EstimateError = err.Error()
+	<-estimateDone
+	if estimateErr != nil {
+		pool.EstimateError = estimateErr.Error()
 		return pool
 	}
 	pool.FiveHour = &EngineHorizon{estimate.FiveHour.RemainingUSD, estimate.FiveHour.RemainingLowUSD,

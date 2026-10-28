@@ -1,9 +1,9 @@
 package service
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -13,7 +13,9 @@ import (
 )
 
 func TestFetchEnginePool(t *testing.T) {
+	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
 		if r.Header.Get("Authorization") != "Bearer secret" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -56,10 +58,10 @@ func TestFetchEnginePool(t *testing.T) {
 	})
 
 	operation_setting.EngineControlURL, operation_setting.EngineControlKey = "", ""
-	assert.False(t, FetchEnginePool(context.Background()).Configured)
+	assert.False(t, FetchEnginePool().Configured)
 
 	operation_setting.EngineControlURL, operation_setting.EngineControlKey = server.URL+"/", "secret"
-	pool := FetchEnginePool(context.Background())
+	pool := FetchEnginePool()
 	require.Empty(t, pool.Error)
 	assert.Equal(t, 5, pool.CredentialConcurrency)
 	assert.Equal(t, 2, pool.InFlight)
@@ -91,6 +93,10 @@ func TestFetchEnginePool(t *testing.T) {
 	assert.Equal(t, 400.0, pool.FiveHour.RemainingUSD)
 	assert.Equal(t, []EngineRefill{{CredentialID: 6, At: 99, AddsUSD: 20}}, pool.Refills)
 
+	before := requests.Load()
+	assert.Equal(t, pool, FetchEnginePool(), "a complete read is reused within the TTL")
+	assert.Equal(t, before, requests.Load(), "the reuse does not ask the engine")
+
 	operation_setting.EngineControlKey = "wrong"
-	assert.Contains(t, FetchEnginePool(context.Background()).Error, "HTTP 401")
+	assert.Contains(t, FetchEnginePool().Error, "HTTP 401")
 }

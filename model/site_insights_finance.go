@@ -7,6 +7,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 // FinanceDay is one day of revenue and list-price consumption.
@@ -171,36 +172,44 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 // fillBalances states the current balances of every customer. The root
 // account is left out: its balance is the operator's, not money owed.
 func fillBalances(result *FinanceInsights) error {
-	var users []struct {
+	customers := func() *gorm.DB { return DB.Model(&User{}).Where("role < ?", common.RoleRootUser) }
+	var totals struct {
+		Liability      int64
+		LiabilityUsers int64
+		Debt           int64
+	}
+	if err := customers().Select("COALESCE(SUM(CASE WHEN quota > 0 THEN quota ELSE 0 END), 0) AS liability, " +
+		"COUNT(CASE WHEN quota > 0 THEN 1 END) AS liability_users, " +
+		"COALESCE(SUM(CASE WHEN quota < 0 THEN quota ELSE 0 END), 0) AS debt").Scan(&totals).Error; err != nil {
+		return err
+	}
+	result.LiabilityUSD = quotaUSD(totals.Liability)
+	result.LiabilityUsers = totals.LiabilityUsers
+	result.DebtUSD = quotaUSD(totals.Debt)
+
+	type balanceRow struct {
 		Id       int
 		Username string
 		Quota    int64
 	}
-	if err := DB.Model(&User{}).Select("id, username, quota").Where("role < ?", common.RoleRootUser).Find(&users).Error; err != nil {
+	toBalances := func(rows []balanceRow) []BalanceUser {
+		balances := make([]BalanceUser, 0, len(rows))
+		for _, row := range rows {
+			balances = append(balances, BalanceUser{UserRef: UserRef{UserID: row.Id, Username: row.Username}, BalanceUSD: quotaUSD(row.Quota)})
+		}
+		return balances
+	}
+	var top, debtors []balanceRow
+	if err := customers().Select("id, username, quota").Where("quota > 0").
+		Order("quota desc, id").Limit(insightsTopN).Find(&top).Error; err != nil {
 		return err
 	}
-	var liability, debt int64
-	balances := make([]BalanceUser, 0, len(users))
-	for _, user := range users {
-		balance := BalanceUser{UserRef: UserRef{UserID: user.Id, Username: user.Username}, BalanceUSD: quotaUSD(user.Quota)}
-		switch {
-		case user.Quota > 0:
-			liability += user.Quota
-			result.LiabilityUsers++
-			balances = append(balances, balance)
-		case user.Quota < 0:
-			debt += user.Quota
-			result.Debtors = append(result.Debtors, balance)
-		}
+	if err := customers().Select("id, username, quota").Where("quota < 0").
+		Order("quota, id").Find(&debtors).Error; err != nil {
+		return err
 	}
-	result.LiabilityUSD = quotaUSD(liability)
-	result.DebtUSD = quotaUSD(debt)
-	slices.SortFunc(balances, func(a, b BalanceUser) int { return cmp.Compare(b.BalanceUSD, a.BalanceUSD) })
-	result.TopBalances = balances[:min(len(balances), insightsTopN)]
-	slices.SortFunc(result.Debtors, func(a, b BalanceUser) int { return cmp.Compare(a.BalanceUSD, b.BalanceUSD) })
-	if result.Debtors == nil {
-		result.Debtors = []BalanceUser{}
-	}
+	result.TopBalances = toBalances(top)
+	result.Debtors = toBalances(debtors)
 	return nil
 }
 

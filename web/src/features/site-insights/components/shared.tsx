@@ -16,9 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ReactNode } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -461,16 +463,27 @@ export type Column<T> = {
   render: (row: T) => ReactNode
 }
 
+// Rows a table shows at once. A longer list pages, so a view with several
+// long tables stays short and renders only what is on screen.
+const TABLE_PAGE_SIZE = 10
+
 export function SimpleTable<T>(props: {
   columns: Column<T>[]
   rows: T[] | null | undefined
   rowKey: (row: T, index: number) => string | number
   empty: string
 }) {
+  const { t } = useTranslation()
+  const [page, setPage] = useState(0)
   const rows = props.rows ?? []
   if (rows.length === 0) {
     return <p className='text-muted-foreground text-xs'>{props.empty}</p>
   }
+  const pages = Math.ceil(rows.length / TABLE_PAGE_SIZE)
+  // A refresh can shorten the list below the page being read.
+  const current = Math.min(page, pages - 1)
+  const offset = current * TABLE_PAGE_SIZE
+  const visible = rows.slice(offset, offset + TABLE_PAGE_SIZE)
   return (
     <TooltipProvider delay={HELP_DELAY}>
       <div className='-mx-4 overflow-x-auto'>
@@ -491,8 +504,8 @@ export function SimpleTable<T>(props: {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, index) => (
-              <TableRow key={props.rowKey(row, index)}>
+            {visible.map((row, index) => (
+              <TableRow key={props.rowKey(row, offset + index)}>
                 {props.columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -509,6 +522,34 @@ export function SimpleTable<T>(props: {
           </TableBody>
         </Table>
       </div>
+      {pages > 1 && (
+        <div className='text-muted-foreground flex items-center justify-end gap-2 pt-2 text-xs tabular-nums'>
+          <span>
+            {t('Page {{current}} of {{total}}', {
+              current: current + 1,
+              total: pages,
+            })}
+          </span>
+          <Button
+            variant='outline'
+            size='icon-sm'
+            aria-label={t('Previous page')}
+            disabled={current === 0}
+            onClick={() => setPage(current - 1)}
+          >
+            <ChevronLeft />
+          </Button>
+          <Button
+            variant='outline'
+            size='icon-sm'
+            aria-label={t('Next page')}
+            disabled={current === pages - 1}
+            onClick={() => setPage(current + 1)}
+          >
+            <ChevronRight />
+          </Button>
+        </div>
+      )}
     </TooltipProvider>
   )
 }
