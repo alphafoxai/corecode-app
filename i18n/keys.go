@@ -31,6 +31,7 @@ const (
 
 	MsgViolationSuspended           = "violation.suspended"
 	MsgViolationConversationBlocked = "violation.conversation_blocked"
+	MsgRiskGateBlocked              = "violation.risk_gate_blocked"
 
 	MsgDistributorInvalidRequest               = "distributor.invalid_request"
 	MsgDistributorInvalidChannelId             = "distributor.invalid_channel_id"

@@ -429,6 +429,25 @@ export type SecuritySettings = {
   'violation_guard_setting.suspend_hours': number
   'violation_guard_setting.ban_strikes': number
   'violation_guard_setting.strike_window_days': number
+  'risk_gate_setting.enabled': boolean
+  'risk_gate_setting.mode': 'observe' | 'enforce'
+  'risk_gate_setting.distill_enabled': boolean
+  'risk_gate_setting.distill_rules': string
+  'risk_gate_setting.distill_strike': boolean
+  'risk_gate_setting.hard_regex_enabled': boolean
+  'risk_gate_setting.hard_regex_rules': string
+  'risk_gate_setting.hard_regex_strike': boolean
+  'risk_gate_setting.similarity_enabled': boolean
+  'risk_gate_setting.similarity_threshold': number
+  'risk_gate_setting.decision_enabled': boolean
+  'risk_gate_setting.decision_base_url': string
+  'risk_gate_setting.decision_api_key': string
+  'risk_gate_setting.decision_model': string
+  'risk_gate_setting.decision_questions': string
+  'risk_gate_setting.decision_threshold': number
+  'risk_gate_setting.decision_timeout_ms': number
+  'risk_gate_setting.decision_fail_open': boolean
+  'risk_gate_setting.decision_strike': boolean
 }
 
 export type UpstreamChannel = {

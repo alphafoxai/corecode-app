@@ -229,3 +229,19 @@ func ListViolationRecords(pageInfo *common.PageInfo, userId int) ([]ViolationRec
 	}
 	return views, total, nil
 }
+
+// RiskGateCategoryPrefix starts the category of a violation the risk gate
+// recorded itself, as opposed to an upstream refusal.
+const RiskGateCategoryPrefix = "gate:"
+
+// GetRecentRefusedExcerpts returns the kept messages of upstream refusals
+// since the given time, newest first, at most limit of them. Violations the
+// risk gate recorded itself are left out: they are its own verdicts, not
+// refusals.
+func GetRecentRefusedExcerpts(since int64, limit int) ([]string, error) {
+	var excerpts []string
+	err := DB.Model(&ViolationRecord{}).
+		Where("created_at > ? AND excerpt <> '' AND (category IS NULL OR category NOT LIKE ?)", since, RiskGateCategoryPrefix+"%").
+		Order("id desc").Limit(limit).Pluck("excerpt", &excerpts).Error
+	return excerpts, err
+}
