@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { CircleCheck, MessageCircle, Send } from 'lucide-react'
+import { CircleCheck, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import enterpriseWecomQr from '@/assets/enterprise-wecom-qr.png'
 import { PublicLayout } from '@/components/layout'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -31,10 +31,6 @@ import {
 } from '@/components/ui/card'
 
 import { EnterpriseApplicationForm } from './components/enterprise-application-form'
-import {
-  ENTERPRISE_TELEGRAM_HANDLE,
-  ENTERPRISE_TELEGRAM_URL,
-} from './constants'
 
 export function Enterprise() {
   const { t } = useTranslation()
@@ -47,7 +43,7 @@ export function Enterprise() {
     },
     {
       title: t('We get in touch'),
-      description: t('Someone from our team replies by email or Telegram.'),
+      description: t('Someone from our team replies by email or WeChat.'),
     },
     {
       title: t('Receive your quote'),
@@ -64,7 +60,7 @@ export function Enterprise() {
           </h1>
           <p className='text-muted-foreground mx-auto max-w-2xl text-pretty'>
             {t(
-              'Teams with steady, high-volume usage can apply for a dedicated discount. Message us on Telegram or leave your details below, and we will send you a quote.'
+              'Teams with steady, high-volume usage can apply for a dedicated discount. Add us on WeChat or leave your details below, and we will send you a quote.'
             )}
           </p>
         </header>
@@ -81,22 +77,20 @@ export function Enterprise() {
                   {t('The fastest way to discuss pricing for your team.')}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button
-                  className='w-full'
-                  render={
-                    <a
-                      href={ENTERPRISE_TELEGRAM_URL}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                    />
-                  }
-                >
-                  <Send aria-hidden='true' />
-                  {t('Message @{{handle}} on Telegram', {
-                    handle: ENTERPRISE_TELEGRAM_HANDLE,
-                  })}
-                </Button>
+              <CardContent className='flex flex-col items-center gap-3'>
+                {/* The code is black on transparent; keep it on white in dark mode */}
+                <div className='rounded-lg bg-white p-3'>
+                  <img
+                    src={enterpriseWecomQr}
+                    alt={t('WeChat QR code')}
+                    width={323}
+                    height={313}
+                    className='size-44 object-contain'
+                  />
+                </div>
+                <p className='text-muted-foreground text-sm'>
+                  {t('Scan with WeChat to add us')}
+                </p>
               </CardContent>
             </Card>
 

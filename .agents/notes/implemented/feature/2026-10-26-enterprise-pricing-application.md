@@ -10,10 +10,12 @@ team leaves its details, and a place in the console to follow up.
 
 ## Decision
 
-- **`/enterprise` is a public page.** It has a Telegram button for
-  `@joe_alphafox` and an application form. A visitor needs no account. The
-  page does not publish discount tiers; every team gets its own quote. The
-  handle is `ENTERPRISE_TELEGRAM_HANDLE` in `web/src/features/enterprise/constants.ts`.
+- **`/enterprise` is a public page.** It shows the operators' WeChat QR code
+  and an application form. A visitor needs no account. The page does not
+  publish discount tiers; every team gets its own quote. The code is
+  `web/src/assets/enterprise-wecom-qr.png`, bundled so a replacement gets a new
+  hashed URL. It replaced a Telegram link on 2026-10-27 because the customers
+  are mainly in mainland China, where Telegram is blocked and WeChat is not.
 - **The page is a header navigation module, `enterprise`,** on by default,
   with a switch in Maintenance > Header Navigation. `POST /api/enterprise/apply`
   sits behind `HeaderNavModuleAuth("enterprise")`, so turning the module off
