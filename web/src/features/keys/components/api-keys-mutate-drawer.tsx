@@ -18,7 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, KeyRound, Settings2, WalletCards } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  KeyRound,
+  Settings2,
+  WalletCards,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -35,6 +41,7 @@ import {
   sideDrawerSwitchItemClassName,
 } from '@/components/drawer-layout'
 import { MultiSelect } from '@/components/multi-select'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -93,7 +100,6 @@ import {
   type ApiKeyGroupOption,
 } from './api-key-group-combobox'
 import { useApiKeys } from './api-keys-provider'
-import { AutoGroupOrderEditor } from './auto-group-order-editor'
 
 type ApiKeyMutateDrawerProps = {
   open: boolean
@@ -190,15 +196,7 @@ export function ApiKeysMutateDrawer({
       return option ? [option] : []
     })
   }, [globalAutoGroups, groups])
-  const maxAutoGroups =
-    Number.isInteger(autoGroupsData?.data?.max_count) &&
-    Number(autoGroupsData?.data?.max_count) > 0
-      ? Number(autoGroupsData?.data?.max_count)
-      : 5
-  const schema = useMemo(
-    () => getApiKeyFormSchema(t, maxAutoGroups),
-    [t, maxAutoGroups]
-  )
+  const schema = useMemo(() => getApiKeyFormSchema(t), [t])
 
   const form = useForm<ApiKeyFormValues>({
     resolver: zodResolver(schema),
@@ -229,13 +227,7 @@ export function ApiKeysMutateDrawer({
     if (initializedTarget === target) return
     if (isUpdate && currentRow) {
       if (apiKeyData?.success && apiKeyData.data) {
-        form.reset(
-          transformApiKeyToFormDefaults(
-            apiKeyData.data,
-            availableAutoGroupNames,
-            maxAutoGroups
-          )
-        )
+        form.reset(transformApiKeyToFormDefaults(apiKeyData.data))
         setInitializedTarget(target)
       }
     } else {
@@ -266,9 +258,7 @@ export function ApiKeysMutateDrawer({
     apiKeyData,
     apiKeyFetched,
     apiKeyFetching,
-    availableAutoGroupNames,
     globalAutoGroups,
-    maxAutoGroups,
     initializedTarget,
   ])
 
@@ -291,8 +281,6 @@ export function ApiKeysMutateDrawer({
         ''
       form.setValue('group', fallback)
       if (currentGroup === 'auto') {
-        form.setValue('auto_groups', [])
-        form.setValue('auto_groups_mode', 'inherit')
         form.setValue('cross_group_retry', false)
       }
     }
@@ -389,7 +377,6 @@ export function ApiKeysMutateDrawer({
   const quotaPlaceholder = tokensOnly
     ? t('Enter quota in tokens')
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
-  const autoGroupsMode = form.watch('auto_groups_mode')
   const unlimitedQuota = form.watch('unlimited_quota')
 
   return (
@@ -466,46 +453,41 @@ export function ApiKeysMutateDrawer({
                 )}
               />
 
-              {selectedGroup === 'auto' && (
-                <FormField
-                  control={form.control}
-                  name='auto_groups'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Auto group order')}</FormLabel>
-                      <FormDescription>
-                        {t(
-                          'Choose and order the groups this API key will try.'
-                        )}
-                      </FormDescription>
-                      <FormControl>
-                        <AutoGroupOrderEditor
-                          value={field.value}
-                          mode={autoGroupsMode}
-                          options={groups}
-                          globalOptions={globalAutoGroupOptions}
-                          maxCount={maxAutoGroups}
-                          onChange={(value) => {
-                            form.setValue('auto_groups_mode', value.mode, {
-                              shouldDirty: true,
-                              shouldValidate: false,
-                            })
-                            form.setValue(
-                              'auto_groups',
-                              value.groups.slice(0, maxAutoGroups),
-                              {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              }
-                            )
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              {selectedGroup === 'auto' &&
+                globalAutoGroupOptions.length > 0 && (
+                  <div className='grid gap-2'>
+                    <p
+                      id='auto-group-order-label'
+                      className='text-sm font-medium'
+                    >
+                      {t('Auto group order')}
+                    </p>
+                    <p className='text-muted-foreground text-sm'>
+                      {t(
+                        'Auto tries these groups in this order. The order is set by the site and cannot be changed per key.'
+                      )}
+                    </p>
+                    <ol
+                      aria-labelledby='auto-group-order-label'
+                      className='flex flex-wrap items-center gap-1.5 text-sm'
+                    >
+                      {globalAutoGroupOptions.map((group, index) => (
+                        <li
+                          key={group.value}
+                          className='flex items-center gap-1.5'
+                        >
+                          {index > 0 && (
+                            <ChevronRight
+                              className='text-muted-foreground size-3.5'
+                              aria-hidden
+                            />
+                          )}
+                          <Badge variant='secondary'>{group.label}</Badge>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
 
               {selectedGroup === 'auto' && (
                 <FormField
