@@ -20,14 +20,33 @@ import { useTranslation } from 'react-i18next'
 
 import { getPaymentMethodName } from '@/features/wallet/lib/billing'
 
-import { useInsightsFormat } from '../lib'
+import { DEBT_ALERT_USD, useInsightsFormat } from '../lib'
 import type { FinanceInsights } from '../types'
 import { BarSeries, MetricGrid, Panel, SimpleTable, UserLabel } from './shared'
 
-export function FinanceTab(props: { data: FinanceInsights | undefined }) {
+export function FinanceTab(props: {
+  data: FinanceInsights | undefined
+  previous?: FinanceInsights
+}) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const data = props.data
+  const previous = props.previous
+  const daily = data?.daily ?? []
+  const best = daily.reduce<(typeof daily)[number] | undefined>(
+    (top, day) =>
+      !top || day.topup + day.subscription > top.topup + top.subscription
+        ? day
+        : top,
+    undefined
+  )
+  const issued = [
+    data?.topup_credit_usd ?? 0,
+    data?.bonus_usd ?? 0,
+    data?.redemption_usd ?? 0,
+    data?.commission_usd ?? 0,
+    data?.adjustment_net_usd ?? 0,
+  ].reduce((sum, value) => sum + value, 0)
 
   return (
     <div className='grid gap-4'>
@@ -36,24 +55,45 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
         items={[
           {
             label: t('Revenue'),
+            featured: true,
             value: fmt.cny(data?.revenue ?? 0),
-            hint: t('{{orders}} orders · {{users}} payers', {
-              orders: data?.orders ?? 0,
-              users: data?.paying_users ?? 0,
-            }),
-          },
-          {
-            label: t('Top-ups / subscriptions'),
-            value: `${fmt.cny(data?.topup_revenue ?? 0)} / ${fmt.cny(data?.subscription_revenue ?? 0)}`,
+            delta: {
+              current: data?.revenue ?? 0,
+              previous: previous?.revenue,
+              better: 'up',
+            },
+            trend: daily.map((day) => day.topup + day.subscription),
+            hint: t(
+              '{{orders}} orders · {{users}} payers · top-ups {{topup}} · plans {{plans}}',
+              {
+                orders: data?.orders ?? 0,
+                users: data?.paying_users ?? 0,
+                topup: fmt.cny(data?.topup_revenue ?? 0),
+                plans: fmt.cny(data?.subscription_revenue ?? 0),
+              }
+            ),
           },
           {
             label: t('Consumption at list price'),
             value: fmt.usd(data?.consumption_usd ?? 0),
+            delta: {
+              current: data?.consumption_usd ?? 0,
+              previous: previous?.consumption_usd,
+              better: 'neutral',
+            },
+            hint: t('USD at list price'),
           },
           {
             label: t('Revenue per $1 consumed'),
             value: fmt.cny(data?.revenue_per_usd ?? 0),
-            hint: t('Revenue ÷ list-price consumption'),
+            help: t(
+              'Revenue in CNY divided by consumption in USD at list price: what each list-price dollar used brought in.'
+            ),
+            delta: {
+              current: data?.revenue_per_usd ?? 0,
+              previous: previous?.revenue_per_usd,
+              better: 'up',
+            },
           },
           {
             label: t('Balances owed'),
@@ -61,6 +101,9 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
             hint: t('{{count}} customers, now', {
               count: data?.liability_users ?? 0,
             }),
+            help: t(
+              'Credit customers hold and can still spend. Colored when it exceeds this range’s consumption.'
+            ),
             tone:
               (data?.liability_usd ?? 0) > (data?.consumption_usd ?? 0)
                 ? 'warning'
@@ -72,24 +115,32 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
             hint: t('{{count}} customers', {
               count: data?.debtors.length ?? 0,
             }),
-            tone: (data?.debt_usd ?? 0) < 0 ? 'danger' : 'good',
+            tone: (data?.debt_usd ?? 0) < DEBT_ALERT_USD ? 'danger' : 'default',
           },
         ]}
       />
 
       <Panel
         title={t('Daily revenue and consumption')}
-        description={t(
+        description={
+          best && best.topup + best.subscription > 0
+            ? t('Best day {{day}}: {{amount}}.', {
+                day: fmt.day(best.day),
+                amount: fmt.cny(best.topup + best.subscription),
+              })
+            : undefined
+        }
+        help={t(
           'Revenue in the payment currency; consumption in USD at list price.'
         )}
       >
         <BarSeries
           ariaLabel={t('Daily revenue')}
           series={[
-            { label: t('Top-ups'), format: fmt.cny },
+            { label: t('Top-ups'), format: fmt.cny, compact: fmt.cnyCompact },
             { label: t('Subscriptions'), format: fmt.cny },
           ]}
-          points={(data?.daily ?? []).map((day) => ({
+          points={daily.map((day) => ({
             key: day.day,
             title: fmt.day(day.day),
             values: [day.topup, day.subscription],
@@ -104,7 +155,17 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
       </Panel>
 
       <div className='grid gap-4 lg:grid-cols-3'>
-        <Panel title={t('Wallet credit issued')}>
+        <Panel
+          title={t('Wallet credit issued')}
+          description={
+            data && issued > 0
+              ? t('{{total}} in all; manual adjustments are {{share}}.', {
+                  total: fmt.usd(issued),
+                  share: fmt.pct((data.adjustment_net_usd ?? 0) / issued),
+                })
+              : undefined
+          }
+        >
           <dl className='grid gap-2 text-sm'>
             {[
               [t('Top-up credit'), fmt.usd(data?.topup_credit_usd ?? 0)],
@@ -176,7 +237,7 @@ export function FinanceTab(props: { data: FinanceInsights | undefined }) {
       <div className='grid gap-4 lg:grid-cols-2'>
         <Panel
           title={t('Manual balance adjustments')}
-          description={t(
+          help={t(
             'From the audit log: who changed whose balance, and by how much.'
           )}
         >

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleHelp } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -44,7 +44,10 @@ import type { NamedCount } from '../types'
 
 export function Panel(props: {
   title: ReactNode
+  /** What the panel shows now, read from its figures: one sentence. */
   description?: ReactNode
+  /** How the panel's figures are defined, shown from an icon by the title. */
+  help?: string
   actions?: ReactNode
   className?: string
   children: ReactNode
@@ -53,7 +56,10 @@ export function Panel(props: {
     <Card data-card-hover='false' className={cn('gap-0 py-0', props.className)}>
       <div className='flex items-start justify-between gap-2 border-b px-4 py-3'>
         <div className='min-w-0'>
-          <h3 className='text-sm font-semibold'>{props.title}</h3>
+          <h3 className='flex items-center gap-1.5 text-sm font-semibold'>
+            {props.title}
+            {props.help && <HelpIcon help={props.help} />}
+          </h3>
           {props.description != null && (
             <p className='text-muted-foreground mt-0.5 text-xs'>
               {props.description}
@@ -67,7 +73,49 @@ export function Panel(props: {
   )
 }
 
+/** A question-mark icon that explains a definition on hover or focus. */
+export function HelpIcon(props: { help: string }) {
+  const { t } = useTranslation()
+  return (
+    <TooltipProvider delay={HELP_DELAY}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              tabIndex={0}
+              aria-label={t('How this is counted')}
+              className='text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex cursor-help rounded-full outline-none focus-visible:ring-2'
+            />
+          }
+        >
+          <CircleHelp className='size-3.5' />
+        </TooltipTrigger>
+        <TooltipContent className='max-w-xs leading-relaxed font-normal'>
+          {props.help}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+/**
+ * Status colors mean one thing each: danger needs action, warning needs a
+ * look. A figure that is merely fine stays uncolored; good marks only a
+ * change for the better.
+ */
 export type Tone = 'default' | 'warning' | 'danger' | 'good'
+
+/**
+ * A figure beside the same figure over the period before. Better says which
+ * direction is an improvement; neutral figures are drawn without color.
+ */
+export type MetricDelta = {
+  current: number
+  previous: number | undefined
+  better: 'up' | 'down' | 'neutral'
+  /** Compare shares by percentage points instead of relative change. */
+  points?: boolean
+}
 
 export type MetricItem = {
   label: string
@@ -78,6 +126,11 @@ export type MetricItem = {
   help?: string
   /** A share from 0 to 1, drawn as a bar under the value. */
   meter?: { value: number; tone?: Tone; label: string }
+  delta?: MetricDelta
+  /** A headline figure: wider, larger, with its trend drawn. */
+  featured?: boolean
+  /** The figure over the range, oldest first, drawn on a featured card. */
+  trend?: number[]
 }
 
 const TONES = {
@@ -163,6 +216,98 @@ export function HelpLabel(props: { label: ReactNode; help?: string }) {
 // them is not left waiting on each one.
 const HELP_DELAY = 150
 
+/**
+ * The change from the previous period: relative for counts and amounts,
+ * in percentage points for shares. Nothing is shown before the previous
+ * period has loaded, or when it had nothing to compare against.
+ */
+export function DeltaBadge(props: { delta: MetricDelta }) {
+  const { t } = useTranslation()
+  const fmt = useInsightsFormat()
+  const delta = props.delta
+  if (delta.previous === undefined) return null
+  if (!delta.points && delta.previous === 0) {
+    if (delta.current === 0) return null
+    return (
+      <span className='text-muted-foreground text-xs font-normal whitespace-nowrap'>
+        {t('New this period')}
+      </span>
+    )
+  }
+  const change = delta.points
+    ? delta.current - delta.previous
+    : (delta.current - delta.previous) / Math.abs(delta.previous)
+  // Below these, a change reads as flat rather than as a movement.
+  const flat = delta.points
+    ? Math.abs(change) < 0.001
+    : Math.abs(change) < 0.005
+  let tone: Tone = 'default'
+  if (!flat && delta.better !== 'neutral') {
+    const improved = delta.better === 'up' ? change > 0 : change < 0
+    tone = improved ? 'good' : 'danger'
+  }
+  let arrow = '→'
+  if (!flat) arrow = change > 0 ? '▲' : '▼'
+  // A figure that more than doubled reads better as a multiple than as
+  // a four-digit percentage.
+  let amount = fmt.pct(Math.abs(change))
+  if (delta.points) {
+    amount = t('{{value}} pt', { value: (Math.abs(change) * 100).toFixed(1) })
+  } else if (change >= 1) {
+    amount = t('×{{value}}', {
+      value: fmt.num(Math.round((delta.current / delta.previous) * 10) / 10),
+    })
+  }
+  return (
+    <span
+      className={cn(
+        'text-xs font-medium whitespace-nowrap tabular-nums',
+        TONES[tone]
+      )}
+      title={t('Compared with the previous period of the same length')}
+    >
+      {arrow} {flat ? t('Flat') : amount}
+    </span>
+  )
+}
+
+/** A small line of a figure's values over the range. */
+export function Sparkline(props: { values: number[]; className?: string }) {
+  const values = props.values
+  if (values.length < 2) return null
+  const max = Math.max(...values)
+  const min = Math.min(0, ...values)
+  const span = max - min || 1
+  const step = 100 / (values.length - 1)
+  const path = values
+    .map((value, index) => {
+      const y = 28 - ((value - min) / span) * 26
+      return `${index === 0 ? 'M' : 'L'}${(index * step).toFixed(2)},${y.toFixed(2)}`
+    })
+    .join(' ')
+  return (
+    <svg
+      aria-hidden
+      viewBox='0 0 100 30'
+      preserveAspectRatio='none'
+      className={cn(
+        'text-primary h-8 w-full overflow-visible',
+        props.className
+      )}
+    >
+      <path d={`${path} L100,30 L0,30 Z`} className='fill-current opacity-10' />
+      <path
+        d={path}
+        fill='none'
+        stroke='currentColor'
+        strokeWidth={1.5}
+        vectorEffect='non-scaling-stroke'
+        strokeLinejoin='round'
+      />
+    </svg>
+  )
+}
+
 export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
   return (
     <TooltipProvider delay={HELP_DELAY}>
@@ -171,19 +316,36 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
           <Card
             key={item.label}
             data-card-hover='false'
-            className='bg-muted/20 gap-1 px-3 py-2.5'
+            className={cn(
+              'bg-muted/20 gap-1 px-3 py-2.5',
+              item.featured && 'col-span-2 sm:col-span-3 lg:col-span-2'
+            )}
           >
             <dt className='text-muted-foreground truncate text-xs'>
               <HelpLabel label={item.label} help={item.help} />
             </dt>
             <dd
               className={cn(
-                'truncate text-lg font-semibold tabular-nums',
-                TONES[item.tone ?? 'default']
+                'flex min-w-0 items-baseline gap-2 font-semibold tabular-nums',
+                item.featured ? 'text-2xl' : 'text-xl'
               )}
             >
-              {props.loading ? <Skeleton className='h-7 w-16' /> : item.value}
+              {props.loading ? (
+                <Skeleton className='h-7 w-16' />
+              ) : (
+                <span className={cn('truncate', TONES[item.tone ?? 'default'])}>
+                  {item.value}
+                </span>
+              )}
+              {item.featured && item.delta && !props.loading && (
+                <DeltaBadge delta={item.delta} />
+              )}
             </dd>
+            {!item.featured && item.delta && !props.loading && (
+              <dd className='-mt-0.5 leading-none'>
+                <DeltaBadge delta={item.delta} />
+              </dd>
+            )}
             {item.meter && !props.loading && (
               <dd className='py-0.5'>
                 <Meter
@@ -191,6 +353,11 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
                   tone={item.meter.tone}
                   label={item.meter.label}
                 />
+              </dd>
+            )}
+            {item.featured && item.trend && !props.loading && (
+              <dd className='-mx-0.5'>
+                <Sparkline values={item.trend} />
               </dd>
             )}
             {item.hint != null && (
@@ -207,8 +374,13 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
 
 export type BarPoint = {
   key: string | number
-  /** The date or hour, shown atop the tooltip and on the axis. */
+  /** The date or hour, shown atop the tooltip. */
   title: string
+  /**
+   * A short axis label. When any point has one, only those points are
+   * labelled, and each starts a new segment (a day in an hourly series).
+   */
+  axis?: string
   /** Stacked segments, bottom first, one per series. */
   values: number[]
   /** Further figures listed in the tooltip below the series. */
@@ -218,6 +390,10 @@ export type BarPoint = {
 export type BarSeriesItem = {
   label: string
   format?: (value: number) => string
+  /** A shorter form for the axis and the bar labels, such as $1.5K. */
+  compact?: (value: number) => string
+  /** A background series, such as the remainder of a whole, drawn grey. */
+  muted?: boolean
 }
 
 const SEGMENT_COLORS = [
@@ -226,11 +402,28 @@ const SEGMENT_COLORS = [
   'bg-amber-500/60 group-hover/bar:bg-amber-500 group-focus-visible/bar:bg-amber-500',
   'bg-rose-500/60 group-hover/bar:bg-rose-500 group-focus-visible/bar:bg-rose-500',
 ]
+const MUTED_SEGMENT =
+  'bg-muted-foreground/25 group-hover/bar:bg-muted-foreground/45 group-focus-visible/bar:bg-muted-foreground/45'
 
 const DOT_COLORS = ['bg-primary', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500']
+const MUTED_DOT = 'bg-muted-foreground/40'
+
+// Gridlines on the value axis, and the most labels the time axis carries.
+const VALUE_TICKS = 4
+const AXIS_LABELS = 7
+// A series this short labels each bar with its total.
+const LABELLED_BARS = 14
+
+/** The smallest round step (1, 2, 2.5 or 5 × 10^n) at least value. */
+function niceStep(value: number) {
+  if (value <= 0) return 1
+  const magnitude = 10 ** Math.floor(Math.log10(value))
+  const step = [1, 2, 2.5, 5, 10].find((n) => n * magnitude >= value) ?? 10
+  return step * magnitude
+}
 
 /**
- * A bar per point with a value axis and the first and last titles below.
+ * A bar per point with a gridded value axis and a labelled time axis.
  * Hovering or focusing a bar shows each series' value; the tooltip opens
  * at once and follows the pointer from bar to bar.
  */
@@ -244,141 +437,228 @@ export function BarSeries(props: {
   const fmt = useInsightsFormat()
   const formatOf = (index: number) =>
     props.series[index]?.format ?? props.series[0]?.format ?? fmt.num
+  const axisFormat =
+    props.series[0]?.compact ?? props.series[0]?.format ?? fmt.num
   const sum = (values: number[]) => values.reduce((a, b) => a + b, 0)
   const max = Math.max(0, ...props.points.map((point) => sum(point.values)))
+  const step = niceStep(max / VALUE_TICKS)
+  const top = max > 0 ? Math.ceil(max / step) * step : 1
+  const ticks = Array.from(
+    { length: Math.round(top / step) + 1 },
+    (_, index) => index * step
+  )
   const stacked = props.series.length > 1
-  const first = props.points.at(0)
-  const last = props.points.at(-1)
+  const count = props.points.length
+  const segmented = props.points.some((point) => point.axis)
+  // Labelled points: segment starts, or evenly spaced titles. Either way,
+  // thinned so the labels never crowd.
+  const candidates = props.points
+    .map((point, index) => ({ index, text: point.axis ?? point.title }))
+    .filter((_, index) => !segmented || props.points[index].axis)
+  const barLabels = count <= LABELLED_BARS
+  const every = barLabels
+    ? 1
+    : Math.max(1, Math.ceil(candidates.length / AXIS_LABELS))
+  const labels = candidates.filter((_, index) => index % every === 0)
+  const colorOf = (index: number) =>
+    props.series[index]?.muted
+      ? MUTED_SEGMENT
+      : SEGMENT_COLORS[index % SEGMENT_COLORS.length]
+  const dotOf = (index: number) =>
+    props.series[index]?.muted
+      ? MUTED_DOT
+      : DOT_COLORS[index % DOT_COLORS.length]
   return (
     <div className={cn('grid gap-2', props.className)}>
-      <div className='grid grid-cols-[auto_1fr] gap-2'>
+      <div className='grid grid-cols-[auto_1fr] gap-x-2'>
         <div
           aria-hidden
-          className='text-muted-foreground flex h-40 flex-col justify-between text-right text-[10px] tabular-nums'
+          className={cn(
+            'text-muted-foreground relative h-40 text-right text-[10px] tabular-nums',
+            barLabels && 'mt-4'
+          )}
         >
-          <span className='-translate-y-1/2'>{formatOf(0)(max)}</span>
-          <span className='translate-y-1/2'>{formatOf(0)(0)}</span>
+          {ticks.map((tick) => (
+            <span
+              key={tick}
+              className='block translate-y-1/2 leading-none whitespace-nowrap'
+              style={{
+                position: 'absolute',
+                right: 0,
+                bottom: `${(tick / top) * 100}%`,
+              }}
+            >
+              {axisFormat(tick)}
+            </span>
+          ))}
+          {/* Holds the column's width when every label is absolute. */}
+          <span className='invisible block h-0 leading-none'>
+            {axisFormat(top)}
+          </span>
         </div>
-        <TooltipProvider delay={0}>
-          <ol
-            className='border-border/60 flex h-40 items-end gap-px border-t border-dashed sm:gap-0.5'
-            aria-label={props.ariaLabel}
-          >
-            {props.points.map((point) => {
-              const total = sum(point.values)
-              const rows = point.values.map((value, index) => ({
-                id: `series-${index}`,
-                label: props.series[index]?.label ?? '',
-                value: formatOf(index)(value),
-                dot: DOT_COLORS[index % DOT_COLORS.length],
-              }))
-              if (stacked) {
-                rows.push({
-                  id: 'total',
-                  label: t('Total'),
-                  value: formatOf(0)(total),
-                  dot: '',
-                })
-              }
-              const ariaLabel = [
-                point.title,
-                ...rows.map((row) => `${row.label} ${row.value}`),
-                ...(point.extra ?? []).map(
-                  (row) => `${row.label} ${row.value}`
-                ),
-              ].join(', ')
-              return (
-                <li key={point.key} className='flex h-full min-w-0 flex-1'>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <div
-                          tabIndex={0}
-                          aria-label={ariaLabel}
-                          className='group/bar focus-visible:ring-ring/50 hover:bg-muted/40 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3'
-                        />
-                      }
-                    >
-                      {total === 0 ? (
-                        <span className='bg-border min-h-px w-full' />
-                      ) : (
-                        point.values.map((value, index) => (
-                          <span
-                            key={rows[index].id}
-                            className={cn(
-                              'w-full first:rounded-b-none last:rounded-t-[3px]',
-                              SEGMENT_COLORS[index % SEGMENT_COLORS.length]
-                            )}
-                            style={{
-                              height: `${max > 0 ? (value / max) * 100 : 0}%`,
-                            }}
+        <div className={cn('relative h-40', barLabels && 'mt-4')}>
+          <div aria-hidden className='pointer-events-none absolute inset-0'>
+            {ticks.map((tick) => (
+              <span
+                key={tick}
+                className={cn(
+                  'absolute inset-x-0 border-t',
+                  tick === 0
+                    ? 'border-border'
+                    : 'border-border/50 border-dashed'
+                )}
+                style={{ bottom: `${(tick / top) * 100}%` }}
+              />
+            ))}
+          </div>
+          <TooltipProvider delay={0}>
+            <ol
+              className='relative flex h-full items-end gap-px sm:gap-0.5'
+              aria-label={props.ariaLabel}
+            >
+              {props.points.map((point, pointIndex) => {
+                const total = sum(point.values)
+                const rows = point.values.map((value, index) => ({
+                  id: `series-${index}`,
+                  label: props.series[index]?.label ?? '',
+                  value: formatOf(index)(value),
+                  dot: dotOf(index),
+                }))
+                if (stacked) {
+                  rows.push({
+                    id: 'total',
+                    label: t('Total'),
+                    value: formatOf(0)(total),
+                    dot: '',
+                  })
+                }
+                const ariaLabel = [
+                  point.title,
+                  ...rows.map((row) => `${row.label} ${row.value}`),
+                  ...(point.extra ?? []).map(
+                    (row) => `${row.label} ${row.value}`
+                  ),
+                ].join(', ')
+                return (
+                  <li
+                    key={point.key}
+                    className={cn(
+                      'flex h-full min-w-0 flex-1',
+                      segmented &&
+                        point.axis &&
+                        pointIndex > 0 &&
+                        'border-border/70 border-l border-dashed'
+                    )}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <div
+                            tabIndex={0}
+                            aria-label={ariaLabel}
+                            className='group/bar focus-visible:ring-ring/50 hover:bg-muted/40 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3'
                           />
-                        ))
-                      )}
-                    </TooltipTrigger>
-                    <TooltipContent className='block min-w-40 py-2'>
-                      <p className='mb-1.5 font-semibold'>{point.title}</p>
-                      <dl className='grid grid-cols-[1fr_auto] gap-x-4 gap-y-1'>
-                        {rows.map((row) => (
-                          <div key={row.id} className='contents'>
-                            <dt
+                        }
+                      >
+                        {total > 0 &&
+                          point.values.map((value, index) => (
+                            <span
+                              key={rows[index].id}
                               className={cn(
-                                'flex items-center gap-1.5 opacity-80',
-                                row.id === 'total' && 'font-medium opacity-100'
+                                'w-full first:rounded-b-none last:rounded-t-[3px]',
+                                colorOf(index)
                               )}
-                            >
-                              {row.dot && (
-                                <span
-                                  className={cn('size-2 rounded-sm', row.dot)}
-                                />
-                              )}
-                              {row.label}
-                            </dt>
-                            <dd
-                              className={cn(
-                                'text-right tabular-nums',
-                                row.id === 'total' && 'font-medium'
-                              )}
-                            >
-                              {row.value}
-                            </dd>
-                          </div>
-                        ))}
-                        {(point.extra ?? []).map((row) => (
-                          <div key={row.label} className='contents'>
-                            <dt className='opacity-80'>{row.label}</dt>
-                            <dd className='text-right tabular-nums'>
-                              {row.value}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </TooltipContent>
-                  </Tooltip>
-                </li>
-              )
-            })}
-          </ol>
-        </TooltipProvider>
+                              style={{ height: `${(value / top) * 100}%` }}
+                            />
+                          ))}
+                        {barLabels && total > 0 && (
+                          <span
+                            aria-hidden
+                            className='text-muted-foreground truncate pb-0.5 text-center text-[10px] leading-none tabular-nums'
+                          >
+                            {axisFormat(total)}
+                          </span>
+                        )}
+                      </TooltipTrigger>
+                      <TooltipContent className='block min-w-40 py-2'>
+                        <p className='mb-1.5 font-semibold'>{point.title}</p>
+                        <dl className='grid grid-cols-[1fr_auto] gap-x-4 gap-y-1'>
+                          {rows.map((row) => (
+                            <div key={row.id} className='contents'>
+                              <dt
+                                className={cn(
+                                  'flex items-center gap-1.5 opacity-80',
+                                  row.id === 'total' &&
+                                    'font-medium opacity-100'
+                                )}
+                              >
+                                {row.dot && (
+                                  <span
+                                    className={cn('size-2 rounded-sm', row.dot)}
+                                  />
+                                )}
+                                {row.label}
+                              </dt>
+                              <dd
+                                className={cn(
+                                  'text-right tabular-nums',
+                                  row.id === 'total' && 'font-medium'
+                                )}
+                              >
+                                {row.value}
+                              </dd>
+                            </div>
+                          ))}
+                          {(point.extra ?? []).map((row) => (
+                            <div key={row.label} className='contents'>
+                              <dt className='opacity-80'>{row.label}</dt>
+                              <dd className='text-right tabular-nums'>
+                                {row.value}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </TooltipContent>
+                    </Tooltip>
+                  </li>
+                )
+              })}
+            </ol>
+          </TooltipProvider>
+        </div>
         <span aria-hidden />
         <div
           aria-hidden
-          className='text-muted-foreground -mt-1 flex justify-between gap-2 text-[10px] tabular-nums'
+          className='text-muted-foreground relative mt-1 h-3 text-[10px] leading-none tabular-nums'
         >
-          <span>{first?.title}</span>
-          {last !== first && <span>{last?.title}</span>}
+          {labels.map((label) => {
+            // A segment's label sits at its start; a bar's under its centre.
+            const offset = segmented ? label.index : label.index + 0.5
+            const position = (offset / Math.max(count, 1)) * 100
+            return (
+              <span
+                key={label.index}
+                className={cn(
+                  'absolute whitespace-nowrap',
+                  !segmented &&
+                    position > 4 &&
+                    position < 96 &&
+                    '-translate-x-1/2',
+                  !segmented && position >= 96 && '-translate-x-full'
+                )}
+                style={{ left: `${Math.min(position, 100)}%` }}
+              >
+                {label.text}
+              </span>
+            )
+          })}
         </div>
       </div>
       {stacked && (
         <ul className='text-muted-foreground flex flex-wrap gap-3 text-xs'>
           {props.series.map((item, index) => (
             <li key={item.label} className='flex items-center gap-1.5'>
-              <span
-                className={cn(
-                  'size-2 rounded-sm',
-                  DOT_COLORS[index % DOT_COLORS.length]
-                )}
-              />
+              <span className={cn('size-2 rounded-sm', dotOf(index))} />
               {item.label}
             </li>
           ))}
@@ -472,6 +752,8 @@ export function SimpleTable<T>(props: {
   rows: T[] | null | undefined
   rowKey: (row: T, index: number) => string | number
   empty: string
+  /** Fades a row whose figures carry little weight, such as a small sample. */
+  faded?: (row: T) => boolean
 }) {
   const { t } = useTranslation()
   const [page, setPage] = useState(0)
@@ -494,7 +776,7 @@ export function SimpleTable<T>(props: {
                 <TableHead
                   key={column.key}
                   className={cn(
-                    'first:pl-4 last:pr-4',
+                    'text-muted-foreground h-9 text-xs first:pl-4 last:pr-4',
                     column.align === 'right' && 'text-right'
                   )}
                 >
@@ -503,14 +785,17 @@ export function SimpleTable<T>(props: {
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className='[&>tr]:h-10'>
             {visible.map((row, index) => (
-              <TableRow key={props.rowKey(row, offset + index)}>
+              <TableRow
+                key={props.rowKey(row, offset + index)}
+                className={cn(props.faded?.(row) && 'text-muted-foreground')}
+              >
                 {props.columns.map((column) => (
                   <TableCell
                     key={column.key}
                     className={cn(
-                      'tabular-nums first:pl-4 last:pr-4',
+                      'py-1.5 tabular-nums first:pl-4 last:pr-4',
                       column.align === 'right' && 'text-right'
                     )}
                   >
@@ -551,6 +836,19 @@ export function SimpleTable<T>(props: {
         </div>
       )}
     </TooltipProvider>
+  )
+}
+
+/**
+ * A count with its rate beside it, in a fixed-width muted column, so both
+ * line up when a table is read down.
+ */
+export function CountRate(props: { count: string; rate: string }) {
+  return (
+    <span className='inline-flex items-baseline justify-end gap-2'>
+      <span>{props.count}</span>
+      <span className='text-muted-foreground w-12 text-xs'>{props.rate}</span>
+    </span>
   )
 }
 

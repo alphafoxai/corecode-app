@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth-store'
 const siteInsightsSearchSchema = z.object({
   tab: z
     .enum([
+      'overview',
       'capacity',
       'finance',
       'risk',
