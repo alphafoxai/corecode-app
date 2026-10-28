@@ -1,7 +1,9 @@
 package model
 
 import (
+	"cmp"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -633,6 +635,114 @@ func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
 	totals.CommissionBase = commission.Base
 	totals.Commission = commission.Amount
 	return totals, nil
+}
+
+// affiliateSecondLevelSourceLimit bounds the sources AffiliateSecondLevel
+// lists; its totals still cover all of them.
+const affiliateSecondLevelSourceLimit = 20
+
+// AffiliateSecondLevel is what an affiliate earns from the users its invitees
+// invited. InviteeCount counts those users whether or not they paid;
+// CommissionBase and Commission sum the second-level credits the way
+// AffiliateInviteeTotals sums the first-level ones, so the two Commissions
+// add up to Affiliate.Earned. Sources splits the figures by the invitee who
+// brought those users in, biggest commission first, and lists at most
+// affiliateSecondLevelSourceLimit of SourceCount.
+type AffiliateSecondLevel struct {
+	InviteeCount   int64                        `json:"invitee_count"`
+	CommissionBase int64                        `json:"commission_base"`
+	Commission     int64                        `json:"commission"`
+	SourceCount    int                          `json:"source_count"`
+	Sources        []AffiliateSecondLevelSource `json:"sources"`
+}
+
+// AffiliateSecondLevelSource is one invitee's share of AffiliateSecondLevel.
+// A credit counts toward the source user's current inviter, so it moves with
+// them when an administrator changes who invited them.
+type AffiliateSecondLevelSource struct {
+	Id             int    `json:"id"`
+	Name           string `json:"name"`
+	InviteeCount   int64  `json:"invitee_count"`
+	CommissionBase int64  `json:"commission_base"`
+	Commission     int64  `json:"commission"`
+}
+
+func SumAffiliateSecondLevel(userId int) (AffiliateSecondLevel, error) {
+	secondLevel := AffiliateSecondLevel{Sources: []AffiliateSecondLevelSource{}}
+	var commission struct {
+		Base   int64
+		Amount int64
+	}
+	if err := DB.Model(&AffiliateCommission{}).Where("user_id = ? AND level = 2", userId).
+		Select("COALESCE(SUM(base), 0) AS base, COALESCE(SUM(amount), 0) AS amount").Scan(&commission).Error; err != nil {
+		return secondLevel, err
+	}
+	secondLevel.CommissionBase = commission.Base
+	secondLevel.Commission = commission.Amount
+
+	sources := make(map[int]*AffiliateSecondLevelSource)
+	var counts []struct {
+		ViaId    int
+		Invitees int64
+	}
+	invitees := DB.Model(&User{}).Select("id").Where("inviter_id = ?", userId)
+	if err := DB.Model(&User{}).Select("inviter_id AS via_id, COUNT(*) AS invitees").
+		Where("inviter_id IN (?) AND id <> ?", invitees, userId).
+		Group("inviter_id").Scan(&counts).Error; err != nil {
+		return secondLevel, err
+	}
+	for _, count := range counts {
+		secondLevel.InviteeCount += count.Invitees
+		sources[count.ViaId] = &AffiliateSecondLevelSource{Id: count.ViaId, InviteeCount: count.Invitees}
+	}
+	var credits []struct {
+		ViaId  int
+		Base   int64
+		Amount int64
+	}
+	if err := DB.Model(&AffiliateCommission{}).
+		Select("users.inviter_id AS via_id, COALESCE(SUM(affiliate_commissions.base), 0) AS base, COALESCE(SUM(affiliate_commissions.amount), 0) AS amount").
+		Joins("JOIN users ON users.id = affiliate_commissions.source_user_id").
+		Where("affiliate_commissions.user_id = ? AND affiliate_commissions.level = 2 AND users.inviter_id <> 0", userId).
+		Group("users.inviter_id").Scan(&credits).Error; err != nil {
+		return secondLevel, err
+	}
+	for _, credit := range credits {
+		source := sources[credit.ViaId]
+		if source == nil {
+			source = &AffiliateSecondLevelSource{Id: credit.ViaId}
+			sources[credit.ViaId] = source
+		}
+		source.CommissionBase = credit.Base
+		source.Commission = credit.Amount
+	}
+
+	for _, source := range sources {
+		secondLevel.Sources = append(secondLevel.Sources, *source)
+	}
+	slices.SortFunc(secondLevel.Sources, func(a, b AffiliateSecondLevelSource) int {
+		if a.Commission != b.Commission {
+			return cmp.Compare(b.Commission, a.Commission)
+		}
+		if a.InviteeCount != b.InviteeCount {
+			return cmp.Compare(b.InviteeCount, a.InviteeCount)
+		}
+		return cmp.Compare(a.Id, b.Id)
+	})
+	secondLevel.SourceCount = len(secondLevel.Sources)
+	secondLevel.Sources = secondLevel.Sources[:min(len(secondLevel.Sources), affiliateSecondLevelSourceLimit)]
+	ids := make([]int, 0, len(secondLevel.Sources))
+	for _, source := range secondLevel.Sources {
+		ids = append(ids, source.Id)
+	}
+	names, err := affiliateUsernames(ids)
+	if err != nil {
+		return secondLevel, err
+	}
+	for i := range secondLevel.Sources {
+		secondLevel.Sources[i].Name = names[secondLevel.Sources[i].Id]
+	}
+	return secondLevel, nil
 }
 
 // AffiliateGiftPlan returns the plan a user's invitees receive when they sign

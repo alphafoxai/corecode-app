@@ -122,6 +122,13 @@ it('lists each invitee with their spend and commission, and totals over all invi
         commission_base: 300 * QUOTA,
         commission: 30 * QUOTA,
       },
+      second_level: {
+        invitee_count: 1,
+        commission_base: 0,
+        commission: 0,
+        source_count: 1,
+        sources: [],
+      },
       gift_plan_title: '',
     },
     {
@@ -167,6 +174,11 @@ it('lists each invitee with their spend and commission, and totals over all invi
   expect(link.value).toMatch(/aff=AB12$/)
   expect(screen.getByText('Rate 10%')).toBeVisible()
   expect(screen.queryByText('Promotion channel')).toBeNull()
+  expect(within(stats).getByText('Commission from invitees')).toBeVisible()
+  expect(
+    screen.queryByText('Second-level commission'),
+    'a user who is not a distributor and earned nothing there sees no second level'
+  ).toBeNull()
   expect(get).toHaveBeenCalledWith('/api/affiliate/self/invitees', {
     params: { p: 1, page_size: 20 },
   })
@@ -219,6 +231,95 @@ it('marks a promotion channel next to its rate', async () => {
 
   expect(await screen.findByText('Rate 30%')).toBeVisible()
   expect(screen.getByText('Promotion channel')).toBeVisible()
+})
+
+it('shows a distributor the second level, how it adds up, and who brought it in', async () => {
+  renderPage(
+    {
+      items: [],
+      total: 5,
+      page: 1,
+      page_size: 20,
+      totals: {
+        used_quota: 0,
+        commission_base: 10 * QUOTA,
+        commission: 3 * QUOTA,
+      },
+      second_level: {
+        invitee_count: 4,
+        commission_base: 20 * QUOTA,
+        commission: QUOTA,
+        source_count: 3,
+        sources: [
+          {
+            id: 181,
+            name: 'james',
+            invitee_count: 1,
+            commission_base: 20 * QUOTA,
+            commission: QUOTA,
+          },
+        ],
+      },
+      gift_plan_title: '',
+    },
+    {
+      affiliate: {
+        id: 1,
+        user_id: 9,
+        rate: 30,
+        channel: true,
+        tier: 'distributor',
+        granted_by: 1,
+        balance: 2 * QUOTA,
+        earned: 4 * QUOTA,
+        created_at: 1,
+        updated_at: 1,
+      } as never,
+      aff_code: 'Tttb',
+    }
+  )
+
+  const card = (await screen.findByText('Second-level commission')).closest(
+    '[data-slot="card"]'
+  ) as HTMLElement
+  expect(
+    within(card).getByText(
+      'When users you invited invite others, you also earn 5% of what those users pay to use.'
+    )
+  ).toBeVisible()
+  expect(within(card).getByText('Second level 5%')).toBeVisible()
+  expect(
+    within(card).getByText('You earn 30% of their paid spend')
+  ).toBeVisible()
+  expect(
+    within(card).getByText('You earn 5% of their paid spend')
+  ).toBeVisible()
+
+  const split = within(card)
+    .getByText('Where your commission comes from')
+    .closest('section') as HTMLElement
+  const share = (label: string) =>
+    within(split).getByText(label, { selector: 'dt' }).nextElementSibling
+  expect(share('Direct invitees')).toHaveTextContent(formatQuota(3 * QUOTA))
+  expect(share('Direct invitees')).toHaveTextContent('75%')
+  expect(share('Second level')).toHaveTextContent(formatQuota(QUOTA))
+  expect(share('Second level')).toHaveTextContent('25%')
+  expect(share('Earned in total')).toHaveTextContent(formatQuota(4 * QUOTA))
+
+  const row = within(card)
+    .getByText('james', { selector: 'td' })
+    .closest('tr') as HTMLElement
+  expect(within(row).getByText(formatQuota(20 * QUOTA))).toBeVisible()
+  expect(within(row).getByText(formatQuota(QUOTA))).toBeVisible()
+  expect(
+    within(card).getByText('Showing the 1 invitees who earned you the most.')
+  ).toBeVisible()
+
+  const stats = screen.getByText('Invites').closest('dl') as HTMLElement
+  expect(
+    within(stats).getByText('Direct commission'),
+    'next to a second level, the overview names its figure as direct'
+  ).toBeVisible()
 })
 
 it('reports which invitees received the plan at sign-up, with nothing to click', async () => {

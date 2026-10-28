@@ -87,7 +87,8 @@ func GetSelfAffiliateCommissions(c *gin.Context) {
 }
 
 // GetSelfAffiliateInvitees pages the users the caller invited, with totals
-// over all of them and the title of the plan they receive at sign-up, empty
+// over all of them, what the caller earned from the users they invited in
+// turn, and the title of the plan they receive at sign-up, empty
 // when the caller is not a promotion channel or their tier has no plan. It
 // answers even when the program is off, because users invited earlier stay
 // the caller's invitees.
@@ -100,6 +101,11 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 		return
 	}
 	totals, err := model.SumAffiliateInvitees(userId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	secondLevel, err := model.SumAffiliateSecondLevel(userId)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -117,7 +123,7 @@ func GetSelfAffiliateInvitees(c *gin.Context) {
 	pageInfo.SetItems(invitees)
 	common.ApiSuccess(c, gin.H{
 		"page": pageInfo.Page, "page_size": pageInfo.PageSize, "total": pageInfo.Total,
-		"items": pageInfo.Items, "totals": totals, "gift_plan_title": giftPlanTitle,
+		"items": pageInfo.Items, "totals": totals, "second_level": secondLevel, "gift_plan_title": giftPlanTitle,
 	})
 }
 

@@ -48,8 +48,33 @@ export interface InviteeTotals {
   commission: number
 }
 
+/** One of the caller's invitees and the users they invited in turn. */
+export interface SecondLevelSource {
+  id: number
+  /** Username */
+  name: string
+  /** Users this invitee invited */
+  invitee_count: number
+  /** Their paid consumption the caller earned second-level commission on */
+  commission_base: number
+  commission: number
+}
+
+/** What the caller earned from the users their invitees invited, in quota */
+export interface SecondLevel {
+  /** Users the caller's invitees invited, paid or not */
+  invitee_count: number
+  commission_base: number
+  commission: number
+  /** Invitees who brought anyone in; sources lists the top ones */
+  source_count: number
+  sources: SecondLevelSource[]
+}
+
 export interface InviteePage extends AffiliatePage<Invitee> {
   totals: InviteeTotals
+  /** Only on the caller's own page */
+  second_level?: SecondLevel
   /** Title of the plan the caller can gift invitees; empty when gifting is off */
   gift_plan_title: string
 }

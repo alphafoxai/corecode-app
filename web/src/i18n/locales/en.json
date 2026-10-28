@@ -8311,6 +8311,23 @@
     "Customize invite code": "Customize invite code",
     "Brand names and simple codes such as 888 or 123 are reserved.": "Brand names and simple codes such as 888 or 123 are reserved.",
     "Reserved invite code words": "Reserved invite code words",
-    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked."
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.",
+    "Direct commission": "Direct commission",
+    "Second-level commission": "Second-level commission",
+    "When users you invited invite others, you also earn {{rate}}% of what those users pay to use.": "When users you invited invite others, you also earn {{rate}}% of what those users pay to use.",
+    "Second-level commission is for distributors. What you earned stays in your balance.": "Second-level commission is for distributors. What you earned stays in your balance.",
+    "Second level {{rate}}%": "Second level {{rate}}%",
+    "You": "You",
+    "Earned in total": "Earned in total",
+    "Your invitees": "Your invitees",
+    "Users they invited": "Users they invited",
+    "You earn {{rate}}% of their paid spend": "You earn {{rate}}% of their paid spend",
+    "Where your commission comes from": "Where your commission comes from",
+    "Direct invitees": "Direct invitees",
+    "Your commission balance is this total less what you transferred to your wallet or withdrew.": "Your commission balance is this total less what you transferred to your wallet or withdrew.",
+    "Brought in by your invitees": "Brought in by your invitees",
+    "None of your invitees has invited anyone yet.": "None of your invitees has invited anyone yet.",
+    "Your commission": "Your commission",
+    "Showing the {{shown}} invitees who earned you the most.": "Showing the {{shown}} invitees who earned you the most."
   }
 }

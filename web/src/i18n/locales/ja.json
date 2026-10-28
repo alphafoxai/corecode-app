@@ -8311,6 +8311,23 @@
     "Customize invite code": "招待コードをカスタマイズ",
     "Brand names and simple codes such as 888 or 123 are reserved.": "ブランド名や 888、123 のような単純なコードは予約されています。",
     "Reserved invite code words": "招待コードの予約語",
-    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "1 行に 1 つ。ユーザーはこれらの語そのものをコードにできません（大文字小文字・ハイフン・アンダースコアは無視）。語を含むだけのコードは使えます。888、6688、123 のような単純なコードは常に予約されます。あなたがユーザーに設定するコードは確認されません。"
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "1 行に 1 つ。ユーザーはこれらの語そのものをコードにできません（大文字小文字・ハイフン・アンダースコアは無視）。語を含むだけのコードは使えます。888、6688、123 のような単純なコードは常に予約されます。あなたがユーザーに設定するコードは確認されません。",
+    "Direct commission": "直接招待の報酬",
+    "Second-level commission": "2段階目の報酬",
+    "When users you invited invite others, you also earn {{rate}}% of what those users pay to use.": "招待したユーザーがさらに他の人を招待すると、その人たちの実入金による利用額の {{rate}}% も受け取れます。",
+    "Second-level commission is for distributors. What you earned stays in your balance.": "2段階目の報酬は販売代理店のみが対象です。獲得済みの報酬は残高に残ります。",
+    "Second level {{rate}}%": "2段階目 {{rate}}%",
+    "You": "あなた",
+    "Earned in total": "累計報酬",
+    "Your invitees": "招待したユーザー",
+    "Users they invited": "その人たちが招待したユーザー",
+    "You earn {{rate}}% of their paid spend": "実入金による利用額の {{rate}}% を獲得",
+    "Where your commission comes from": "報酬の内訳",
+    "Direct invitees": "直接招待",
+    "Your commission balance is this total less what you transferred to your wallet or withdrew.": "コミッション残高は、この累計からウォレットへの振替分と出金分を差し引いた額です。",
+    "Brought in by your invitees": "2段階目のユーザーを連れてきた人",
+    "None of your invitees has invited anyone yet.": "招待したユーザーはまだ誰も招待していません。",
+    "Your commission": "あなたの報酬",
+    "Showing the {{shown}} invitees who earned you the most.": "報酬の多い上位 {{shown}} 人のみ表示しています。"
   }
 }

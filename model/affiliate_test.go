@@ -378,6 +378,8 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			c := registerAffiliateTestUser(t, "aff_c", b.AffCode)
 			d := registerAffiliateTestUser(t, "aff_d", a.AffCode)
 			e := registerAffiliateTestUser(t, "aff_e", a.AffCode)
+			// F is D's invitee and has not paid.
+			registerAffiliateTestUser(t, "aff_f", d.AffCode)
 			for _, user := range []*User{b, c, d} {
 				payAffiliateTestTopUp(t, user.Id, 1000, PaymentProviderEpay)
 			}
@@ -405,6 +407,20 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, AffiliateInviteeTotals{UsedQuota: dollars(127), CommissionBase: dollars(112), Commission: dollars(30) + 1050000 + 750000}, totals)
 
+			// C and F are A's second-level users; only C paid, so only C earned A 5%.
+			secondLevel, err := SumAffiliateSecondLevel(a.Id)
+			require.NoError(t, err)
+			assert.Equal(t, AffiliateSecondLevel{
+				InviteeCount: 2, CommissionBase: dollars(200), Commission: dollars(10), SourceCount: 2,
+				Sources: []AffiliateSecondLevelSource{
+					{Id: b.Id, Name: "aff_b", InviteeCount: 1, CommissionBase: dollars(200), Commission: dollars(10)},
+					{Id: d.Id, Name: "aff_d", InviteeCount: 1},
+				},
+			}, secondLevel, "sources earning the most come first")
+			earned, err := GetAffiliate(a.Id)
+			require.NoError(t, err)
+			assert.Equal(t, earned.Earned, totals.Commission+secondLevel.Commission, "the two levels add up to everything A earned")
+
 			page, total, err := ListAffiliateInvitees(a.Id, &common.PageInfo{Page: 3, PageSize: 1})
 			require.NoError(t, err)
 			assert.EqualValues(t, 3, total)
@@ -412,13 +428,17 @@ func TestAffiliateInviteesDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, dollars(100), page[0].UsedQuota)
 
 			// A user who invited nobody gets an empty page and zero totals.
-			invitees, total, err = ListAffiliateInvitees(d.Id, &common.PageInfo{Page: 1, PageSize: 10})
+			invitees, total, err = ListAffiliateInvitees(e.Id, &common.PageInfo{Page: 1, PageSize: 10})
 			require.NoError(t, err)
 			assert.Zero(t, total)
 			assert.Empty(t, invitees)
-			totals, err = SumAffiliateInvitees(d.Id)
+			totals, err = SumAffiliateInvitees(e.Id)
 			require.NoError(t, err)
 			assert.Zero(t, totals)
+			// D invited F, who invited nobody: D has no second level.
+			secondLevel, err = SumAffiliateSecondLevel(d.Id)
+			require.NoError(t, err)
+			assert.Equal(t, AffiliateSecondLevel{Sources: []AffiliateSecondLevelSource{}}, secondLevel)
 		})
 	}
 }
