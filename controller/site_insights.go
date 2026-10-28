@@ -173,8 +173,23 @@ func GetGrowthInsights(c *gin.Context) {
 	serveInsights(c, model.InsightsMaxDays, model.GetGrowthInsights)
 }
 
+// ActivityResponse adds Claude's cost at official prices, as the engine
+// recorded it, beside the quota new-api charged.
+type ActivityResponse struct {
+	*model.ActivityInsights
+	EngineCost service.EngineDailyCost `json:"engine_cost"`
+}
+
 func GetActivityInsights(c *gin.Context) {
-	serveInsights(c, model.InsightsMaxDays, model.GetActivityInsights)
+	serveInsights(c, model.InsightsMaxDays, func(r model.InsightsRange) (*ActivityResponse, error) {
+		engineDone := make(chan service.EngineDailyCost, 1)
+		go func() { engineDone <- service.FetchEngineDailyCost(r.Start, r.End, r.Offset) }()
+		insights, err := model.GetActivityInsights(r)
+		if err != nil {
+			return nil, err
+		}
+		return &ActivityResponse{ActivityInsights: insights, EngineCost: <-engineDone}, nil
+	})
 }
 
 func GetQualityInsights(c *gin.Context) {

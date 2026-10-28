@@ -221,10 +221,20 @@ export type GrowthInsights = {
   subscription_to_topup: number
 }
 
+/** Claude's cost at official prices, as corecode-engine recorded it. */
+export type EngineDailyCost = {
+  configured: boolean
+  error?: string
+  cost_usd: number
+  requests: number
+  daily: { day: number; cost_usd: number; requests: number }[]
+}
+
 export type ActivityInsights = {
   active_users: number
   quota_usd: number
   requests: number
+  engine_cost: EngineDailyCost
   daily: {
     day: number
     dau: number
