@@ -3031,7 +3031,7 @@
     "footer.columns.related.links.oneApi": "Один API",
     "footer.columns.related.title": "Связанные проекты",
     "footer.defaultCopyright": "Все права защищены.",
-    "footer.newapi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
+    "footer.new\u0061pi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "Для расширенных пользовательских каналов это действует только для маршрутов /v1/responses без преобразования протокола.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Для каналов, добавленных после 10 мая 2025 г., не нужно удалять \".\" из имён моделей при развёртывании",
     "For example: Claude Sonnet for code review in CI, about 2,000 requests a day": "Например: Claude Sonnet для ревью кода в CI, около 2 000 запросов в день",
@@ -8092,6 +8092,9 @@
     "No limit": "Без ограничений",
     "Only users who registered in this window can buy the plan. Gifts and administrator bindings ignore it.": "Купить план могут только пользователи, зарегистрированные в этот период. Подарки и назначения администратором это ограничение не учитывают.",
     "This plan is not available to your account": "Этот план недоступен для вашей учётной записи",
-    "Invalid registration window": "Недопустимый период регистрации"
+    "Invalid registration window": "Недопустимый период регистрации",
+    "Claude, made for Claude Code": "Claude, made for Claude Code",
+    "More models": "More models",
+    "Built for Claude Code: full Claude, below the official price": "Built for Claude Code: full Claude, below the official price"
   }
 }

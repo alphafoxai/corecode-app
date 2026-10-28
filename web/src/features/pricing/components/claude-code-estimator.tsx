@@ -39,6 +39,7 @@ import {
   estimateClaudeCodeCost,
   type ClaudeCodeWorkload,
 } from '../lib/claude-code-estimate'
+import { CLAUDE_VENDOR, modelVendor } from '../lib/group-vendors'
 import { isTokenBasedModel } from '../lib/model-helpers'
 import type { PricingModel } from '../types'
 
@@ -92,7 +93,13 @@ export function ClaudeCodeEstimator(props: {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const hitRateId = useId()
-  const models = props.models.filter(isTokenBasedModel)
+  // Claude Code calls Claude only; other pools and aliases into them do not apply.
+  const models = props.models.filter(
+    (item) =>
+      isTokenBasedModel(item) &&
+      !item.model_name.includes('/') &&
+      modelVendor(item)?.name === CLAUDE_VENDOR
+  )
   const [modelName, setModelName] = useState<string | null>(null)
   const [workload, setWorkload] = useState<ClaudeCodeWorkload>(DEFAULT_WORKLOAD)
 
