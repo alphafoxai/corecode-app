@@ -239,7 +239,7 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
       const apiKey = await resolveKey()
       if (!apiKey) return
       window.open(
-        buildMagpieImportURL({ baseUrl, apiKey, providerName, models }),
+        buildMagpieImportURL({ baseUrl, apiKey, providerName }),
         '_blank',
         'noopener'
       )

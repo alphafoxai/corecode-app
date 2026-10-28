@@ -14,8 +14,10 @@ can be one click from a working provider.
 - **`buildMagpieImportURL`** in `lib/client-setup.ts` builds the link:
   `anthropic=<base>`, `chat=<base>/v1`, `responses=<base>/v1` (CoreCode serves
   all three), `key`, `id=corecode`, `name` (the console's provider name),
-  `models` (`pickClaudeModels`), `website`, `keys` (`<base>/keys`), `icon`
-  (`<base>/brand/logo.svg`). `id=corecode` matches Magpie's built-in preset, so
+  `website`, `keys` (`<base>/keys`), `icon` (`<base>/brand/logo.svg`). It
+  carries no `models`: Magpie then lists what `/v1/models` returns for the key,
+  so an Auto key offers its GPT, Grok and Gemini models to the agents that use
+  `chat` and `responses`, and a Claude-Code-only key offers Claude alone. `id=corecode` matches Magpie's built-in preset, so
   the import replaces it instead of adding a duplicate. Parameters are explicit
   rather than `preset=corecode`, so the link does not depend on the preset's
   current contents.
@@ -25,8 +27,7 @@ can be one click from a working provider.
 - **Two entry points.** The setup guide's Magpie tab gets an "Add to Magpie"
   button next to the existing snippet. The key row menu gets a "Magpie" item
   after "CC Switch" that opens the link directly, with no extra dialog, because
-  Magpie confirms the hosts, key and models itself. The row has no model list,
-  so it uses `pickClaudeModels([])` (the default Claude models).
+  Magpie confirms the hosts, key and models itself.
 - **Web link, not `magpie://`.** usemagpie.ai/import loads Cloudflare Web
   Analytics. The served `beacon.min.js` (version 2026.10.1) sanitizes the page
   `location` and `referrer` through a function that clears `username`,
@@ -51,5 +52,5 @@ can be one click from a working provider.
 ## Verification
 
 `buildMagpieImportURL` tests cover the fragment-only key, the `/v1` endpoints,
-the shared id, the models, and encoding. Typecheck, lint, format and the keys
+the shared id, the absence of `models`, and encoding. Typecheck, lint, format and the keys
 tests pass.

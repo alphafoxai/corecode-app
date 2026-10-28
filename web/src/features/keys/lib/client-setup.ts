@@ -221,13 +221,14 @@ export function buildCCSwitchURL(args: {
  * Web link for Magpie's one-click import. Everything rides in the fragment, so
  * the key never reaches a server; the page hands it to `magpie://import`, and
  * Magpie shows a confirmation before it saves. The shared id replaces the
- * built-in CoreCode preset instead of adding a second provider.
+ * built-in CoreCode preset instead of adding a second provider. No `models`:
+ * Magpie then reads /v1/models with the key, so each agent sees what that key
+ * can call, GPT models included on an Auto key.
  */
 export function buildMagpieImportURL(args: {
   baseUrl: string
   apiKey: string
   providerName: string
-  models: readonly string[]
 }): string {
   const params = new URLSearchParams()
   params.set('name', args.providerName)
@@ -236,7 +237,6 @@ export function buildMagpieImportURL(args: {
   params.set('responses', `${args.baseUrl}/v1`)
   params.set('anthropic', args.baseUrl)
   params.set('key', args.apiKey)
-  params.set('models', pickClaudeModels(args.models).join(','))
   params.set('website', args.baseUrl)
   params.set('keys', `${args.baseUrl}/keys`)
   params.set('icon', `${args.baseUrl}/brand/logo.svg`)

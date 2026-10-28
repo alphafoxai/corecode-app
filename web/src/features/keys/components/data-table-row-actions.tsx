@@ -58,11 +58,7 @@ import { handleServerError } from '@/lib/handle-server-error'
 
 import { updateApiKeyStatus } from '../api'
 import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
-import {
-  buildMagpieImportURL,
-  getAnthropicBaseUrl,
-  pickClaudeModels,
-} from '../lib/client-setup'
+import { buildMagpieImportURL, getAnthropicBaseUrl } from '../lib/client-setup'
 import { apiKeySchema } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
@@ -153,7 +149,6 @@ export function DataTableRowActions<TData>({
       baseUrl: getAnthropicBaseUrl(serverAddress, window.location.origin),
       apiKey: realKey,
       providerName: status?.system_name?.trim() || 'CoreCode',
-      models: pickClaudeModels([]),
     })
     window.open(url, '_blank', 'noopener')
   }

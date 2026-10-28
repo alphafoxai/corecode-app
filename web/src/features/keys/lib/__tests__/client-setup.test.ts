@@ -278,22 +278,21 @@ describe('buildMagpieImportURL', () => {
     expect(params.get('responses')).toBe('https://corecode.live/v1')
   })
 
-  test('names the provider with the shared id and the Claude models', () => {
+  test('names the provider with the shared id and leaves the models to /v1/models', () => {
     expect(params.get('id')).toBe('corecode')
     expect(params.get('name')).toBe('CoreCode')
-    expect(params.get('models')).toBe('claude-opus-5-5,claude-sonnet-5-5')
+    expect(params.has('models')).toBe(false)
     expect(params.get('website')).toBe('https://corecode.live')
     expect(params.get('keys')).toBe('https://corecode.live/keys')
     expect(params.get('icon')).toBe('https://corecode.live/brand/logo.svg')
   })
 
-  test('falls back to the default models and encodes special characters', () => {
-    const fallback = new URLSearchParams(
+  test('encodes special characters', () => {
+    const encoded = new URLSearchParams(
       new URL(
-        buildMagpieImportURL({ ...args, providerName: 'A & B', models: [] })
+        buildMagpieImportURL({ ...args, providerName: 'A & B' })
       ).hash.slice(1)
     )
-    expect(fallback.get('models')).toBe(DEFAULT_CLAUDE_MODELS.join(','))
-    expect(fallback.get('name')).toBe('A & B')
+    expect(encoded.get('name')).toBe('A & B')
   })
 })
