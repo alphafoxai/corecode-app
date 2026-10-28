@@ -28,13 +28,27 @@ import { cn } from '@/lib/utils'
 
 import { useInsightsFormat, useSignupMethodLabel } from '../lib'
 import type { ActivityInsights, FunnelRow, GrowthInsights } from '../types'
-import { BarSeries, MetricGrid, Panel, SimpleTable, UserLabel } from './shared'
+import {
+  BarSeries,
+  CountRate,
+  MetricGrid,
+  Panel,
+  SimpleTable,
+  UserLabel,
+} from './shared'
 
-export function GrowthTab(props: { data: GrowthInsights | undefined }) {
+export function GrowthTab(props: {
+  data: GrowthInsights | undefined
+  previous?: GrowthInsights
+}) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const label = useSignupMethodLabel()
   const data = props.data
+  const previous = props.previous
+  const cohortHelp = t(
+    'Accounts created in the range, followed up to now. Activated: sent a request. Paid: completed a gateway order.'
+  )
   const funnel = data?.funnel
   const rate = (part: number, whole: number) =>
     whole ? fmt.pct(part / whole) : '-'
@@ -54,22 +68,34 @@ export function GrowthTab(props: { data: GrowthInsights | undefined }) {
       key: 'act',
       label: t('Activated'),
       align: 'right' as const,
-      render: (row: FunnelRow) =>
-        `${fmt.num(row.activated)} · ${rate(row.activated, row.registered)}`,
+      render: (row: FunnelRow) => (
+        <CountRate
+          count={fmt.num(row.activated)}
+          rate={rate(row.activated, row.registered)}
+        />
+      ),
     },
     {
       key: 'paid',
       label: t('Has paid'),
       align: 'right' as const,
-      render: (row: FunnelRow) =>
-        `${fmt.num(row.paid)} · ${rate(row.paid, row.registered)}`,
+      render: (row: FunnelRow) => (
+        <CountRate
+          count={fmt.num(row.paid)}
+          rate={rate(row.paid, row.registered)}
+        />
+      ),
     },
     {
       key: 'repeat',
       label: t('Paid again'),
       align: 'right' as const,
-      render: (row: FunnelRow) =>
-        `${fmt.num(row.repeat)} · ${rate(row.repeat, row.paid)}`,
+      render: (row: FunnelRow) => (
+        <CountRate
+          count={fmt.num(row.repeat)}
+          rate={rate(row.repeat, row.paid)}
+        />
+      ),
     },
   ]
 
@@ -78,11 +104,23 @@ export function GrowthTab(props: { data: GrowthInsights | undefined }) {
       <MetricGrid
         loading={!data}
         items={[
-          { label: t('Registered'), value: fmt.num(funnel?.registered ?? 0) },
+          {
+            label: t('Registered'),
+            featured: true,
+            value: fmt.num(funnel?.registered ?? 0),
+            help: cohortHelp,
+            delta: {
+              current: funnel?.registered ?? 0,
+              previous: previous?.funnel.registered,
+              better: 'up',
+            },
+            trend: (data?.daily ?? []).map((day) => day.registered),
+          },
           {
             label: t('Activated'),
             value: fmt.num(funnel?.activated ?? 0),
             hint: rate(funnel?.activated ?? 0, funnel?.registered ?? 0),
+            help: cohortHelp,
             tone:
               funnel &&
               funnel.registered > 0 &&
@@ -94,38 +132,35 @@ export function GrowthTab(props: { data: GrowthInsights | undefined }) {
             label: t('Has paid'),
             value: fmt.num(funnel?.paid ?? 0),
             hint: rate(funnel?.paid ?? 0, funnel?.registered ?? 0),
+            help: cohortHelp,
           },
           {
             label: t('Paid again'),
             value: fmt.num(funnel?.repeat ?? 0),
-            hint: rate(funnel?.repeat ?? 0, funnel?.paid ?? 0),
-          },
-          {
-            label: t('Plan buyers'),
-            value: fmt.num(data?.subscription_buyers ?? 0),
+            hint: t('{{rate}} of payers', {
+              rate: rate(funnel?.repeat ?? 0, funnel?.paid ?? 0),
+            }),
           },
           {
             label: t('Plan → top-up'),
             value: fmt.num(data?.subscription_to_topup ?? 0),
-            hint: rate(
-              data?.subscription_to_topup ?? 0,
-              data?.subscription_buyers ?? 0
-            ),
+            hint: t('{{rate}} of {{count}} plan buyers', {
+              rate: rate(
+                data?.subscription_to_topup ?? 0,
+                data?.subscription_buyers ?? 0
+              ),
+              count: data?.subscription_buyers ?? 0,
+            }),
           },
         ]}
       />
-      <p className='text-muted-foreground text-xs'>
-        {t(
-          'Accounts created in the range, followed up to now. Activated: sent a request. Paid: completed a gateway order.'
-        )}
-      </p>
-      <Panel title={t('Sign-ups by day and what they did')}>
+      <Panel title={t('Sign-ups by day and what they did')} help={cohortHelp}>
         <BarSeries
           ariaLabel={t('Sign-ups by day')}
           series={[
             { label: t('Has paid') },
             { label: t('Activated, not paid') },
-            { label: t('Not activated') },
+            { label: t('Not activated'), muted: true },
           ]}
           points={(data?.daily ?? []).map((day) => ({
             key: day.day,
@@ -160,21 +195,67 @@ export function GrowthTab(props: { data: GrowthInsights | undefined }) {
   )
 }
 
-export function ActivityTab(props: { data: ActivityInsights | undefined }) {
+export function ActivityTab(props: {
+  data: ActivityInsights | undefined
+  previous?: ActivityInsights
+}) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const data = props.data
-  const last = data?.daily.at(-1)
+  const previous = props.previous
+  const daily = data?.daily ?? []
+  const last = daily.at(-1)
+  const busiest = daily.reduce<(typeof daily)[number] | undefined>(
+    (top, day) => (!top || day.quota_usd > top.quota_usd ? day : top),
+    undefined
+  )
 
   return (
     <div className='grid gap-4'>
       <MetricGrid
         loading={!data}
         items={[
-          { label: t('Active users'), value: fmt.num(data?.active_users ?? 0) },
-          { label: t('DAU (last day)'), value: fmt.num(last?.dau ?? 0) },
-          { label: t('WAU (last day)'), value: fmt.num(last?.wau ?? 0) },
-          { label: t('Consumption'), value: fmt.usd(data?.quota_usd ?? 0) },
+          {
+            label: t('Active users'),
+            featured: true,
+            value: fmt.num(data?.active_users ?? 0),
+            delta: {
+              current: data?.active_users ?? 0,
+              previous: previous?.active_users,
+              better: 'up',
+            },
+            trend: daily.map((day) => day.dau),
+            hint: t('DAU {{dau}} · WAU {{wau}} on the last day', {
+              dau: fmt.num(last?.dau ?? 0),
+              wau: fmt.num(last?.wau ?? 0),
+            }),
+          },
+          {
+            label: t('Consumption'),
+            value: fmt.usd(data?.quota_usd ?? 0),
+            hint: t('USD at list price'),
+            delta: {
+              current: data?.quota_usd ?? 0,
+              previous: previous?.quota_usd,
+              better: 'up',
+            },
+          },
+          {
+            label: t('Requests'),
+            value: fmt.num(data?.requests ?? 0),
+            delta: {
+              current: data?.requests ?? 0,
+              previous: previous?.requests,
+              better: 'up',
+            },
+          },
+          {
+            label: t('Per active user'),
+            value: data?.active_users
+              ? fmt.usd(data.quota_usd / data.active_users)
+              : '-',
+            hint: t('Consumption per active user'),
+          },
           {
             label: t('Top 3 share'),
             value: fmt.pct(data?.top3_share ?? 0),
@@ -182,9 +263,11 @@ export function ActivityTab(props: { data: ActivityInsights | undefined }) {
               top1: fmt.pct(data?.top1_share ?? 0),
               top10: fmt.pct(data?.top10_share ?? 0),
             }),
+            help: t(
+              'Share of consumption from the three largest customers. Colored above 60%, where losing one customer moves the total.'
+            ),
             tone: (data?.top3_share ?? 0) > 0.6 ? 'warning' : 'default',
           },
-          { label: t('Requests'), value: fmt.num(data?.requests ?? 0) },
         ]}
       />
       <div className='grid gap-4 lg:grid-cols-2'>
@@ -192,7 +275,7 @@ export function ActivityTab(props: { data: ActivityInsights | undefined }) {
           <BarSeries
             ariaLabel={t('Daily active users')}
             series={[{ label: t('DAU') }]}
-            points={(data?.daily ?? []).map((day) => ({
+            points={daily.map((day) => ({
               key: day.day,
               title: fmt.day(day.day),
               values: [day.dau],
@@ -200,11 +283,27 @@ export function ActivityTab(props: { data: ActivityInsights | undefined }) {
             }))}
           />
         </Panel>
-        <Panel title={t('Daily consumption')}>
+        <Panel
+          title={t('Daily consumption')}
+          description={
+            busiest && busiest.quota_usd > 0
+              ? t('Busiest day {{day}}: {{amount}}.', {
+                  day: fmt.day(busiest.day),
+                  amount: fmt.usd(busiest.quota_usd),
+                })
+              : undefined
+          }
+        >
           <BarSeries
             ariaLabel={t('Daily consumption')}
-            series={[{ label: t('Consumption'), format: fmt.usd }]}
-            points={(data?.daily ?? []).map((day) => ({
+            series={[
+              {
+                label: t('Consumption'),
+                format: fmt.usd,
+                compact: fmt.usdCompact,
+              },
+            ]}
+            points={daily.map((day) => ({
               key: day.day,
               title: fmt.day(day.day),
               values: [day.quota_usd],
@@ -215,7 +314,7 @@ export function ActivityTab(props: { data: ActivityInsights | undefined }) {
       </div>
       <Panel
         title={t('Retention by sign-up day')}
-        description={t(
+        help={t(
           'Share of each day’s sign-ups that sent a request N days later. Day 0 is the sign-up day.'
         )}
       >

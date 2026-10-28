@@ -20,7 +20,11 @@ import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 
-import { useInsightsFormat, useSignupMethodLabel } from '../lib'
+import {
+  useInsightsFormat,
+  useSharedAddresses,
+  useSignupMethodLabel,
+} from '../lib'
 import type { RiskInsights } from '../types'
 import {
   BarSeries,
@@ -29,36 +33,62 @@ import {
   Panel,
   SimpleTable,
   UserLabel,
+  type Tone,
 } from './shared'
 
-export function RiskTab(props: { data: RiskInsights | undefined }) {
+export function RiskTab(props: {
+  data: RiskInsights | undefined
+  previous?: RiskInsights
+}) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const methodLabel = useSignupMethodLabel()
   const data = props.data
-  const clusters = data?.shared_ips ?? []
+  const previous = props.previous
+  const clusters = useSharedAddresses(data)
+  const repeatBuyers = clusters.some(
+    (cluster) => cluster.subscription_buyers > 1
+  )
+  let sharedTone: Tone = clusters.length > 0 ? 'warning' : 'default'
+  if (repeatBuyers) sharedTone = 'danger'
+  const zeroShare = (insights: RiskInsights | undefined) =>
+    insights?.signups ? insights.zero_use_accounts / insights.signups : 0
+  const pointTitle = (at: number) =>
+    data?.series_unit === 'day' ? fmt.day(at) : fmt.time(at)
 
   return (
     <div className='grid gap-4'>
       <MetricGrid
         loading={!data}
         items={[
-          { label: t('Sign-ups'), value: fmt.num(data?.signups ?? 0) },
           {
-            label: t('Busiest {{unit}}', {
-              unit: data?.series_unit === 'day' ? t('day') : t('hour'),
-            }),
-            value: fmt.num(data?.peak_signups.count ?? 0),
+            label: t('Sign-ups'),
+            featured: true,
+            value: fmt.num(data?.signups ?? 0),
+            delta: {
+              current: data?.signups ?? 0,
+              previous: previous?.signups,
+              better: 'neutral',
+            },
+            trend: (data?.signup_series ?? []).map((point) => point.count),
             hint: data?.peak_signups.count
-              ? fmt.time(data.peak_signups.at)
+              ? t('Busiest {{unit}}: {{count}} at {{time}}', {
+                  unit: data.series_unit === 'day' ? t('day') : t('hour'),
+                  count: fmt.num(data.peak_signups.count),
+                  time: fmt.time(data.peak_signups.at),
+                })
               : undefined,
           },
           {
             label: t('Never sent a request'),
             value: fmt.num(data?.zero_use_accounts ?? 0),
-            hint: data?.signups
-              ? fmt.pct(data.zero_use_accounts / data.signups)
-              : undefined,
+            hint: data?.signups ? fmt.pct(zeroShare(data)) : undefined,
+            delta: {
+              current: zeroShare(data),
+              previous: previous ? zeroShare(previous) : undefined,
+              better: 'down',
+              points: true,
+            },
           },
           {
             label: t('Alias emails'),
@@ -73,7 +103,8 @@ export function RiskTab(props: { data: RiskInsights | undefined }) {
           {
             label: t('Shared addresses'),
             value: fmt.num(clusters.length),
-            tone: clusters.length > 0 ? 'danger' : 'good',
+            hint: repeatBuyers ? t('One has several plan buyers') : undefined,
+            tone: sharedTone,
           },
         ]}
       />
@@ -84,10 +115,12 @@ export function RiskTab(props: { data: RiskInsights | undefined }) {
           series={[{ label: t('Sign-ups') }]}
           points={(data?.signup_series ?? []).map((point) => ({
             key: point.at,
-            title:
-              data?.series_unit === 'day'
+            title: pointTitle(point.at),
+            axis:
+              data?.series_unit === 'hour' &&
+              new Date(point.at * 1000).getHours() === 0
                 ? fmt.day(point.at)
-                : fmt.time(point.at),
+                : undefined,
             values: [point.count],
           }))}
         />
@@ -95,7 +128,15 @@ export function RiskTab(props: { data: RiskInsights | undefined }) {
 
       <Panel
         title={t('Accounts sharing an address')}
-        description={t(
+        description={
+          data &&
+          (clusters.length
+            ? t('{{count}} addresses are shared by several accounts.', {
+                count: clusters.length,
+              })
+            : undefined)
+        }
+        help={t(
           'Addresses several accounts sent requests or signed in from: one person with several accounts, a shared machine, or a reseller. Several plan buyers on one address suggest repeated trial purchases.'
         )}
       >

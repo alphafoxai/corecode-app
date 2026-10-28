@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
-import { useInsightsFormat } from '../lib'
+import { ATTENTION, useInsightsFormat } from '../lib'
 import type {
   EngineAccount,
   EngineGroup,
@@ -36,14 +36,6 @@ import type {
   EnginePool,
 } from '../types'
 import { MetricGrid, Meter, Panel, SimpleTable, type Tone } from './shared'
-
-// Statuses that need an operator, as the engine's own console groups them.
-const ATTENTION = new Set([
-  'reauthorization_required',
-  'suspended',
-  'blacklisted',
-  'quota_observation_unavailable',
-])
 
 function statusVariant(account: EngineAccount) {
   if (account.eligible) return 'outline'
@@ -119,6 +111,9 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
       ? (pool?.five_hour_budget ?? 0)
       : (pool?.seven_day_budget ?? 0)
   }
+  const emptyGroups = (pool?.groups ?? []).filter(
+    (row) => row.enabled && row.accounts > 0 && row.eligible === 0
+  )
   const shown = accounts.filter(
     (account) =>
       (group === 'all' || String(account.group_id) === group) &&
@@ -156,7 +151,7 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
           {
             label: t('Needs attention'),
             value: fmt.num(attention.length),
-            tone: attention.length > 0 ? 'danger' : 'good',
+            tone: attention.length > 0 ? 'danger' : 'default',
           },
           {
             label: t('5-hour left'),
@@ -203,8 +198,19 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
 
       <Panel
         title={t('Groups')}
-        description={t(
-          'Slots are schedulable accounts times the per-account limit, capped by the group limit. Limits and quota budgets are set in corecode-engine.'
+        description={
+          emptyGroups.length
+            ? t('No schedulable account in {{groups}}.', {
+                groups: emptyGroups.map((row) => row.name).join(', '),
+              })
+            : undefined
+        }
+        help={t(
+          'Slots are schedulable accounts times the per-account limit, capped by the group limit. Limits and quota budgets are set in corecode-engine. A budget shown as default is the pool default: 5h {{five}}% · 7d {{seven}}%.',
+          {
+            five: pool?.five_hour_budget ?? 0,
+            seven: pool?.seven_day_budget ?? 0,
+          }
         )}
       >
         <SimpleTable<EngineGroup>
@@ -265,10 +271,20 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
               key: 'budget',
               label: t('Quota budget'),
               align: 'right',
-              render: (row) =>
-                row.quota_budget
-                  ? `5h ${row.five_hour_budget}% · 7d ${row.seven_day_budget}%`
-                  : t('Off'),
+              render: (row) => {
+                if (!row.quota_budget) return t('Off')
+                if (
+                  row.five_hour_budget === pool?.five_hour_budget &&
+                  row.seven_day_budget === pool?.seven_day_budget
+                ) {
+                  return (
+                    <span className='text-muted-foreground'>
+                      {t('Default')}
+                    </span>
+                  )
+                }
+                return `5h ${row.five_hour_budget}% · 7d ${row.seven_day_budget}%`
+              },
             },
           ]}
         />
@@ -276,7 +292,7 @@ export function PoolTab(props: { data: EnginePool | undefined }) {
 
       <Panel
         title={t('All accounts')}
-        description={t(
+        help={t(
           'Usage is each account’s own share of its window; remaining dollars come from the engine’s pool estimate. Refreshes every 15 seconds.'
         )}
         actions={

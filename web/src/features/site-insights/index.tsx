@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
@@ -32,10 +32,16 @@ import { getInsights, VIEW_MAX_DAYS, type InsightsView } from './api'
 import { CapacityTab } from './components/capacity-tab'
 import { FinanceTab } from './components/finance-tab'
 import { ActivityTab, GrowthTab } from './components/growth-tab'
+import { OverviewTab } from './components/overview-tab'
 import { PoolTab } from './components/pool-tab'
 import { BusinessTab, QualityTab } from './components/quality-tab'
 import { RiskTab } from './components/risk-tab'
-import { INSIGHTS_PRESETS, INSIGHTS_VIEWS } from './lib'
+import {
+  INSIGHTS_PRESETS,
+  INSIGHTS_TAB_GROUPS,
+  OVERVIEW_VIEWS,
+  type InsightsTab,
+} from './lib'
 
 const route = getRouteApi('/_authenticated/site-insights/')
 
@@ -45,57 +51,95 @@ const REFRESH_MS: Partial<Record<InsightsView, number>> = {
   pool: 15_000,
 }
 
+// The previous period has ended, so its figures change only when the range
+// moves; they are kept longer than the current period's.
+const PREVIOUS_STALE_MS = 5 * 60_000
+
+function tabMaxDays(tab: InsightsTab) {
+  if (tab !== 'overview') return VIEW_MAX_DAYS[tab]
+  return Math.min(
+    ...OVERVIEW_VIEWS.filter((view) => view !== 'pool').map(
+      (view) => VIEW_MAX_DAYS[view]
+    )
+  )
+}
+
 /**
  * The root-only site dashboard. Each tab reads one /api/site-insights view
- * over the chosen number of days, clamped to what that view accepts.
+ * over the chosen number of days, clamped to what that view accepts, and the
+ * same view over the period before it for comparison. The overview reads
+ * several views and lists what needs attention.
  */
 export function SiteInsights() {
   const { t } = useTranslation()
   const search = route.useSearch()
   const navigate = route.useNavigate()
-  const view = search.tab ?? 'capacity'
-  const days = Math.min(search.days ?? 7, VIEW_MAX_DAYS[view])
+  const tab: InsightsTab = search.tab ?? 'overview'
+  const days = Math.min(search.days ?? 7, tabMaxDays(tab))
   // The end is fixed when the page or range changes, so cached results do
   // not refetch on every render; Refresh moves it to now.
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
   const queryClient = useQueryClient()
-  const insightsQuery = (tab: InsightsView) => {
-    const tabRange = {
-      start_time: now - Math.min(search.days ?? 7, VIEW_MAX_DAYS[tab]) * 86400,
-      end_time: now,
-    }
+  const viewDays = (view: InsightsView) =>
+    Math.min(search.days ?? 7, VIEW_MAX_DAYS[view])
+  const insightsQuery = (view: InsightsView) => {
+    const range = { start_time: now - viewDays(view) * 86400, end_time: now }
     return {
-      queryKey: ['site-insights', tab, tabRange],
-      queryFn: () => getInsights(tab, tabRange),
+      queryKey: ['site-insights', view, range],
+      queryFn: () => getInsights(view, range),
       // A tab prefetched on hover is still fresh when it opens.
       staleTime: 30_000,
     }
   }
+  const previousQuery = (view: InsightsView) => {
+    const span = viewDays(view) * 86400
+    const range = { start_time: now - 2 * span, end_time: now - span }
+    return {
+      queryKey: ['site-insights', view, 'previous', range],
+      queryFn: () => getInsights(view, range),
+      staleTime: PREVIOUS_STALE_MS,
+    }
+  }
+  const view = tab === 'overview' ? undefined : tab
   const query = useQuery({
-    ...insightsQuery(view),
-    refetchInterval: REFRESH_MS[view] ?? false,
+    ...insightsQuery(view ?? 'capacity'),
+    enabled: view !== undefined,
+    refetchInterval: (view && REFRESH_MS[view]) ?? false,
     // A new range keeps the old figures on screen until its own arrive. Only
     // the same tab's data fits its component, so another tab starts empty.
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[1] === view ? previous : undefined,
   })
-  const prefetch = (tab: InsightsView) => {
-    if (tab !== view) void queryClient.prefetchQuery(insightsQuery(tab))
+  // The pool is live and has no earlier period.
+  const previous = useQuery({
+    ...previousQuery(view ?? 'capacity'),
+    enabled: view !== undefined && view !== 'pool',
+  })
+  const prefetch = (next: InsightsTab) => {
+    if (next === tab || next === 'overview') return
+    void queryClient.prefetchQuery(insightsQuery(next))
+    if (next !== 'pool') void queryClient.prefetchQuery(previousQuery(next))
   }
 
-  const tabLabels: Record<InsightsView, string> = {
+  const tabLabels: Record<InsightsTab, string> = {
+    overview: t('Overview'),
     capacity: t('Capacity'),
-    finance: t('Funds'),
-    risk: t('Risk'),
-    growth: t('Growth'),
-    activity: t('Activity'),
-    quality: t('Quality'),
-    business: t('Business'),
     pool: t('Account pool'),
+    quality: t('Service quality'),
+    finance: t('Funds'),
+    growth: t('Growth'),
+    activity: t('Activity & retention'),
+    business: t('Models & referrals'),
+    risk: t('Risk'),
+  }
+  const groupLabels: Record<string, string> = {
+    operations: t('Operations'),
+    business: t('Revenue & growth'),
   }
   const presetLabel = (preset: number) =>
     preset === 1 ? t('24 hours') : t('{{count}} days', { count: preset })
+  const fetching = view ? query.isFetching : false
 
   return (
     <SectionPageLayout>
@@ -111,28 +155,48 @@ export function SiteInsights() {
         <div className='grid gap-4'>
           <div className='flex flex-wrap items-center justify-between gap-2'>
             <Tabs
-              value={view}
+              value={tab}
               onValueChange={(value) =>
                 navigate({
-                  search: (prev) => ({ ...prev, tab: value as InsightsView }),
+                  search: (prev) => ({ ...prev, tab: value as InsightsTab }),
                 })
               }
             >
-              <TabsList className='flex-wrap'>
-                {INSIGHTS_VIEWS.map((item) => (
-                  <TabsTrigger
-                    key={item}
-                    value={item}
-                    onPointerEnter={() => prefetch(item)}
-                    onFocus={() => prefetch(item)}
-                  >
-                    {tabLabels[item]}
-                  </TabsTrigger>
+              <TabsList className='h-auto flex-wrap'>
+                {INSIGHTS_TAB_GROUPS.map((group, index) => (
+                  <Fragment key={group.key}>
+                    {index > 0 && (
+                      <span aria-hidden className='bg-border mx-1 h-4 w-px' />
+                    )}
+                    {group.key in groupLabels && (
+                      <span
+                        aria-hidden
+                        className='text-muted-foreground px-1 text-[11px]'
+                      >
+                        {groupLabels[group.key]}
+                      </span>
+                    )}
+                    {group.tabs.map((item) => (
+                      <TabsTrigger
+                        key={item}
+                        value={item}
+                        className='flex-none px-2'
+                        onPointerEnter={() => prefetch(item)}
+                        onFocus={() => prefetch(item)}
+                      >
+                        {tabLabels[item]}
+                      </TabsTrigger>
+                    ))}
+                  </Fragment>
                 ))}
               </TabsList>
             </Tabs>
             <div className='flex items-center gap-2'>
-              {view !== 'pool' && (
+              {tab === 'pool' ? (
+                <span className='text-muted-foreground text-xs'>
+                  {t('Live · refreshes every 15 seconds')}
+                </span>
+              ) : (
                 <ToggleGroup
                   variant='outline'
                   size='sm'
@@ -145,7 +209,7 @@ export function SiteInsights() {
                   }}
                 >
                   {INSIGHTS_PRESETS.filter(
-                    (preset) => preset <= VIEW_MAX_DAYS[view]
+                    (preset) => preset <= tabMaxDays(tab)
                   ).map((preset) => (
                     <ToggleGroupItem key={preset} value={String(preset)}>
                       {presetLabel(preset)}
@@ -158,45 +222,64 @@ export function SiteInsights() {
                 size='icon-sm'
                 aria-label={t('Refresh')}
                 onClick={() => setNow(Math.floor(Date.now() / 1000))}
-                disabled={query.isFetching}
+                disabled={fetching}
               >
-                <RefreshCw
-                  className={query.isFetching ? 'animate-spin' : undefined}
-                />
+                <RefreshCw className={fetching ? 'animate-spin' : undefined} />
               </Button>
             </div>
           </div>
-          {query.isError && (
+          {view && query.isError && (
             <p className='text-destructive text-sm'>
               {query.error instanceof Error
                 ? query.error.message
                 : t('Failed to load site insights')}
             </p>
           )}
-          <InsightsView view={view} data={query.data} />
+          {view ? (
+            <InsightsView
+              view={view}
+              data={query.data}
+              previous={previous.data}
+            />
+          ) : (
+            <OverviewTab
+              current={insightsQuery}
+              previous={previousQuery}
+              refreshMs={REFRESH_MS}
+              onOpen={(next) =>
+                navigate({ search: (prev) => ({ ...prev, tab: next }) })
+              }
+            />
+          )}
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )
 }
 
-function InsightsView(props: { view: InsightsView; data: unknown }) {
-  // Each query key includes the view, so data always matches it.
+function InsightsView(props: {
+  view: InsightsView
+  data: unknown
+  previous: unknown
+}) {
+  // Each query key includes the view, so data always matches it. The
+  // previous period's key does too, and is undefined until it loads.
+  const previous = props.previous as never
   switch (props.view) {
     case 'capacity':
-      return <CapacityTab data={props.data as never} />
+      return <CapacityTab data={props.data as never} previous={previous} />
     case 'finance':
-      return <FinanceTab data={props.data as never} />
+      return <FinanceTab data={props.data as never} previous={previous} />
     case 'risk':
-      return <RiskTab data={props.data as never} />
+      return <RiskTab data={props.data as never} previous={previous} />
     case 'growth':
-      return <GrowthTab data={props.data as never} />
+      return <GrowthTab data={props.data as never} previous={previous} />
     case 'activity':
-      return <ActivityTab data={props.data as never} />
+      return <ActivityTab data={props.data as never} previous={previous} />
     case 'quality':
-      return <QualityTab data={props.data as never} />
+      return <QualityTab data={props.data as never} previous={previous} />
     case 'business':
-      return <BusinessTab data={props.data as never} />
+      return <BusinessTab data={props.data as never} previous={previous} />
     case 'pool':
       return <PoolTab data={props.data as never} />
   }

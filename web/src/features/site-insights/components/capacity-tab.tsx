@@ -19,6 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { cn } from '@/lib/utils'
+
 import { useErrorCategoryLabel, useInsightsFormat } from '../lib'
 import type { CapacityInsights } from '../types'
 import { ConcurrencyLimitsPanel } from './concurrency-limits-panel'
@@ -35,18 +37,62 @@ import {
 // Where a live user's limit comes from, marked after the limit.
 const LIMIT_MARKS: Record<string, string> = { user: '*', tier: '↑' }
 
-export function CapacityTab(props: { data: CapacityInsights | undefined }) {
+export function CapacityTab(props: {
+  data: CapacityInsights | undefined
+  previous?: CapacityInsights
+}) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const categoryLabel = useErrorCategoryLabel()
   const data = props.data
+  const previous = props.previous
   const pool = data?.pool
-  const engineRejections =
-    data?.error_categories.find((item) => item.name === 'engine_concurrency')
-      ?.count ?? 0
+  const slots = pool?.configured ? pool.effective_slots : 0
+  const engineRejectionsOf = (insights: CapacityInsights | undefined) =>
+    insights?.error_categories.find(
+      (item) => item.name === 'engine_concurrency'
+    )?.count ?? 0
+  const engineRejections = engineRejectionsOf(data)
   const limitRejections = new Map(
     (data?.limit_rejections ?? []).map((point) => [point.at, point.count])
   )
+  const hourly = data?.hourly ?? []
+  // An hourly series marks each day where the viewer's day starts.
+  const dayAxis = (hour: number) =>
+    new Date(hour * 1000).getHours() === 0 ? fmt.day(hour) : undefined
+  const rejectionTotals = [
+    {
+      name: t('Engine account concurrency full'),
+      count: hourly.reduce((sum, hour) => sum + hour.engine_rejections, 0),
+    },
+    {
+      name: t('Claude upstream rate limit'),
+      count: hourly.reduce((sum, hour) => sum + hour.upstream_rate_limits, 0),
+    },
+    { name: t('Per-user limit'), count: data?.limit_rejection_total ?? 0 },
+  ]
+  const rejected = rejectionTotals.reduce((sum, item) => sum + item.count, 0)
+  const mainCause = rejectionTotals.reduce((a, b) =>
+    b.count > a.count ? b : a
+  )
+
+  let peakSummary: string | undefined
+  if (data && data.peak_concurrency > 0) {
+    peakSummary = slots
+      ? t(
+          'Highest {{peak}} at {{time}}, {{share}} of the {{slots}} pool slots.',
+          {
+            peak: data.peak_concurrency,
+            time: fmt.time(data.peak_at),
+            share: fmt.pct(data.peak_concurrency / slots),
+            slots,
+          }
+        )
+      : t('Highest {{peak}} at {{time}}.', {
+          peak: data.peak_concurrency,
+          time: fmt.time(data.peak_at),
+        })
+  }
 
   return (
     <div className='grid gap-4'>
@@ -54,47 +100,76 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         loading={!data}
         items={[
           {
-            label: t('In flight now'),
-            value: fmt.num(data?.in_flight ?? 0),
-            hint: pool?.configured
-              ? t('{{slots}} pool slots', { slots: pool.effective_slots })
+            label: t('Requests'),
+            featured: true,
+            value: fmt.num(data?.requests ?? 0),
+            delta: {
+              current: data?.requests ?? 0,
+              previous: previous?.requests,
+              better: 'neutral',
+            },
+            trend: hourly.map((hour) => hour.requests),
+            hint: data
+              ? t('{{count}} failed · peak {{rpm}}/min at {{time}}', {
+                  count: data.errors,
+                  rpm: fmt.num(data.peak_rpm),
+                  time: fmt.time(data.peak_rpm_at),
+                })
               : undefined,
-            tone:
-              pool?.configured &&
-              pool.effective_slots > 0 &&
-              (data?.in_flight ?? 0) >= pool.effective_slots * 0.8
-                ? 'danger'
-                : 'default',
           },
           {
             label: t('Peak concurrency'),
             value: fmt.num(data?.peak_concurrency ?? 0),
             hint: data ? fmt.time(data.peak_at) : undefined,
+            delta: {
+              current: data?.peak_concurrency ?? 0,
+              previous: previous?.peak_concurrency,
+              better: 'neutral',
+            },
             tone:
-              pool?.configured &&
-              (data?.peak_concurrency ?? 0) > pool.effective_slots
+              slots && (data?.peak_concurrency ?? 0) > slots
                 ? 'danger'
                 : 'default',
           },
           {
-            label: t('Peak requests per minute'),
-            value: fmt.num(data?.peak_rpm ?? 0),
-            hint: data ? fmt.time(data.peak_rpm_at) : undefined,
-          },
-          {
-            label: t('Requests'),
-            value: fmt.num(data?.requests ?? 0),
-            hint: t('{{count}} failed', { count: data?.errors ?? 0 }),
+            label: t('In flight now'),
+            value: fmt.num(data?.in_flight ?? 0),
+            hint: slots
+              ? t('{{slots}} pool slots', { slots: pool?.effective_slots })
+              : undefined,
+            meter: slots
+              ? {
+                  value: (data?.in_flight ?? 0) / slots,
+                  tone:
+                    (data?.in_flight ?? 0) >= slots * 0.8
+                      ? 'danger'
+                      : 'default',
+                  label: t('In flight now'),
+                }
+              : undefined,
           },
           {
             label: t('Pool full (engine 429)'),
             value: fmt.num(engineRejections),
-            tone: engineRejections > 0 ? 'danger' : 'good',
+            help: t(
+              'Requests the engine turned away because every schedulable account was at its concurrency limit.'
+            ),
+            delta: {
+              current: engineRejections,
+              previous: previous ? engineRejectionsOf(previous) : undefined,
+              better: 'down',
+            },
+            tone: engineRejections > 0 ? 'warning' : 'default',
           },
           {
             label: t('Per-user limit 429'),
             value: fmt.num(data?.limit_rejection_total ?? 0),
-            hint: t('Turned away before reaching the pool'),
+            help: t('Turned away before reaching the pool'),
+            delta: {
+              current: data?.limit_rejection_total ?? 0,
+              previous: previous?.limit_rejection_total,
+              better: 'down',
+            },
             tone:
               (data?.limit_rejection_total ?? 0) > 0 ? 'warning' : 'default',
           },
@@ -102,75 +177,56 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
       />
       <TruncatedNotice show={!!data?.truncated} />
 
-      <Panel
-        title={t('Subscription pool')}
-        description={
-          pool?.configured
-            ? t(
-                'Eligible accounts are available and under both quota budgets. Slots are eligible accounts × per-account concurrency.'
-              )
-            : t(
-                'Set EngineControlURL and EngineControlKey to read the pool from corecode-engine.'
-              )
-        }
-      >
-        {pool?.error && (
-          <p className='text-destructive mb-3 text-xs'>{pool.error}</p>
-        )}
-        {pool?.configured && !pool.error && (
-          <div className='grid gap-3'>
-            <MetricGrid
-              items={[
-                {
-                  label: t('Eligible accounts'),
-                  value: `${pool.eligible_accounts} / ${pool.accounts.length}`,
-                  tone: pool.eligible_accounts <= 2 ? 'danger' : 'default',
-                },
-                {
-                  label: t('Effective slots'),
-                  value: fmt.num(pool.effective_slots),
-                },
-                {
-                  label: t('Per-account concurrency'),
-                  value: fmt.num(pool.credential_concurrency),
-                },
-                {
-                  label: t('5h budget'),
-                  value: pool.five_hour_budget
-                    ? `${pool.five_hour_budget}%`
-                    : '-',
-                },
-                {
-                  label: t('7d budget'),
-                  value: pool.seven_day_budget
-                    ? `${pool.seven_day_budget}%`
-                    : '-',
-                },
-              ]}
-            />
-            <Link
-              to='/site-insights'
-              search={(prev) => ({ ...prev, tab: 'pool' as const })}
-              className='text-primary justify-self-start text-sm font-medium hover:underline'
-            >
-              {t('See every account in the account pool')}
-            </Link>
-          </div>
-        )}
-      </Panel>
+      {pool?.error && <p className='text-destructive text-xs'>{pool.error}</p>}
+      {pool && !pool.configured && (
+        <p className='text-muted-foreground text-xs'>
+          {t(
+            'Set EngineControlURL and EngineControlKey to read the pool from corecode-engine.'
+          )}
+        </p>
+      )}
+      {pool?.configured && !pool.error && (
+        <p className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs'>
+          <span
+            className={cn(
+              pool.eligible_accounts <= 2 && 'text-destructive font-medium'
+            )}
+          >
+            {t('Pool: {{eligible}} of {{accounts}} accounts schedulable', {
+              eligible: pool.eligible_accounts,
+              accounts: pool.accounts.length,
+            })}
+          </span>
+          <span>
+            {t('{{slots}} slots ({{per}} per account)', {
+              slots: pool.effective_slots,
+              per: pool.credential_concurrency,
+            })}
+          </span>
+          <Link
+            to='/site-insights'
+            search={(prev) => ({ ...prev, tab: 'pool' as const })}
+            className='text-primary font-medium hover:underline'
+          >
+            {t('See every account in the account pool')}
+          </Link>
+        </p>
+      )}
 
       <Panel
         title={t('Hourly peak concurrency')}
-        description={t(
+        description={peakSummary}
+        help={t(
           'Reconstructed from request logs: each request was in flight from its start to its end.'
         )}
       >
         <BarSeries
           ariaLabel={t('Hourly peak concurrency')}
           series={[{ label: t('Peak concurrency') }]}
-          points={(data?.hourly ?? []).map((hour) => ({
+          points={hourly.map((hour) => ({
             key: hour.hour,
             title: fmt.time(hour.hour),
+            axis: dayAxis(hour.hour),
             values: [hour.peak_concurrency],
             extra: [{ label: t('Requests'), value: fmt.num(hour.requests) }],
           }))}
@@ -178,7 +234,18 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
       </Panel>
 
       <div className='grid gap-4 lg:grid-cols-3'>
-        <Panel title={t('Rejections by hour')}>
+        <Panel
+          title={t('Rejections by hour')}
+          description={
+            data &&
+            (rejected
+              ? t('{{count}} rejected; most were {{cause}}.', {
+                  count: fmt.num(rejected),
+                  cause: mainCause.name,
+                })
+              : t('Nothing was rejected in this range.'))
+          }
+        >
           <BarSeries
             ariaLabel={t('Rejections by hour')}
             series={[
@@ -186,9 +253,10 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
               { label: t('Claude upstream rate limit') },
               { label: t('Per-user limit') },
             ]}
-            points={(data?.hourly ?? []).map((hour) => ({
+            points={hourly.map((hour) => ({
               key: hour.hour,
               title: fmt.time(hour.hour),
+              axis: dayAxis(hour.hour),
               values: [
                 hour.engine_rejections,
                 hour.upstream_rate_limits,
@@ -199,7 +267,7 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         </Panel>
         <Panel
           title={t('Users turned away by their limit')}
-          description={t(
+          help={t(
             'Requests the per-user concurrency limit answered with 429. They never reach the request logs.'
           )}
         >
@@ -224,7 +292,7 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
         </Panel>
         <Panel
           title={t('Failures by cause')}
-          description={t(
+          help={t(
             'The performance panel leaves out capacity rejections; this counts every failed request in the logs.'
           )}
         >
@@ -241,7 +309,7 @@ export function CapacityTab(props: { data: CapacityInsights | undefined }) {
       <div className='grid gap-4 lg:grid-cols-2'>
         <Panel
           title={t('In flight by user')}
-          description={t(
+          help={t(
             'Live, on this server. * marks a user limit and ↑ a paid-total tier; otherwise the limit comes from the group.'
           )}
         >
