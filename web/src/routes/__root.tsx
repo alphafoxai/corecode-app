@@ -29,7 +29,7 @@ import { useEffect } from 'react'
 
 import { NavigationProgress } from '@/components/navigation-progress'
 import { Toaster } from '@/components/ui/sonner'
-import { saveAffiliateCode } from '@/features/auth/lib/storage'
+import { captureAffiliateCodeFromUrl } from '@/features/auth/lib/storage'
 import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
 import { takeSetupStatus } from '@/features/setup/api'
@@ -51,10 +51,7 @@ function RootComponent() {
   useSystemConfig({ autoLoad: true })
 
   useEffect(() => {
-    const aff = new URLSearchParams(window.location.search).get('aff')?.trim()
-    if (aff) {
-      saveAffiliateCode(aff)
-    }
+    captureAffiliateCodeFromUrl(window.location.search)
   }, [])
 
   useEffect(

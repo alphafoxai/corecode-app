@@ -64,11 +64,14 @@ export function saveAffiliateCode(code: string): void {
 }
 
 /**
- * Store the `?aff=` code in the address, if any, and return the code now saved.
+ * Store the invitation code in the address, if any, and return the code now saved.
+ * Links carry it as `?aff=`, or as `?ref=` from channels that use that name;
+ * `aff` wins when both are present.
  * Safe to call on every render path: it only writes when the address has a code.
  */
 export function captureAffiliateCodeFromUrl(search: string): string {
-  const aff = new URLSearchParams(search).get('aff')?.trim()
+  const params = new URLSearchParams(search)
+  const aff = params.get('aff')?.trim() || params.get('ref')?.trim()
   if (aff) saveAffiliateCode(aff.slice(0, AFFILIATE_CODE_MAX_LENGTH))
   return getAffiliateCode()
 }

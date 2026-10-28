@@ -47,8 +47,8 @@ import { useEmailVerification } from '@/features/auth/hooks/use-email-verificati
 import { useProofOfWork } from '@/features/auth/hooks/use-proof-of-work'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import {
+  captureAffiliateCodeFromUrl,
   getAffiliateCode,
-  saveAffiliateCode,
 } from '@/features/auth/lib/storage'
 import { useStatus } from '@/hooks/use-status'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -129,10 +129,7 @@ export function SignUpForm({
   }, [status])
 
   useEffect(() => {
-    const aff = new URLSearchParams(window.location.search).get('aff')?.trim()
-    if (aff) {
-      saveAffiliateCode(aff)
-    }
+    captureAffiliateCodeFromUrl(window.location.search)
   }, [])
 
   async function onSubmit(data: z.infer<typeof registerFormSchema>) {
