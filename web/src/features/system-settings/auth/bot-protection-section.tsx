@@ -85,6 +85,11 @@ export function BotProtectionSection({
         value !== defaultValues[key as keyof BotProtectionFormValues]
     )
 
+    // A switch turning on is saved after the fields it needs: the server
+    // refuses Turnstile until its site key is stored, and a refusal stops the
+    // remaining saves.
+    updates.sort(([, a], [, b]) => Number(a === true) - Number(b === true))
+
     for (const [key, value] of updates) {
       await updateOption.mutateAsync({ key, value: value ?? '' })
     }
