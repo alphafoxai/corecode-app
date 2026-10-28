@@ -352,6 +352,7 @@ func TestPreConsumeShortfallAcrossWalletAndSubscription(t *testing.T) {
 				subLeft          int
 				overflow, force  bool
 				refund           bool
+				subscriptionGone bool // the subscription row fails at settlement
 				wantHeld         int
 				wantWalletHeld   int
 				wantWallet       int
@@ -369,6 +370,10 @@ func TestPreConsumeShortfallAcrossWalletAndSubscription(t *testing.T) {
 				{name: "settlement beyond the subscription goes to the wallet", preference: "subscription_first", wallet: 5000, subLeft: 2000, overflow: true,
 					wantHeld: 1500, wantWallet: 4750, wantSubUsed: 2000, wantOverflowSrc: "wallet", wantOverflowPart: 250},
 				{name: "plan without wallet overflow keeps full reservation", preference: "subscription_first", wallet: 5000, subLeft: 1000},
+				{name: "a failed subscription charge falls to the overflow wallet", preference: "subscription_first", wallet: 5000, subLeft: 2000, overflow: true, subscriptionGone: true,
+					wantHeld: 1500, wantWallet: 4250, wantOverflowSrc: "wallet", wantOverflowPart: 750},
+				{name: "a failed overflow subscription charge falls to the wallet", preference: "wallet_first", wallet: 1000, subLeft: 800, subscriptionGone: true,
+					wantHeld: 1500, wantWalletHeld: 1000, wantWallet: -750, wantOverflowSrc: "subscription", wantOverflowPart: 500},
 				{name: "failed request refunds both sources", preference: "wallet_first", wallet: 1000, subLeft: 800, refund: true,
 					wantHeld: 1500, wantWalletHeld: 1000, wantWallet: 1000, wantOverflowSrc: "subscription"},
 			}
@@ -421,13 +426,16 @@ func TestPreConsumeShortfallAcrossWalletAndSubscription(t *testing.T) {
 						t.Logf("DEBUG wallet=%d used=%d orig=%d recs=%+v", user.Quota, dbg.AmountUsed, sub.AmountUsed, recs)
 						return
 					}
+					if tc.subscriptionGone {
+						require.NoError(t, db.Delete(&model.UserSubscription{}, sub.Id).Error)
+					}
 					_, actual, _ := service.TryTieredSettle(info, billingexpr.TokenParams{P: 1000, C: 100, Len: 1000})
 					require.Equal(t, 2250, actual)
 					require.NoError(t, info.Billing.Settle(actual))
 					require.NoError(t, info.Billing.Settle(actual))
 					require.NoError(t, db.First(&user, user.Id).Error)
 					assert.Equal(t, tc.wantWallet, user.Quota)
-					if tc.subLeft >= 0 {
+					if tc.subLeft >= 0 && !tc.subscriptionGone {
 						var settled model.UserSubscription
 						require.NoError(t, db.First(&settled, sub.Id).Error)
 						assert.Equal(t, sub.AmountUsed+int64(tc.wantSubUsed), settled.AmountUsed)
