@@ -115,6 +115,16 @@ describe('pickClaudeModels', () => {
     ])
   })
 
+  test('puts Opus first when the key can call it', () => {
+    expect(
+      pickClaudeModels([
+        'claude-fable-5-1',
+        'claude-haiku-5-5',
+        'claude-opus-5-5',
+      ])
+    ).toEqual(['claude-opus-5-5', 'claude-fable-5-1', 'claude-haiku-5-5'])
+  })
+
   test('falls back to the documented models when the account lists none', () => {
     expect(pickClaudeModels(['gpt-4o'])).toEqual(DEFAULT_CLAUDE_MODELS)
     expect(pickClaudeModels([])).toEqual(DEFAULT_CLAUDE_MODELS)

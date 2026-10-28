@@ -145,9 +145,22 @@ export function getAnthropicBaseUrl(
   return base.replace(/\/+$/, '').replace(/\/v1$/, '')
 }
 
+/** The model Claude Code starts on when the key can call it. */
+export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5'
+
+/**
+ * The key's Claude models, DEFAULT_CLAUDE_MODEL first: callers that need one
+ * model take the first, and the list itself is in name order, which put Fable
+ * ahead of Opus.
+ */
 export function pickClaudeModels(models: readonly string[]): string[] {
   const claude = models.filter((model) => model.startsWith('claude-'))
-  return claude.length > 0 ? claude : DEFAULT_CLAUDE_MODELS
+  if (claude.length === 0) return DEFAULT_CLAUDE_MODELS
+  if (!claude.includes(DEFAULT_CLAUDE_MODEL)) return claude
+  return [
+    DEFAULT_CLAUDE_MODEL,
+    ...claude.filter((model) => model !== DEFAULT_CLAUDE_MODEL),
+  ]
 }
 
 /** Shows enough of a key to recognise it without exposing it on screen. */
