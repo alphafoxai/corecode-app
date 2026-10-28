@@ -17,10 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Filter, RotateCcw, Calendar, Search } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DateTimePicker } from '@/components/datetime-picker'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   TIME_GRANULARITY_OPTIONS,
   TIME_RANGE_PRESETS,
@@ -49,6 +49,14 @@ import type {
 import { getRollingDateRange, type TimeGranularity } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+
+// The calendar (react-day-picker with every locale) loads when the dialog first
+// opens rather than with the dashboard.
+const DateTimePicker = lazy(() =>
+  import('@/components/datetime-picker').then((m) => ({
+    default: m.DateTimePicker,
+  }))
+)
 
 interface ModelsFilterProps {
   preferences: DashboardChartPreferences
@@ -231,24 +239,28 @@ export function ModelsFilter(props: ModelsFilterProps) {
           <div className='grid gap-2.5'>
             <div className='grid gap-2'>
               <Label htmlFor='start_timestamp'>{t('Start Time')}</Label>
-              <DateTimePicker
-                value={filters.start_timestamp}
-                onChange={(date) =>
-                  handleChange('start_timestamp', date || undefined)
-                }
-                placeholder={t('Select start time')}
-              />
+              <Suspense fallback={<Skeleton className='h-9 w-full' />}>
+                <DateTimePicker
+                  value={filters.start_timestamp}
+                  onChange={(date) =>
+                    handleChange('start_timestamp', date || undefined)
+                  }
+                  placeholder={t('Select start time')}
+                />
+              </Suspense>
             </div>
 
             <div className='grid gap-2'>
               <Label htmlFor='end_timestamp'>{t('End Time')}</Label>
-              <DateTimePicker
-                value={filters.end_timestamp}
-                onChange={(date) =>
-                  handleChange('end_timestamp', date || undefined)
-                }
-                placeholder={t('Select end time')}
-              />
+              <Suspense fallback={<Skeleton className='h-9 w-full' />}>
+                <DateTimePicker
+                  value={filters.end_timestamp}
+                  onChange={(date) =>
+                    handleChange('end_timestamp', date || undefined)
+                  }
+                  placeholder={t('Select end time')}
+                />
+              </Suspense>
             </div>
           </div>
 

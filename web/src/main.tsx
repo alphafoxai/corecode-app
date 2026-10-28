@@ -21,6 +21,8 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 
+import { prefetchSetupStatus } from '@/features/setup/api'
+import { bootstrapAuthentication } from '@/lib/auth-session'
 import { installBuildMetadata } from '@/lib/build-metadata'
 import { setSiteTitle } from '@/lib/document-title'
 import { applyFaviconToDom } from '@/lib/dom-utils'
@@ -61,6 +63,19 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
+}
+
+// The first route waits on the auth refresh, the setup check and its own code,
+// and the router asks for them only once it renders after the locale loads.
+// Start all three now so they overlap the locale download; the root guard and
+// the router pick up the same requests.
+void bootstrapAuthentication()
+if (!window.location.pathname.startsWith('/setup')) {
+  prefetchSetupStatus()
+}
+for (const route of router.getMatchedRoutes(window.location.pathname)
+  .matchedRoutes) {
+  router.loadRouteChunk(route)?.catch(() => undefined)
 }
 
 // Render the app

@@ -1,12 +1,37 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { defineConfig, loadEnv } from '@rsbuild/core'
+import { defineConfig, loadEnv, type RsbuildPlugin } from '@rsbuild/core'
 import { pluginReact } from '@rsbuild/plugin-react'
 import { pluginTailwindcss } from '@rsbuild/plugin-tailwindcss'
 import { tanstackRouter } from '@tanstack/router-plugin/rspack'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// The console renders only once the visitor's locale (about 140 KB brotli) has
+// loaded, and the bundle asks for it only after it has downloaded and run. This
+// inline script picks the language as i18next will (the `i18nextLng` cache,
+// then the browser languages, mapped as convertDetectedLanguage maps them) and
+// preloads that locale's chunk beside the entry bundle.
+function pluginPreloadLocale(): RsbuildPlugin {
+  return {
+    name: 'preload-locale',
+    setup(api) {
+      api.modifyHTMLTags((tags, { compilation, assetPrefix }) => {
+        const urls: Record<string, string> = {}
+        for (const chunk of compilation.chunks) {
+          const language = chunk.name?.match(/^locale-(.+)$/)?.[1]
+          const file = [...chunk.files].find((name) => name.endsWith('.js'))
+          if (language && file) urls[language] = assetPrefix + file
+        }
+        if (!urls.en) return tags
+        const script = `(function(){var u=${JSON.stringify(urls)};function p(c){if(!c)return;var x=String(c).toLowerCase().replace(/_/g,'-');if(x.indexOf('zh')===0)return /^(zhtw|zh-tw|zh-hk|zh-mo|zh-hant)/.test(x)?'zhTW':'zhCN';if(u[c])return c;x=x.split('-')[0];if(u[x])return x}var c;try{c=p(localStorage.getItem('i18nextLng'))}catch(e){}var n=navigator.languages||[navigator.language];for(var i=0;!c&&i<n.length;i++)c=p(n[i]);var l=document.createElement('link');l.rel='preload';l.as='script';l.href=u[c||'en'];document.head.appendChild(l)})()`
+        tags.headTags.unshift({ tag: 'script', children: script })
+        return tags
+      })
+    },
+  }
+}
 
 export default defineConfig(({ envMode }) => {
   const env = loadEnv({ mode: envMode, prefixes: ['VITE_'] })
@@ -24,7 +49,11 @@ export default defineConfig(({ envMode }) => {
   ) as Record<string, { target: string; changeOrigin: boolean }>
 
   return {
-    plugins: [pluginReact(), pluginTailwindcss({ optimize: false })],
+    plugins: [
+      pluginReact(),
+      pluginTailwindcss({ optimize: false }),
+      pluginPreloadLocale(),
+    ],
     // Rsbuild 2: replaces deprecated `performance.chunkSplit` (RSPack 2 aligned)
     splitChunks: {
       preset: 'default',
