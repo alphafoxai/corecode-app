@@ -28,6 +28,7 @@ import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber, formatQuota } from '@/lib/format'
 
 import type { InviteeTotals } from '../types'
+import { InviteCodeDialog } from './invite-code-dialog'
 
 type InvitationOverviewProps = {
   inviteeCount: number
@@ -72,6 +73,7 @@ export function InvitationOverview(props: InvitationOverviewProps) {
           tooltip={t('Copy referral link')}
           aria-label={t('Copy referral link')}
         />
+        <InviteCodeDialog code={aff.summary?.aff_code ?? ''} />
       </div>
     )
   }

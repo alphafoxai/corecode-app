@@ -34,14 +34,18 @@ type AffiliateSetting struct {
 	// GiftBlockedEmailDomains lists address domains, one per line or comma
 	// separated, whose sign-ups receive no gift.
 	GiftBlockedEmailDomains string `json:"gift_blocked_email_domains"`
+	// ReservedCodeWords lists words, one per line or comma separated, that a
+	// user may not choose as their code. Root's codes are not checked.
+	ReservedCodeWords string `json:"reserved_code_words"`
 }
 
 var affiliateSetting = AffiliateSetting{
-	SelfServeRate:   10,
-	MaxRate:         30,
-	SecondLevelRate: 5,
-	MinWithdrawal:   100,
-	GiftDailyCap:    50,
+	SelfServeRate:     10,
+	MaxRate:           30,
+	SecondLevelRate:   5,
+	MinWithdrawal:     100,
+	GiftDailyCap:      50,
+	ReservedCodeWords: "corecode\nalphafox\nanthropic\nclaude\nofficial\nguanfang\nadmin\nsupport\nkefu",
 }
 
 func init() {
@@ -66,6 +70,40 @@ func ValidateAffiliateOption(field string, value string) error {
 		}
 	}
 	return nil
+}
+
+// CodeReserved reports whether a user may not choose code for themselves:
+// it is a ReservedCodeWords entry, or a simple sequence such as 888, 6688,
+// 1234 or abc. Case, hyphens and underscores are ignored, so Core-Code and
+// 8_8_8 are caught too; a code that only contains a word, such as
+// my-corecode, is not.
+func (s *AffiliateSetting) CodeReserved(code string) bool {
+	normalize := strings.NewReplacer("-", "", "_", "")
+	code = normalize.Replace(strings.ToLower(code))
+	for word := range strings.FieldsFuncSeq(strings.ToLower(s.ReservedCodeWords), func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	}) {
+		if word = normalize.Replace(word); code == word {
+			return true
+		}
+	}
+	if code == "" {
+		return true
+	}
+	ascending, descending := true, true
+	for i := 1; i < len(code); i++ {
+		ascending = ascending && code[i] == code[i-1]+1
+		descending = descending && code[i] == code[i-1]-1
+	}
+	if ascending || descending {
+		return true
+	}
+	distinct, allDigits := map[byte]bool{}, true
+	for i := range len(code) {
+		distinct[code[i]] = true
+		allDigits = allDigits && code[i] >= '0' && code[i] <= '9'
+	}
+	return len(distinct) == 1 || allDigits && len(distinct) <= 2
 }
 
 // GiftEmailDomainBlocked reports whether an address's domain is on

@@ -66,7 +66,7 @@ func useAffiliateTestDB(t *testing.T, dialect string) {
 	*operation_setting.GetAffiliateSetting() = operation_setting.AffiliateSetting{
 		Enabled: true, SelfServeRate: 10, MaxRate: 30, SecondLevelRate: 5, MinWithdrawal: 100,
 	}
-	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{}, &AffiliateSignupGift{},
+	tables := []any{&User{}, &TopUp{}, &Log{}, &Affiliate{}, &AffiliateReferral{}, &AffiliateCommission{}, &AffiliateWithdrawal{}, &AffiliateSignupGift{}, &AffiliateRetiredCode{},
 		&SubscriptionPlan{}, &SubscriptionOrder{}, &UserSubscription{}}
 	for _, table := range tables {
 		require.False(t, db.Migrator().HasTable(table), "use an empty test database")

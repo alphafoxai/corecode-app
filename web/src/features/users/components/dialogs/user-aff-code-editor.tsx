@@ -26,14 +26,11 @@ import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { generateAffiliateLink } from '@/features/wallet/lib'
+import { AFF_CODE_PATTERN, generateAffiliateLink } from '@/features/wallet/lib'
 import type { AffiliateAdminView } from '@/features/wallet/types'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { updateUserAffCode } from '../../api'
-
-// Mirrors affiliateCodePattern on the server.
-const AFF_CODE_PATTERN = /^[A-Za-z0-9_-]{3,32}$/
 
 type UserAffCodeEditorProps = {
   userId: number

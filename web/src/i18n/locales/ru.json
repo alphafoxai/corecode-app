@@ -8304,6 +8304,13 @@
     "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.": "Сгруппировано по этапу и правилу. Правило, сильно опережающее остальные, первым подозревайте в ложных срабатываниях.",
     "Nothing was stopped today": "Сегодня ничего не заблокировано",
     "Intercept log": "Журнал перехватов",
-    "Failed to load the risk audit": "Не удалось загрузить аудит рисков"
+    "Failed to load the risk audit": "Не удалось загрузить аудит рисков",
+    "This invite code is reserved": "Этот код приглашения зарезервирован",
+    "You have changed your invite code too many times": "Вы меняли код приглашения слишком много раз",
+    "Customize": "Изменить",
+    "Customize invite code": "Изменить код приглашения",
+    "Brand names and simple codes such as 888 or 123 are reserved.": "Названия бренда и простые коды вроде 888 или 123 зарезервированы.",
+    "Reserved invite code words": "Зарезервированные слова в кодах приглашения",
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "По одному в строке. Пользователь не может выбрать одно из этих слов своим кодом без учёта регистра, дефисов и подчёркиваний; код, который лишь содержит такое слово, разрешён. Простые коды вроде 888, 6688 или 123 зарезервированы всегда. Коды, которые вы задаёте пользователю, не проверяются."
   }
 }

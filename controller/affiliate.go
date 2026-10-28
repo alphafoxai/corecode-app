@@ -169,6 +169,32 @@ type affiliateTransferRequest struct {
 	Quota int `json:"quota"`
 }
 
+// SetSelfAffiliateCode replaces the user's invite code with one they chose.
+// Only a user the wallet shows a link to may, so the new code binds.
+func SetSelfAffiliateCode(c *gin.Context) {
+	var req affCodeRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	userId := c.GetInt("id")
+	summary, err := buildAffiliateSummary(userId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if summary.AffCode == "" {
+		common.ApiError(c, model.ErrAffiliateCodeUnavailable)
+		return
+	}
+	summary.AffCode, err = model.SetSelfAffCode(userId, req.AffCode)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, summary)
+}
+
 // TransferSelfAffiliate moves commission into the user's wallet.
 func TransferSelfAffiliate(c *gin.Context) {
 	if !requirePaymentCompliance(c) {
@@ -384,7 +410,7 @@ func AdminSetUserInviter(c *gin.Context) {
 	common.ApiSuccess(c, view)
 }
 
-type adminAffCodeRequest struct {
+type affCodeRequest struct {
 	AffCode string `json:"aff_code"`
 }
 
@@ -395,7 +421,7 @@ func AdminSetUserAffCode(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req adminAffCodeRequest
+	var req affCodeRequest
 	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
 		common.ApiErrorT(c, "Invalid parameters")
 		return

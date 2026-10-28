@@ -6,14 +6,34 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
-	ErrAffiliateCodeInvalid error = common.NewMessage("An invite code is 3 to 32 letters, digits, hyphens or underscores")
-	ErrAffiliateCodeTaken   error = common.NewMessage("This invite code is already in use")
+	ErrAffiliateCodeInvalid     error = common.NewMessage("An invite code is 3 to 32 letters, digits, hyphens or underscores")
+	ErrAffiliateCodeTaken       error = common.NewMessage("This invite code is already in use")
+	ErrAffiliateCodeReserved    error = common.NewMessage("This invite code is reserved")
+	ErrAffiliateCodeUnavailable error = common.NewMessage("Invitations are not available for your account.")
+	ErrAffiliateCodeChangeLimit error = common.NewMessage("You have changed your invite code too many times")
 )
+
+// affiliateSelfCodeChanges is how many codes a user may give up by choosing
+// their own. Each one stays theirs, so the cap stops one account from
+// holding codes it no longer uses.
+const affiliateSelfCodeChanges = 5
+
+// AffiliateRetiredCode is a code a user gave up. Links carrying it no longer
+// bind, but no other account may take it, or it would capture the sign-ups
+// those links still bring. Code is lowercase.
+type AffiliateRetiredCode struct {
+	Id        int    `json:"id"`
+	Code      string `json:"code" gorm:"type:varchar(32);uniqueIndex"`
+	UserId    int    `json:"user_id" gorm:"index"`
+	CreatedAt int64  `json:"created_at" gorm:"autoCreateTime"`
+}
 
 // affiliateCodePattern is what an administrator may give a user as their
 // invite code: short enough for the aff_code column and safe in a URL.
@@ -209,29 +229,71 @@ func GetAffiliateOverview() (*AffiliateOverview, error) {
 }
 
 // SetUserAffCode gives a user an invite code an administrator chose, so a
-// promotion link reads as the channel's name. The old code stops binding at
-// once. Codes are compared without case, because MySQL's unique index and
-// lookups ignore it while PostgreSQL's and SQLite's do not; a deleted
-// user's code stays taken, as the unique index still holds it.
+// promotion link reads as the channel's name. Reserved words are allowed.
 func SetUserAffCode(userId int, code string) (string, error) {
+	return setAffCode(userId, code, false)
+}
+
+// SetSelfAffCode gives a user the invite code they chose themselves. Unlike
+// root, they cannot choose a reserved code, and can give up only
+// affiliateSelfCodeChanges codes.
+func SetSelfAffCode(userId int, code string) (string, error) {
+	return setAffCode(userId, code, true)
+}
+
+// setAffCode replaces a user's invite code. The old code stops binding at
+// once and is retired to the user. Codes are compared without case, because
+// MySQL's unique index and lookups ignore it while PostgreSQL's and SQLite's
+// do not; a deleted user's code stays taken, as the unique index still holds
+// it.
+func setAffCode(userId int, code string, self bool) (string, error) {
 	code = strings.TrimSpace(code)
 	if !affiliateCodePattern.MatchString(code) {
 		return "", ErrAffiliateCodeInvalid
 	}
+	if self && operation_setting.GetAffiliateSetting().CodeReserved(code) {
+		return "", ErrAffiliateCodeReserved
+	}
+	lower := strings.ToLower(code)
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var user User
-		if err := lockForUpdate(tx).Select("id").Where("id = ?", userId).First(&user).Error; err != nil {
+		if err := lockForUpdate(tx).Select("id", "aff_code").Where("id = ?", userId).First(&user).Error; err != nil {
 			return err
 		}
+		if user.AffCode == code {
+			return nil
+		}
 		var taken int64
-		if err := tx.Unscoped().Model(&User{}).Where("LOWER(aff_code) = ? AND id <> ?", strings.ToLower(code), userId).
+		if err := tx.Unscoped().Model(&User{}).Where("LOWER(aff_code) = ? AND id <> ?", lower, userId).
 			Count(&taken).Error; err != nil {
 			return err
+		}
+		if taken == 0 {
+			if err := tx.Model(&AffiliateRetiredCode{}).Where("code = ? AND user_id <> ?", lower, userId).
+				Count(&taken).Error; err != nil {
+				return err
+			}
 		}
 		if taken > 0 {
 			return ErrAffiliateCodeTaken
 		}
-		return tx.Model(&User{}).Where("id = ?", userId).Update("aff_code", code).Error
+		if self && !strings.EqualFold(user.AffCode, code) {
+			var retired int64
+			if err := tx.Model(&AffiliateRetiredCode{}).Where("user_id = ?", userId).Count(&retired).Error; err != nil {
+				return err
+			}
+			if retired >= affiliateSelfCodeChanges {
+				return ErrAffiliateCodeChangeLimit
+			}
+		}
+		if err := tx.Model(&User{}).Where("id = ?", userId).Update("aff_code", code).Error; err != nil {
+			return err
+		}
+		if user.AffCode == "" || strings.EqualFold(user.AffCode, code) {
+			return nil
+		}
+		return tx.Clauses(clause.OnConflict{DoNothing: true}).
+			Create(&AffiliateRetiredCode{Code: strings.ToLower(user.AffCode), UserId: userId}).Error
 	})
 	if err != nil {
 		return "", err

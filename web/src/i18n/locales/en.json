@@ -8304,6 +8304,13 @@
     "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.": "Grouped by stage and rule. A rule far above the rest is the first to suspect of false positives.",
     "Nothing was stopped today": "Nothing was stopped today",
     "Intercept log": "Intercept log",
-    "Failed to load the risk audit": "Failed to load the risk audit"
+    "Failed to load the risk audit": "Failed to load the risk audit",
+    "This invite code is reserved": "This invite code is reserved",
+    "You have changed your invite code too many times": "You have changed your invite code too many times",
+    "Customize": "Customize",
+    "Customize invite code": "Customize invite code",
+    "Brand names and simple codes such as 888 or 123 are reserved.": "Brand names and simple codes such as 888 or 123 are reserved.",
+    "Reserved invite code words": "Reserved invite code words",
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked."
   }
 }

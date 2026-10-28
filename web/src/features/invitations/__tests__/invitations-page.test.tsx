@@ -25,6 +25,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router'
 import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -186,6 +187,7 @@ it('says invitations are unavailable when the user has no rate and shows the emp
     screen.getByText('Invitations are not available for your account.')
   ).toBeVisible()
   expect(screen.queryByLabelText('Referral link')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Customize' })).toBeNull()
   expect(screen.queryByText(/^Rate /)).toBeNull()
 })
 
@@ -252,4 +254,57 @@ it('reports which invitees received the plan at sign-up, with nothing to click',
   expect(screen.getByText('Gifted')).toBeVisible()
   expect(screen.getByText('Already has it')).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Gift' })).toBeNull()
+})
+
+it('lets an inviter replace the code in their link', async () => {
+  const account = {
+    id: 1,
+    user_id: 7,
+    rate: 10,
+    channel: false,
+    granted_by: 0,
+    balance: 0,
+    earned: 0,
+    created_at: 1,
+    updated_at: 1,
+  } as never
+  renderPage(
+    {
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      totals: { used_quota: 0, commission_base: 0, commission: 0 },
+      gift_plan_title: '',
+    },
+    { affiliate: account, aff_code: 'AB12' }
+  )
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: {
+      success: true,
+      data: { ...summary, affiliate: account, aff_code: 'alice-ai' },
+    },
+  })
+  const user = userEvent.setup()
+
+  await user.click(await screen.findByRole('button', { name: 'Customize' }))
+  const input = screen.getByLabelText('Invite code')
+  expect(input).toHaveValue('AB12')
+  const save = screen.getByRole('button', { name: 'Save invite code' })
+  expect(save).toBeDisabled()
+
+  await user.clear(input)
+  await user.type(input, 'a b')
+  expect(save).toBeDisabled()
+  await user.clear(input)
+  await user.type(input, ' alice-ai ')
+  await user.click(save)
+
+  expect(put).toHaveBeenCalledWith('/api/affiliate/self/code', {
+    aff_code: 'alice-ai',
+  })
+  const link = (await screen.findByLabelText(
+    'Referral link'
+  )) as HTMLInputElement
+  await vi.waitFor(() => expect(link.value).toMatch(/aff=alice-ai$/))
 })

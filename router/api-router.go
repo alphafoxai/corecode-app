@@ -211,6 +211,7 @@ func SetApiRouter(router *gin.Engine) {
 			affiliateSelfRoute.Use(middleware.UserAuth())
 			{
 				affiliateSelfRoute.GET("", controller.GetSelfAffiliate)
+				affiliateSelfRoute.PUT("/code", middleware.UserCriticalRateLimit("affiliate"), controller.SetSelfAffiliateCode)
 				affiliateSelfRoute.GET("/commissions", controller.GetSelfAffiliateCommissions)
 				affiliateSelfRoute.GET("/invitees", controller.GetSelfAffiliateInvitees)
 				affiliateSelfRoute.POST("/invitees/:id/gift", middleware.UserCriticalRateLimit("affiliate"), controller.GiftSelfAffiliateInvitee)
