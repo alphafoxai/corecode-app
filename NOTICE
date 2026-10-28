@@ -55,4 +55,12 @@ Desktop distributions include Electron, which embeds Chromium, Node.js, V8,
 and other third-party components. Electron and Chromium third-party license
 notices must remain available with desktop installers and installed apps.
 
+==== vm2api Detection Semantics ====
+
+Copyright (c) 2026 vm2api contributors.
+Deterministic risk detection is adapted from vm2api 1.4.023,
+revision 06e5a0be1d89cd74e0f60f12f44646179ab1977b.
+The original license is retained in pkg/riskpolicy/LICENSE.vm2api.
+Commercial use requires separate written authorization from its holder.
+
 ==== End of Notices ====
