@@ -216,3 +216,29 @@ export function buildCCSwitchURL(args: {
   params.set('usageAutoInterval', String(CC_SWITCH_USAGE_INTERVAL_MINUTES))
   return `ccswitch://v1/import?${params.toString()}`
 }
+
+/**
+ * Web link for Magpie's one-click import. Everything rides in the fragment, so
+ * the key never reaches a server; the page hands it to `magpie://import`, and
+ * Magpie shows a confirmation before it saves. The shared id replaces the
+ * built-in CoreCode preset instead of adding a second provider.
+ */
+export function buildMagpieImportURL(args: {
+  baseUrl: string
+  apiKey: string
+  providerName: string
+  models: readonly string[]
+}): string {
+  const params = new URLSearchParams()
+  params.set('name', args.providerName)
+  params.set('id', 'corecode')
+  params.set('chat', `${args.baseUrl}/v1`)
+  params.set('responses', `${args.baseUrl}/v1`)
+  params.set('anthropic', args.baseUrl)
+  params.set('key', args.apiKey)
+  params.set('models', pickClaudeModels(args.models).join(','))
+  params.set('website', args.baseUrl)
+  params.set('keys', `${args.baseUrl}/keys`)
+  params.set('icon', `${args.baseUrl}/brand/logo.svg`)
+  return `https://usemagpie.ai/import#${params.toString()}`
+}
