@@ -38,8 +38,11 @@ reservation.
   subscription request with a wallet overflow source always carries it, so
   that a settlement past the plan's total is charged to the wallet.
   - `subscription_first`: the wallet joins when every active subscription
-    allows wallet overflow and the wallet is positive. This is the same
-    condition under which the wallet already served the whole request.
+    allows wallet overflow. This is the same condition under which the
+    wallet already served the whole request. A positive wallet also shares
+    the reservation. An empty one only takes a settlement past the plan's
+    total, which leaves it below zero; a request the subscription cannot
+    hold is still refused.
   - `wallet_first`: an active subscription joins.
 - **Settlement order.** A positive delta goes to the primary source up to its
   balance, then to the overflow source, and the wallet takes whatever is left.
@@ -79,6 +82,11 @@ reservation.
 - Debt is bounded by one request per concurrent slot. Its size is the
   request's cost minus what the sources held. Before, it was one response's
   output. The limit on concurrent requests still bounds the count.
+- A starter-plan customer with an empty wallet can end the plan slightly
+  below zero: the last request's cost past the plan's total. In the week
+  before 2026-10-28, 252 of 3310 subscription requests cost more than they
+  reserved, by $0.20 each on average. The next top-up collects it. The
+  relay watch therefore alerts only on balances below -$1.
 - `subscription_first` users now read `allow_wallet_overflow` on every
   request, not only after the subscription fails: one more indexed count
   query.

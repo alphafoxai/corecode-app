@@ -662,7 +662,8 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		return session, nil
 	}
 
-	// walletOverflow 时订阅不足的部分由余额为正的钱包承担
+	// walletOverflow 时钱包承担结算超出订阅剩余的部分（余额可为负）；只有余额为正
+	// 的钱包才在预扣时分担订阅不足的部分，订阅放不下预估的请求仍被拒绝。
 	trySubscription := func(walletOverflow bool) (*BillingSession, *types.NewAPIError) {
 		subConsume := int64(preConsumedQuota)
 		if subConsume <= 0 {
@@ -673,17 +674,17 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 			lang:           i18n.StatedLang(c),
 			allowShortfall: allowShortfall,
 		}
+		walletPositive := false
 		if walletOverflow && allowShortfall {
 			userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 			if err != nil {
 				return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 			}
-			if userQuota > 0 {
-				relayInfo.UserQuota = userQuota
-				session.overflow = &WalletFunding{userId: relayInfo.UserId}
-			}
+			relayInfo.UserQuota = userQuota
+			session.overflow = &WalletFunding{userId: relayInfo.UserId}
+			walletPositive = userQuota > 0
 		}
-		session.funding = newSubscriptionFunding(subConsume, session.overflow != nil)
+		session.funding = newSubscriptionFunding(subConsume, walletPositive)
 		// 必须传 subConsume 而非 preConsumedQuota，保证 SubscriptionFunding.amount、
 		// preConsume 参数和 FinalPreConsumedQuota 三者一致，避免订阅多扣费。
 		if apiErr := session.preConsume(c, int(subConsume)); apiErr != nil {
