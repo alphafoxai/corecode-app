@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
@@ -307,6 +309,130 @@ func TestPreConsumePolicyDatabaseMatrix(t *testing.T) {
 						require.NoError(t, db.First(&token, token.Id).Error)
 						assert.Equal(t, tc.token-actual, token.RemainQuota)
 					}
+				})
+			}
+		})
+	}
+}
+
+// A request whose estimate exceeds its source reserves what the source holds,
+// draws the rest from the other source, and settles any remainder to the
+// wallet. Async tasks and plans without wallet overflow keep full reservation.
+func TestPreConsumeShortfallAcrossWalletAndSubscription(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	previousConfig := config.GlobalConfig.ExportAllConfigs()
+	previousUnit, previousBatch := common.QuotaPerUnit, common.BatchUpdateEnabled
+	common.QuotaPerUnit, common.BatchUpdateEnabled = 500000, false
+	t.Cleanup(func() {
+		require.NoError(t, config.GlobalConfig.LoadFromDB(previousConfig))
+		common.QuotaPerUnit, common.BatchUpdateEnabled = previousUnit, previousBatch
+	})
+	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+		t.Run(dialect.kind, func(t *testing.T) {
+			if dialect.env != "" && os.Getenv(dialect.env) == "" {
+				t.Skip("set " + dialect.env + " to run this database")
+			}
+			db := modelManagementDB(t, dialect.kind, os.Getenv(dialect.env))
+			require.NoError(t, db.AutoMigrate(&model.Token{}, &model.SubscriptionPlan{}, &model.UserSubscription{}, &model.SubscriptionPreConsumeRecord{}))
+			require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+				"billing_setting.billing_mode":         `{"policy-model":"tiered_expr"}`,
+				"billing_setting.billing_expr":         `{"policy-model":"tier(\"base\", p * 3 + c * 15)"}`,
+				"group_ratio_setting.group_ratio":      `{"default":1}`,
+				"quota_setting.trust_quota_usd":        "0",
+				"quota_setting.pre_consume_multiplier": "1",
+			}))
+			plan := model.SubscriptionPlan{Title: "shortfall-plan", TotalAmount: 10000, QuotaResetPeriod: "never"}
+			require.NoError(t, db.Create(&plan).Error)
+
+			// The estimate is 1500 and the response costs 2250. subLeft < 0 means no subscription.
+			cases := []struct {
+				name             string
+				preference       string
+				wallet           int
+				subLeft          int
+				overflow, force  bool
+				refund           bool
+				wantHeld         int
+				wantWalletHeld   int
+				wantWallet       int
+				wantSubUsed      int
+				wantOverflowSrc  string
+				wantOverflowPart int
+			}{
+				{name: "wallet below estimate reserves its balance", preference: "wallet_only", wallet: 1000, subLeft: -1,
+					wantHeld: 1000, wantWalletHeld: 1000, wantWallet: -1250},
+				{name: "async task keeps full reservation", preference: "wallet_only", wallet: 1000, subLeft: -1, force: true},
+				{name: "wallet first draws the rest from the subscription", preference: "wallet_first", wallet: 1000, subLeft: 800,
+					wantHeld: 1500, wantWalletHeld: 1000, wantWallet: -450, wantSubUsed: 800, wantOverflowSrc: "subscription", wantOverflowPart: 800},
+				{name: "subscription first draws the rest from the wallet", preference: "subscription_first", wallet: 5000, subLeft: 1000, overflow: true,
+					wantHeld: 1500, wantWalletHeld: 500, wantWallet: 3750, wantSubUsed: 1000, wantOverflowSrc: "wallet", wantOverflowPart: 1250},
+				{name: "settlement beyond the subscription goes to the wallet", preference: "subscription_first", wallet: 5000, subLeft: 2000, overflow: true,
+					wantHeld: 1500, wantWallet: 4750, wantSubUsed: 2000, wantOverflowSrc: "wallet", wantOverflowPart: 250},
+				{name: "plan without wallet overflow keeps full reservation", preference: "subscription_first", wallet: 5000, subLeft: 1000},
+				{name: "failed request refunds both sources", preference: "wallet_first", wallet: 1000, subLeft: 800, refund: true,
+					wantHeld: 1500, wantWalletHeld: 1000, wantWallet: 1000, wantOverflowSrc: "subscription"},
+			}
+			for i, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					user := model.User{Username: fmt.Sprintf("shortfall-user-%d", i), Quota: tc.wallet, Group: "default", AffCode: fmt.Sprintf("shortfall-aff-%d", i)}
+					require.NoError(t, db.Create(&user).Error)
+					token := model.Token{UserId: user.Id, Key: fmt.Sprintf("shortfall-token-%d", i), UnlimitedQuota: true}
+					require.NoError(t, db.Create(&token).Error)
+					var sub model.UserSubscription
+					if tc.subLeft >= 0 {
+						sub = model.UserSubscription{UserId: user.Id, PlanId: plan.Id, AmountTotal: 10000, AmountUsed: int64(10000 - tc.subLeft),
+							StartTime: common.GetTimestamp(), EndTime: common.GetTimestamp() + 86400, Status: "active", AllowWalletOverflow: tc.overflow}
+						require.NoError(t, db.Create(&sub).Error)
+					}
+					ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+					ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+					info := &relaycommon.RelayInfo{RequestId: fmt.Sprintf("shortfall-request-%d", i), UserId: user.Id, TokenId: token.Id, TokenKey: token.Key, TokenUnlimited: true,
+						ForcePreConsume: tc.force, OriginModelName: "policy-model", UserGroup: "default", UsingGroup: "default", BillingRequestInput: &billingexpr.RequestInput{}}
+					info.UserSetting.BillingPreference = tc.preference
+					price, err := helper.ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{})
+					require.NoError(t, err)
+					require.Equal(t, 1500, price.QuotaToPreConsume)
+
+					apiErr := service.PreConsumeBilling(ctx, price.QuotaToPreConsume, info)
+					if tc.wantHeld == 0 {
+						require.NotNil(t, apiErr)
+						assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+						require.NoError(t, db.First(&user, user.Id).Error)
+						assert.Equal(t, tc.wallet, user.Quota)
+						return
+					}
+					require.Nil(t, apiErr)
+					assert.Equal(t, tc.wantHeld, info.FinalPreConsumedQuota)
+					assert.Equal(t, tc.wantOverflowSrc, info.BillingOverflowSource)
+					require.NoError(t, db.First(&user, user.Id).Error)
+					assert.Equal(t, tc.wallet-tc.wantWalletHeld, user.Quota)
+
+					if tc.refund {
+						info.Billing.Refund(ctx)
+						assert.Eventually(t, func() bool {
+							var refunded model.UserSubscription
+							return db.First(&user, user.Id).Error == nil && user.Quota == tc.wantWallet &&
+								db.First(&refunded, sub.Id).Error == nil && refunded.AmountUsed == sub.AmountUsed
+						}, 2*time.Second, 20*time.Millisecond)
+						var dbg model.UserSubscription
+						db.First(&dbg, sub.Id)
+						var recs []model.SubscriptionPreConsumeRecord
+						db.Find(&recs)
+						t.Logf("DEBUG wallet=%d used=%d orig=%d recs=%+v", user.Quota, dbg.AmountUsed, sub.AmountUsed, recs)
+						return
+					}
+					_, actual, _ := service.TryTieredSettle(info, billingexpr.TokenParams{P: 1000, C: 100, Len: 1000})
+					require.Equal(t, 2250, actual)
+					require.NoError(t, info.Billing.Settle(actual))
+					require.NoError(t, info.Billing.Settle(actual))
+					require.NoError(t, db.First(&user, user.Id).Error)
+					assert.Equal(t, tc.wantWallet, user.Quota)
+					if tc.subLeft >= 0 {
+						var settled model.UserSubscription
+						require.NoError(t, db.First(&settled, sub.Id).Error)
+						assert.Equal(t, sub.AmountUsed+int64(tc.wantSubUsed), settled.AmountUsed)
+					}
+					assert.Equal(t, tc.wantOverflowPart, info.BillingOverflowQuota)
 				})
 			}
 		})
