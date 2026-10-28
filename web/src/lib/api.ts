@@ -48,19 +48,25 @@ export async function getSelf() {
   return res.data
 }
 
-export async function getUserModels(): Promise<{
+/** Models the user can call; with `group`, only those that group serves. */
+export async function getUserModels(group?: string): Promise<{
   success: boolean
   message?: string
   data?: string[]
 }> {
-  const res = await api.get('/api/user/models')
+  const res = group
+    ? await api.get('/api/user/models', { params: { group } })
+    : await api.get('/api/user/models')
   return res.data
 }
 
 export async function getUserGroups(): Promise<{
   success: boolean
   message?: string
-  data?: Record<string, { desc: string; ratio: number | string }>
+  data?: Record<
+    string,
+    { desc: string; ratio: number | string; claude_code_only?: boolean }
+  >
 }> {
   const res = await api.get('/api/user/self/groups')
   return res.data

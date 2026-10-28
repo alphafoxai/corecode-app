@@ -31,9 +31,102 @@ export const CLIENT_SETUP_TARGETS = [
   'powershell',
   'cc-switch',
   'magpie',
+  'codex-config',
+  'codex-shell',
+  'codex-powershell',
+  'codex-cc-switch',
+  'openai-shell',
+  'openai-powershell',
+  'openai-curl',
 ] as const
 
 export type ClientSetupTarget = (typeof CLIENT_SETUP_TARGETS)[number]
+
+/**
+ * The client a key is set up for. A Claude Code only group gets Claude Code
+ * alone; other groups get every client their models can serve.
+ */
+export const SETUP_CLIENTS = ['claude-code', 'codex', 'openai'] as const
+
+export type SetupClient = (typeof SETUP_CLIENTS)[number]
+
+export const CLIENT_TARGETS: Record<SetupClient, readonly ClientSetupTarget[]> =
+  {
+    'claude-code': ['settings', 'shell', 'powershell', 'cc-switch', 'magpie'],
+    codex: [
+      'codex-config',
+      'codex-shell',
+      'codex-powershell',
+      'codex-cc-switch',
+    ],
+    openai: ['openai-shell', 'openai-powershell', 'openai-curl'],
+  }
+
+/** The model Codex starts on when the key can call it. */
+export const DEFAULT_CODEX_MODEL = 'gpt-6.1-sol'
+
+/**
+ * Clients for a key whose group serves `models`. With no models known yet the
+ * guide shows Claude Code, the client every group but GPT serves.
+ */
+export function getSetupClients(args: {
+  claudeCodeOnly: boolean
+  models: readonly string[]
+}): SetupClient[] {
+  if (args.claudeCodeOnly || args.models.length === 0) return ['claude-code']
+  const clients: SetupClient[] = []
+  if (args.models.some((model) => model.startsWith('claude-'))) {
+    clients.push('claude-code')
+  }
+  if (args.models.some((model) => model.startsWith('gpt-'))) {
+    clients.push('codex')
+  }
+  clients.push('openai')
+  return clients
+}
+
+/** i18n key of the action that opens the guide for a key with `clients`. */
+export function getSetupTitle(clients: readonly SetupClient[]): string {
+  if (clients.length === 1 && clients[0] === 'claude-code') {
+    return 'Connect Claude Code'
+  }
+  if (clients[0] === 'codex') return 'Connect Codex'
+  return 'Connect a client'
+}
+
+export function pickCodexModel(models: readonly string[]): string {
+  if (models.includes(DEFAULT_CODEX_MODEL)) return DEFAULT_CODEX_MODEL
+  return models.find((model) => model.startsWith('gpt-')) ?? DEFAULT_CODEX_MODEL
+}
+
+/** A model for the OpenAI examples: the group's own before a Claude one. */
+export function pickOpenAIModel(models: readonly string[]): string {
+  const callable = models.filter((model) => model !== 'codex-auto-review')
+  return (
+    callable.find((model) => !model.startsWith('claude-')) ??
+    pickClaudeModels(callable)[0]
+  )
+}
+
+/** The variable Codex reads the key from, e.g. CORECODE_API_KEY. */
+export function getCodexEnvKey(providerName: string): string {
+  return `${getMagpieProviderId(providerName).toUpperCase().replaceAll('-', '_')}_API_KEY`
+}
+
+export function buildVerifyCommand(
+  client: SetupClient,
+  baseUrl: string,
+  prompt: string
+): string {
+  switch (client) {
+    case 'claude-code':
+      return `claude -p "${prompt}"`
+    case 'codex':
+      return `codex exec "${prompt}"`
+    case 'openai':
+      return `curl ${baseUrl}/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"`
+  }
+}
 
 /** Used when the gateway lists no Claude models for this account. */
 export const DEFAULT_CLAUDE_MODELS = [
@@ -104,6 +197,47 @@ export function buildClientSetupSnippet(
         `$env:ANTHROPIC_BASE_URL = "${args.baseUrl}"`,
         `$env:ANTHROPIC_AUTH_TOKEN = "${args.apiKey}"`,
         'claude',
+      ].join('\n')
+    case 'codex-config':
+    case 'codex-cc-switch': {
+      const id = getMagpieProviderId(args.providerName)
+      return [
+        `model = "${pickCodexModel(args.models)}"`,
+        `model_provider = "${id}"`,
+        '',
+        `[model_providers.${id}]`,
+        `name = "${args.providerName}"`,
+        `base_url = "${args.baseUrl}/v1"`,
+        `env_key = "${getCodexEnvKey(args.providerName)}"`,
+        'wire_api = "responses"',
+      ].join('\n')
+    }
+    case 'codex-shell':
+      return [
+        `export ${getCodexEnvKey(args.providerName)}=${args.apiKey}`,
+        'codex',
+      ].join('\n')
+    case 'codex-powershell':
+      return [
+        `$env:${getCodexEnvKey(args.providerName)} = "${args.apiKey}"`,
+        'codex',
+      ].join('\n')
+    case 'openai-shell':
+      return [
+        `export OPENAI_BASE_URL=${args.baseUrl}/v1`,
+        `export OPENAI_API_KEY=${args.apiKey}`,
+      ].join('\n')
+    case 'openai-powershell':
+      return [
+        `$env:OPENAI_BASE_URL = "${args.baseUrl}/v1"`,
+        `$env:OPENAI_API_KEY = "${args.apiKey}"`,
+      ].join('\n')
+    case 'openai-curl':
+      return [
+        `curl ${args.baseUrl}/v1/chat/completions \\`,
+        `  -H "Authorization: Bearer ${args.apiKey}" \\`,
+        '  -H "Content-Type: application/json" \\',
+        `  -d '{"model":"${pickOpenAIModel(args.models)}","messages":[{"role":"user","content":"Hello"}]}'`,
       ].join('\n')
     case 'magpie': {
       const id = getMagpieProviderId(args.providerName)

@@ -22,12 +22,16 @@ import {
   buildCCSwitchURL,
   buildClientSetupSnippet,
   buildMagpieImportURL,
+  buildVerifyCommand,
   CC_SWITCH_USAGE_INTERVAL_MINUTES,
   DEFAULT_CLAUDE_MODELS,
   getAnthropicBaseUrl,
   getMagpieProviderId,
+  getSetupClients,
+  getSetupTitle,
   maskApiKey,
   pickClaudeModels,
+  pickOpenAIModel,
 } from '../client-setup'
 
 const args = {
@@ -294,5 +298,89 @@ describe('buildMagpieImportURL', () => {
       ).hash.slice(1)
     )
     expect(encoded.get('name')).toBe('A & B')
+  })
+})
+
+describe('getSetupClients', () => {
+  const claude = ['claude-opus-5-5', 'claude-sonnet-5-5']
+  const gpt = ['codex-auto-review', 'gpt-5.6-luna', 'gpt-6.1-sol']
+  test.each([
+    ['a Claude Code only group', true, claude, ['claude-code']],
+    [
+      'a Claude group open to other clients',
+      false,
+      claude,
+      ['claude-code', 'openai'],
+    ],
+    ['the GPT group', false, gpt, ['codex', 'openai']],
+    ['the Grok group', false, ['grok-4.6'], ['openai']],
+    [
+      'auto',
+      false,
+      [...claude, ...gpt, 'grok-4.6'],
+      ['claude-code', 'codex', 'openai'],
+    ],
+    ['a group whose models are not known yet', false, [], ['claude-code']],
+  ] as const)('%s', (_, claudeCodeOnly, models, expected) => {
+    expect(getSetupClients({ claudeCodeOnly, models })).toEqual(expected)
+  })
+
+  test('names the action after the only client it offers', () => {
+    expect(getSetupTitle(['claude-code'])).toBe('Connect Claude Code')
+    expect(getSetupTitle(['codex', 'openai'])).toBe('Connect Codex')
+    expect(getSetupTitle(['claude-code', 'openai'])).toBe('Connect a client')
+  })
+})
+
+describe('Codex and OpenAI-compatible snippets', () => {
+  const gptArgs = {
+    ...args,
+    models: ['codex-auto-review', 'gpt-5.6-luna', 'gpt-6.1-sol'],
+  }
+
+  test('points Codex at /v1 over the Responses API with the key in an env var', () => {
+    const config = buildClientSetupSnippet('codex-config', gptArgs)
+    expect(config).toBe(
+      [
+        'model = "gpt-6.1-sol"',
+        'model_provider = "corecode"',
+        '',
+        '[model_providers.corecode]',
+        'name = "CoreCode"',
+        'base_url = "https://corecode.live/v1"',
+        'env_key = "CORECODE_API_KEY"',
+        'wire_api = "responses"',
+      ].join('\n')
+    )
+    expect(config).not.toContain(args.apiKey)
+    expect(buildClientSetupSnippet('codex-shell', gptArgs)).toBe(
+      'export CORECODE_API_KEY=sk-full-secret-key\ncodex'
+    )
+    expect(buildClientSetupSnippet('codex-powershell', gptArgs)).toBe(
+      '$env:CORECODE_API_KEY = "sk-full-secret-key"\ncodex'
+    )
+  })
+
+  test("gives OpenAI tools the /v1 address and one of the group's own models", () => {
+    expect(buildClientSetupSnippet('openai-shell', gptArgs)).toBe(
+      'export OPENAI_BASE_URL=https://corecode.live/v1\nexport OPENAI_API_KEY=sk-full-secret-key'
+    )
+    expect(buildClientSetupSnippet('openai-curl', gptArgs)).toContain(
+      '"model":"gpt-5.6-luna"'
+    )
+    expect(pickOpenAIModel(['claude-sonnet-5-5', 'grok-4.6'])).toBe('grok-4.6')
+    expect(pickOpenAIModel(['claude-sonnet-5-5'])).toBe('claude-sonnet-5-5')
+  })
+
+  test('checks each client with its own command', () => {
+    expect(buildVerifyCommand('claude-code', args.baseUrl, 'ok')).toBe(
+      'claude -p "ok"'
+    )
+    expect(buildVerifyCommand('codex', args.baseUrl, 'ok')).toBe(
+      'codex exec "ok"'
+    )
+    expect(buildVerifyCommand('openai', args.baseUrl, 'ok')).toBe(
+      'curl https://corecode.live/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"'
+    )
   })
 })

@@ -20,6 +20,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 
+import { getSetupTitle } from '../lib/client-setup'
+import { useSetupClients } from '../lib/use-setup-clients'
 import { ApiKeysDeleteDialog } from './api-keys-delete-dialog'
 import { ApiKeysMutateDrawer } from './api-keys-mutate-drawer'
 import { useApiKeys } from './api-keys-provider'
@@ -29,6 +31,7 @@ import { CCSwitchDialog } from './dialogs/cc-switch-dialog'
 export function ApiKeysDialogs() {
   const { t } = useTranslation()
   const { open, setOpen, currentRow, resolvedKey } = useApiKeys()
+  const { clients: setupClients } = useSetupClients(currentRow)
 
   return (
     <>
@@ -46,7 +49,7 @@ export function ApiKeysDialogs() {
       <Dialog
         open={open === 'setup' && currentRow !== null}
         onOpenChange={(isOpen) => !isOpen && setOpen(null)}
-        title={t('Connect Claude Code')}
+        title={t(getSetupTitle(setupClients))}
         description={currentRow?.name}
         contentClassName='sm:max-w-2xl'
         contentHeight='auto'
