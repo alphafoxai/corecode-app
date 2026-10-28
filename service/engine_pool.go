@@ -267,20 +267,26 @@ var enginePoolCache struct {
 // one read, which is not tied to any caller's request and gives up after 8 s.
 // The result is shared between callers and must not be modified.
 func FetchEnginePool() EnginePool {
+	return enginePool(0)
+}
+
+// RecentEnginePool returns the last complete read of the pool when it is at
+// most staleLimit old, without waiting for the engine; a read older than
+// enginePoolTTL also starts a new one in the background, so the next caller
+// gets fresher figures. Without such a read it waits like FetchEnginePool.
+// It suits views that show the pool's slowly changing totals.
+func RecentEnginePool(staleLimit time.Duration) EnginePool {
+	return enginePool(staleLimit)
+}
+
+func enginePool(staleLimit time.Duration) EnginePool {
 	base := strings.TrimRight(strings.TrimSpace(operation_setting.EngineControlURL), "/")
 	key := strings.TrimSpace(operation_setting.EngineControlKey)
 	if base == "" || key == "" {
 		return EnginePool{Groups: []EngineGroup{}, Accounts: []EngineAccount{}, Refills: []EngineRefill{}}
 	}
 	source := base + "\x00" + key
-	enginePoolCache.mu.Lock()
-	if enginePoolCache.source == source && time.Since(enginePoolCache.readAt) < enginePoolTTL {
-		pool := enginePoolCache.pool
-		enginePoolCache.mu.Unlock()
-		return pool
-	}
-	enginePoolCache.mu.Unlock()
-	value, _, _ := enginePoolCache.flight.Do(source, func() (any, error) {
+	read := func() (any, error) {
 		pool := readEnginePool(base, key)
 		if pool.Error == "" && pool.EstimateError == "" {
 			enginePoolCache.mu.Lock()
@@ -288,7 +294,19 @@ func FetchEnginePool() EnginePool {
 			enginePoolCache.mu.Unlock()
 		}
 		return pool, nil
-	})
+	}
+	enginePoolCache.mu.Lock()
+	cached, age := enginePoolCache.pool, time.Since(enginePoolCache.readAt)
+	found := enginePoolCache.source == source
+	enginePoolCache.mu.Unlock()
+	if found && age < enginePoolTTL {
+		return cached
+	}
+	if found && age < staleLimit {
+		enginePoolCache.flight.DoChan(source, read)
+		return cached
+	}
+	value, _, _ := enginePoolCache.flight.Do(source, read)
 	return value.(EnginePool)
 }
 

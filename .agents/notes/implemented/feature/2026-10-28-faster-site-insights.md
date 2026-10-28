@@ -39,8 +39,19 @@ server, not the transfer:
   keeps a complete read for `enginePoolTTL` (5 s), keyed by the control URL and
   key, and concurrent callers share one read. A read with an error is not
   kept. The read no longer takes the caller's context: it is shared, so one
-  caller leaving must not cancel the others, and it still stops after 8 s. The
-  capacity view starts the read before its database work.
+  caller leaving must not cancel the others, and it still stops after 8 s.
+- **Capacity does not wait on the engine.** It shows only the pool's totals
+  (eligible accounts, slots, the per-account limit, budgets), which change
+  slowly, so it calls `RecentEnginePool(2 * time.Minute)`: the last complete
+  read is returned at once, and a read older than 5 s starts a new one in the
+  background. Only the first capacity request after a start, or after two
+  minutes without one, waits for the engine, and that read runs while the
+  database works. After the first release of this change the 30 s refresh
+  took 240–280 ms, and 59 ms when the pool read was shared. Timed on the
+  relay host, the engine's `/group-concurrency` took 27–65 ms and
+  `/group-concurrency/pool-estimate` 230–260 ms; corecode-engine reads the
+  estimate's accounts in parallel since its
+  `2026-10-28-read-pool-estimate-accounts-in-parallel` note.
 - **Funds sums balances in SQL.** One aggregate query returns the liability,
   the number of customers in credit and the debt; the top balances use
   `ORDER BY quota DESC, id LIMIT 10` and the debtors `ORDER BY quota, id`.
@@ -72,7 +83,8 @@ server, not the transfer:
   live on each capacity request, as before.
 - Each server process keeps its own cache; during a blue/green release, the
   two colors compute their open hours independently.
-- The pool shown by capacity and by the pool tab can be up to 5 s old.
+- The pool tab's figures can be up to 5 s old. Capacity's pool totals are
+  normally one refresh (30 s) old, and at most two minutes.
 
 ## Verification
 
