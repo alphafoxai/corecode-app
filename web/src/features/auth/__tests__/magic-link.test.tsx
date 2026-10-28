@@ -245,6 +245,30 @@ describe('MagicLinkForm', () => {
     expect(post.mock.calls[0][1]).toMatchObject({ aff: undefined })
   })
 
+  it('captures ?ref= as the invitation code, with ?aff= taking precedence', async () => {
+    window.localStorage.removeItem('aff')
+    window.history.replaceState({}, '', '/sign-in?ref=magpie')
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, resend_after: 45 } } as never)
+
+    renderInRouter(SignInHarness, '/')
+    expect(
+      await screen.findByLabelText('Invitation code (optional)')
+    ).toHaveValue('magpie')
+    await submitEmail(userEvent.setup())
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1]).toMatchObject({ aff: 'magpie' })
+
+    cleanup()
+    window.history.replaceState({}, '', '/sign-in?ref=other&aff=fromaff')
+    renderInRouter(SignInHarness, '/')
+    expect(
+      await screen.findByLabelText('Invitation code (optional)')
+    ).toHaveValue('fromaff')
+    window.history.replaceState({}, '', '/')
+  })
+
   it('reserves the resend button for the server-provided wait', async () => {
     vi.spyOn(api, 'post').mockResolvedValue({
       data: { success: true, resend_after: 45 },

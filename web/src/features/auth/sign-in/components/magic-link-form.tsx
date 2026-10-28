@@ -90,7 +90,7 @@ export function MagicLinkForm({
   const [sentTo, setSentTo] = useState('')
   // Consent starts checked; the customer can still uncheck it.
   const [agreedToLegal, setAgreedToLegal] = useState(true)
-  // An invitation link (?aff=CODE) lands here; keep its code for the send below.
+  // An invitation link (?aff=CODE or ?ref=CODE) lands here; keep its code for the send below.
   const [inviteCode, setInviteCode] = useState(() =>
     typeof window === 'undefined'
       ? ''
