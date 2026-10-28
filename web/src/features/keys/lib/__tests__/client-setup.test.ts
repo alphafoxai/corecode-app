@@ -89,13 +89,22 @@ describe('buildClientSetupSnippet', () => {
     )
   })
 
-  test('the Magpie snippet adds the provider and switches Claude Code to its first model', () => {
-    expect(buildClientSetupSnippet('magpie', args).split('\n')).toEqual([
-      'magpie provider add CoreCode anthropic=https://corecode.live key=sk-full-secret-key \\',
-      '  models=claude-opus-5-5,claude-sonnet-5-5',
+  test('the Magpie snippets add one provider for every agent and switch theirs to it', () => {
+    const add = [
+      'magpie provider add CoreCode anthropic=https://corecode.live \\',
+      '  url=https://corecode.live/v1 responses=https://corecode.live/v1 key=sk-full-secret-key',
       'magpie provider test corecode',
+    ]
+    expect(buildClientSetupSnippet('magpie', args).split('\n')).toEqual([
+      ...add,
       'magpie claude corecode/claude-opus-5-5',
     ])
+    expect(
+      buildClientSetupSnippet('codex-magpie', {
+        ...args,
+        models: ['gpt-5.6-luna', 'gpt-6.1-sol'],
+      }).split('\n')
+    ).toEqual([...add, 'magpie codex corecode/gpt-6.1-sol'])
   })
 })
 

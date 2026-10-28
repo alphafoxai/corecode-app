@@ -83,6 +83,7 @@ const TARGET_LABELS: Record<ClientSetupTarget, string> = {
   'codex-shell': 'macOS / Linux',
   'codex-powershell': 'Windows',
   'codex-cc-switch': 'CC Switch',
+  'codex-magpie': 'Magpie',
   'openai-shell': 'macOS / Linux',
   'openai-powershell': 'Windows',
   'openai-curl': 'curl',
@@ -105,6 +106,7 @@ const TARGET_SOURCES: Record<ClientSetupTarget, string> = {
   'codex-shell': 'bash / zsh',
   'codex-powershell': 'PowerShell',
   'codex-cc-switch': 'CC Switch · config.toml',
+  'codex-magpie': 'bash / zsh',
   'openai-shell': 'bash / zsh',
   'openai-powershell': 'PowerShell',
   'openai-curl': 'bash / zsh',
@@ -134,6 +136,10 @@ function getTargetHint(
     case 'magpie':
       return t(
         'Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.'
+      )
+    case 'codex-magpie':
+      return t(
+        'Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.'
       )
     case 'codex-config':
       return t(
@@ -428,21 +434,22 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
           </Button>
         )}
 
-      {activeTarget === 'magpie' && selectedKey && (
-        <Button
-          className='self-start'
-          size='sm'
-          onClick={handleOpenMagpie}
-          disabled={busy === 'magpie'}
-        >
-          {busy === 'magpie' ? (
-            <Loader2 className='animate-spin' data-icon='inline-start' />
-          ) : (
-            <ArrowRightLeft data-icon='inline-start' />
-          )}
-          {t('Add to Magpie')}
-        </Button>
-      )}
+      {(activeTarget === 'magpie' || activeTarget === 'codex-magpie') &&
+        selectedKey && (
+          <Button
+            className='self-start'
+            size='sm'
+            onClick={handleOpenMagpie}
+            disabled={busy === 'magpie'}
+          >
+            {busy === 'magpie' ? (
+              <Loader2 className='animate-spin' data-icon='inline-start' />
+            ) : (
+              <ArrowRightLeft data-icon='inline-start' />
+            )}
+            {t('Add to Magpie')}
+          </Button>
+        )}
 
       {!selectedKey && !props.keysLoading && (
         <div className='bg-primary/5 border-primary/20 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-3'>

@@ -31,14 +31,21 @@ Claude 满血（仅限CC）, Claude 满血（可外接）, GPT, Grok, Gemini and
     Magpie).
   - Codex: `~/.codex/config.toml` with a custom provider (`base_url` ending in
     `/v1`, `wire_api = "responses"`, `env_key = "CORECODE_API_KEY"`), the
-    shell and PowerShell lines that set that variable, and CC Switch's Codex
-    import. The key stays out of the TOML. The provider form follows Codex's
+    shell and PowerShell lines that set that variable, CC Switch's Codex
+    import, and Magpie (the import link, or `magpie provider add` and
+    `magpie codex <id>/<model>`). The key stays out of the TOML. The provider form follows Codex's
     documentation at learn.chatgpt.com/docs/config-file/config-advanced
     (redirected from developers.openai.com/codex/config-advanced), checked
     2026-10-28; `corecode` is not one of the reserved ids `openai`, `ollama`,
     `lmstudio`.
   - Other tools: `OPENAI_BASE_URL` / `OPENAI_API_KEY` for macOS / Linux and
     Windows, and a Chat Completions curl, using one of the group's own models.
+- Both Magpie snippets add one provider with all three addresses
+  (`anthropic=`, `url=<base>/v1`, `responses=<base>/v1`) and no `models=`, as
+  the import link does, so one CoreCode provider serves Claude Code and Codex
+  and Magpie lists the key's own models. `url=` is the CLI's Chat Completions
+  field: a `magpie provider add` run under a scratch `HOME` on 2026-10-28 wrote
+  it to `chat` in providers.json.
 - The check command follows the client (`claude -p`, `codex exec`, a curl of
   `/v1/models`); the claude.ai sign-out warning shows for Claude Code only.
 - The row button's label and the dialog title follow the same clients:

@@ -180,6 +180,14 @@ describe('ClientSetupGuide', () => {
       'base_url = "https://corecode.live/v1"'
     )
     expect(screen.getByText('codex exec "Reply with ok"')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Magpie' }))
+    expect(screen.getByLabelText('Configuration snippet')).toHaveTextContent(
+      'magpie codex corecode/gpt-6.1-sol'
+    )
+    expect(
+      screen.getByRole('button', { name: 'Add to Magpie' })
+    ).toBeInTheDocument()
   })
 })
 
