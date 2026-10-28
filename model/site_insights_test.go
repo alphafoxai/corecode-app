@@ -2,6 +2,7 @@ package model
 
 import (
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 
@@ -259,4 +260,40 @@ func TestHistogram(t *testing.T) {
 	assert.EqualValues(t, 800, h.percentile(0))
 	assert.Equal(t, h, decodeHistogram(h.encode()))
 	assert.Zero(t, histogram{}.percentile(0.5))
+}
+
+func TestOpenInsightHoursAreReusedWithinTTL(t *testing.T) {
+	useInsightsTestDB(t, "sqlite")
+	resetOpen := func() {
+		openInsightHours.mu.Lock()
+		openInsightHours.byStart = nil
+		openInsightHours.mu.Unlock()
+	}
+	resetOpen()
+	t.Cleanup(resetOpen)
+	ttl := insightOpenHourTTL
+	t.Cleanup(func() { insightOpenHourTTL = ttl })
+
+	alice := registerAffiliateTestUser(t, "alice", "")
+	now := time.Now().Unix()
+	hour := now - now%3600
+	r := InsightsRange{Start: hour, End: hour + 3600}
+	logAt := func(at int64) {
+		require.NoError(t, LOG_DB.Create(&Log{UserId: alice.Id, Username: "alice", Type: LogTypeConsume, CreatedAt: at, ModelName: "opus", Other: `{}`}).Error)
+	}
+
+	logAt(hour + 1)
+	first, err := GetCapacityInsights(r)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, first.Requests)
+
+	logAt(hour + 2)
+	cached, err := GetCapacityInsights(r)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, cached.Requests, "an open hour computed within the TTL is reused")
+
+	insightOpenHourTTL = 0
+	fresh, err := GetCapacityInsights(r)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, fresh.Requests, "an expired open hour is read from the logs again")
 }

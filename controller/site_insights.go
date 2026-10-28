@@ -84,6 +84,9 @@ type CapacityResponse struct {
 
 func GetCapacityInsights(c *gin.Context) {
 	serveInsights(c, model.InsightsMaxLogDays, func(r model.InsightsRange) (*CapacityResponse, error) {
+		// The engine answers over the network; read it while the database works.
+		poolDone := make(chan service.EnginePool, 1)
+		go func() { poolDone <- service.FetchEnginePool() }()
 		insights, err := model.GetCapacityInsights(r)
 		if err != nil {
 			return nil, err
@@ -150,7 +153,7 @@ func GetCapacityInsights(c *gin.Context) {
 		for _, point := range response.LimitRejections {
 			response.LimitRejectionTotal += point.Count
 		}
-		response.Pool = service.FetchEnginePool(c.Request.Context())
+		response.Pool = <-poolDone
 		return response, nil
 	})
 }
@@ -182,5 +185,5 @@ func GetBusinessInsights(c *gin.Context) {
 // GetEnginePool returns corecode-engine's groups and accounts, live. It takes
 // no range: the engine reports its current state.
 func GetEnginePool(c *gin.Context) {
-	common.ApiSuccess(c, service.FetchEnginePool(c.Request.Context()))
+	common.ApiSuccess(c, service.FetchEnginePool())
 }

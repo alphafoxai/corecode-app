@@ -5,18 +5,22 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
 // The capacity, quality and business views read the request logs through
 // hourly rollups. A finished hour is aggregated once and stored in three
 // tables, so a view over weeks reads one row per hour, user and model instead
-// of every log; the hours still open are aggregated from the logs on each
-// read. A rollup outlives the logs it came from.
+// of every log. The hours still open are aggregated from the logs and reused
+// for insightOpenHourTTL, so the views that share them, and the capacity
+// view's 30 s refresh, scan those logs at most once a minute. A rollup
+// outlives the logs it came from.
 //
 // A request belongs to the hour it started in (created_at - use_time), and is
 // in flight until created_at. An hour is final once no request started in it
@@ -408,10 +412,62 @@ func firstLogAt() (int64, error) {
 	return *first, nil
 }
 
+// insightOpenHourTTL is how long a computed open hour is served before the
+// logs are read again. The live figures (in-flight requests and users) do not
+// come from these hours.
+var insightOpenHourTTL = time.Minute
+
+type cachedInsightHour struct {
+	hour       *insightHour
+	computedAt time.Time
+}
+
+// openInsightHours holds the open hours computed in this process. A cached
+// hour is shared by concurrent readers and must not be modified.
+var openInsightHours struct {
+	mu      sync.Mutex
+	byStart map[int64]cachedInsightHour
+	flight  singleflight.Group
+}
+
+// recentOpenInsightHour returns the open hour starting at start if it was
+// computed within insightOpenHourTTL, and otherwise computes it. Concurrent
+// callers for the same hour share one computation.
+func recentOpenInsightHour(start int64, compute func() (*insightHour, error)) (*insightHour, error) {
+	openInsightHours.mu.Lock()
+	cached, ok := openInsightHours.byStart[start]
+	openInsightHours.mu.Unlock()
+	if ok && time.Since(cached.computedAt) < insightOpenHourTTL {
+		return cached.hour, nil
+	}
+	value, err, _ := openInsightHours.flight.Do(strconv.FormatInt(start, 10), func() (any, error) {
+		hour, err := compute()
+		if err != nil {
+			return nil, err
+		}
+		openInsightHours.mu.Lock()
+		defer openInsightHours.mu.Unlock()
+		if openInsightHours.byStart == nil {
+			openInsightHours.byStart = make(map[int64]cachedInsightHour)
+		}
+		for key, entry := range openInsightHours.byStart {
+			if time.Since(entry.computedAt) >= insightOpenHourTTL {
+				delete(openInsightHours.byStart, key)
+			}
+		}
+		openInsightHours.byStart[start] = cachedInsightHour{hour: hour, computedAt: time.Now()}
+		return hour, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return value.(*insightHour), nil
+}
+
 // loadInsightHours returns every hour that starts in [r.Start, r.End),
 // whole hours in UTC, oldest first. Stored hours are read; a final hour that
-// is missing or of an old version is computed and stored; open hours are
-// computed on each call.
+// is missing or of an old version is computed and stored; an open hour comes
+// from recentOpenInsightHour.
 func loadInsightHours(r InsightsRange) ([]*insightHour, error) {
 	first := r.Start - ((r.Start%3600)+3600)%3600
 	now := time.Now().Unix()
@@ -463,12 +519,21 @@ func loadInsightHours(r InsightsRange) ([]*insightHour, error) {
 				result = append(result, &insightHour{start: start})
 				continue
 			}
-			if roots == nil {
-				if roots, err = rootUserIDs(); err != nil {
-					return nil, err
+			compute := func() (*insightHour, error) {
+				if roots == nil {
+					var err error
+					if roots, err = rootUserIDs(); err != nil {
+						return nil, err
+					}
 				}
+				return computeInsightHour(start, roots)
 			}
-			if hour, err = computeInsightHour(start, roots); err != nil {
+			if final {
+				hour, err = compute()
+			} else {
+				hour, err = recentOpenInsightHour(start, compute)
+			}
+			if err != nil {
 				return nil, err
 			}
 			if final {
