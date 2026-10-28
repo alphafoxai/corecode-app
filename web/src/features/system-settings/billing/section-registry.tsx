@@ -21,10 +21,6 @@ import { parseCurrencyDisplayType } from '@/lib/currency'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry, lazySection } from '../utils/section-registry'
 
-const AffiliateSection = lazySection(() =>
-  import('../affiliate/affiliate-section').then((m) => m.AffiliateSection)
-)
-
 const CheckinSettingsSection = lazySection(() =>
   import('../general/checkin-settings-section').then(
     (m) => m.CheckinSettingsSection
@@ -210,26 +206,6 @@ const BILLING_SECTIONS = [
             settings['payment_setting.compliance_terms_version'] ?? '',
           confirmedAt: settings['payment_setting.compliance_confirmed_at'] ?? 0,
           confirmedBy: settings['payment_setting.compliance_confirmed_by'] ?? 0,
-        }}
-      />
-    ),
-  },
-  {
-    id: 'affiliate',
-    titleKey: 'Invitation program',
-    build: (settings: BillingSettings) => (
-      <AffiliateSection
-        defaultValues={{
-          'affiliate_setting.enabled': settings['affiliate_setting.enabled'],
-          'affiliate_setting.self_serve_rate':
-            settings['affiliate_setting.self_serve_rate'],
-          'affiliate_setting.max_rate': settings['affiliate_setting.max_rate'],
-          'affiliate_setting.second_level_rate':
-            settings['affiliate_setting.second_level_rate'],
-          'affiliate_setting.min_withdrawal':
-            settings['affiliate_setting.min_withdrawal'],
-          'affiliate_setting.gift_plan_id':
-            settings['affiliate_setting.gift_plan_id'],
         }}
       />
     ),

@@ -58,3 +58,79 @@ export async function processWithdrawal(
   }
   return res.data.data
 }
+
+/** One user on the invitation page: an affiliate, or an inviter without one */
+export interface AffiliateListItem {
+  user_id: number
+  username: string
+  display_name: string
+  email: string
+  status: number
+  aff_code: string
+  /** False for a user who invited people before they had an affiliate row */
+  has_affiliate: boolean
+  rate: number
+  channel: boolean
+  invitee_count: number
+  /** Quota units */
+  balance: number
+  /** Quota units */
+  earned: number
+}
+
+export type AffiliateListType = '' | 'channel' | 'inviting' | 'revoked'
+export type AffiliateListSort = 'invitees' | 'earned' | 'recent'
+
+export async function getAffiliates(params: {
+  keyword: string
+  type: AffiliateListType
+  sort: AffiliateListSort
+  p: number
+  page_size: number
+}): Promise<AffiliatePage<AffiliateListItem>> {
+  const res = await api.get<ApiResponse<AffiliatePage<AffiliateListItem>>>(
+    '/api/affiliate/admin/affiliates',
+    {
+      params: {
+        ...params,
+        keyword: params.keyword || undefined,
+        type: params.type || undefined,
+      },
+    }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load affiliates')
+  }
+  return res.data.data
+}
+
+/** GET /api/affiliate/admin/overview. Amounts are quota units. */
+export interface AffiliateOverview {
+  overview: {
+    /** Users with at least one invitee */
+    inviters: number
+    channels: number
+    invitees: number
+    earned: number
+    balance: number
+    pending_withdrawals: number
+    pending_withdrawal_quota: number
+  }
+  earned_money: number
+  balance_money: number
+  pending_withdrawal_money: number
+  enabled: boolean
+  self_serve_rate: number
+  max_rate: number
+  second_level_rate: number
+}
+
+export async function getAffiliateOverview(): Promise<AffiliateOverview> {
+  const res = await api.get<ApiResponse<AffiliateOverview>>(
+    '/api/affiliate/admin/overview'
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load the invitation overview')
+  }
+  return res.data.data
+}

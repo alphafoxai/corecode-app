@@ -36,6 +36,7 @@ import { Route as PricingIndexRouteImport } from './routes/pricing/index'
 import { Route as RankingsIndexRouteImport } from './routes/rankings/index'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as authUserResetRouteImport } from './routes/(auth)/user/reset'
+import { Route as AuthenticatedAffiliatesIndexRouteImport } from './routes/_authenticated/affiliates/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
@@ -213,6 +214,12 @@ const authUserResetRoute = authUserResetRouteImport.update({
   path: '/user/reset',
   getParentRoute: () => authRouteRoute,
 } as any)
+const AuthenticatedAffiliatesIndexRoute =
+  AuthenticatedAffiliatesIndexRouteImport.update({
+    id: '/affiliates/',
+    path: '/affiliates/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChannelsIndexRoute =
   AuthenticatedChannelsIndexRouteImport.update({
     id: '/channels/',
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
+  '/affiliates/': typeof AuthenticatedAffiliatesIndexRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/enterprise-applications/': typeof AuthenticatedEnterpriseApplicationsIndexRoute
@@ -562,6 +570,7 @@ export interface FileRoutesByTo {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
+  '/affiliates': typeof AuthenticatedAffiliatesIndexRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/enterprise-applications': typeof AuthenticatedEnterpriseApplicationsIndexRoute
@@ -634,6 +643,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
+  '/_authenticated/affiliates/': typeof AuthenticatedAffiliatesIndexRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/enterprise-applications/': typeof AuthenticatedEnterpriseApplicationsIndexRoute
@@ -705,6 +715,7 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/usage-logs/audit'
+    | '/affiliates/'
     | '/channels/'
     | '/dashboard/'
     | '/enterprise-applications/'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/usage-logs/audit'
+    | '/affiliates'
     | '/channels'
     | '/dashboard'
     | '/enterprise-applications'
@@ -844,6 +856,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$section'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/usage-logs/audit'
+    | '/_authenticated/affiliates/'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/enterprise-applications/'
@@ -1092,6 +1105,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/user/reset'
       preLoaderRoute: typeof authUserResetRouteImport
       parentRoute: typeof authRouteRoute
+    }
+    '/_authenticated/affiliates/': {
+      id: '/_authenticated/affiliates/'
+      path: '/affiliates'
+      fullPath: '/affiliates/'
+      preLoaderRoute: typeof AuthenticatedAffiliatesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/channels/': {
       id: '/_authenticated/channels/'
@@ -1490,6 +1510,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedUsageLogsAuditRoute: typeof AuthenticatedUsageLogsAuditRoute
+  AuthenticatedAffiliatesIndexRoute: typeof AuthenticatedAffiliatesIndexRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedEnterpriseApplicationsIndexRoute: typeof AuthenticatedEnterpriseApplicationsIndexRoute
@@ -1520,6 +1541,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedUsageLogsAuditRoute: AuthenticatedUsageLogsAuditRoute,
+  AuthenticatedAffiliatesIndexRoute: AuthenticatedAffiliatesIndexRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedEnterpriseApplicationsIndexRoute:

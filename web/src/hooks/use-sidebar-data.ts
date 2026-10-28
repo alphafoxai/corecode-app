@@ -24,6 +24,7 @@ import {
   CreditCard,
   FileText,
   FlaskConical,
+  HandCoins,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -175,6 +176,12 @@ export function useSidebarData(): SidebarData {
             title: t('Enterprise Applications'),
             url: '/enterprise-applications',
             icon: Building2,
+          },
+          {
+            title: t('Invitation program'),
+            url: '/affiliates',
+            icon: HandCoins,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('Site Insights'),

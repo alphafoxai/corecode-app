@@ -50,7 +50,9 @@ import {
 import type { AdminUserManageAction } from '@/features/auth/secure-verification'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
 import { handleServerError } from '@/lib/handle-server-error'
+import { ROLE } from '@/lib/roles'
 import { AuthOperationError } from '@/lib/secure-verification'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
 import {
@@ -91,6 +93,10 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
   const [affiliateDialogOpen, setAffiliateDialogOpen] = useState(false)
+  // Managing the invitation program is root's.
+  const viewerIsRoot = useAuthStore(
+    (s) => s.auth.user?.role === ROLE.SUPER_ADMIN
+  )
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -278,17 +284,19 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuShortcut>
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault()
-            setAffiliateDialogOpen(true)
-          }}
-        >
-          {t('Invitation settings')}
-          <DropdownMenuShortcut>
-            <Gift size={16} />
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
+        {viewerIsRoot && (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              setAffiliateDialogOpen(true)
+            }}
+          >
+            {t('Invitation settings')}
+            <DropdownMenuShortcut>
+              <Gift size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 
