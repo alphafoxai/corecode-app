@@ -141,6 +141,7 @@ func main() {
 	service.StartAffiliateSettlementTask()
 
 	middleware.StartUserConcurrencyRejectionFlush()
+	service.StartRiskGateTasks()
 	service.StartSiteInsightsRollupTask()
 
 	// Report this process as a system instance so the System Info page can show
@@ -254,6 +255,7 @@ func main() {
 		model.FlushBatchUpdates()
 	}
 	middleware.FlushUserConcurrencyRejections()
+	service.FlushRiskGateCounts()
 	// 内存中的看板数据保存入库，避免重启丢失未落库数据 (issue #5679)
 	if common.DataExportEnabled {
 		model.SaveQuotaDataCache()

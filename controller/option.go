@@ -385,6 +385,16 @@ func UpdateOption(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	case "risk_gate_setting.mode", "risk_gate_setting.distill_rules", "risk_gate_setting.hard_regex_rules",
+		"risk_gate_setting.decision_questions", "risk_gate_setting.similarity_threshold",
+		"risk_gate_setting.decision_threshold", "risk_gate_setting.decision_timeout_ms",
+		"risk_gate_setting.decision_base_url":
+		field := strings.TrimPrefix(option.Key, "risk_gate_setting.")
+		err = operation_setting.ValidateRiskGateOption(field, option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "claude_code_client_setting.min_version", "claude_code_client_setting.max_version":
 		err = operation_setting.ValidateClaudeCodeVersion(option.Value.(string))
 		if err != nil {

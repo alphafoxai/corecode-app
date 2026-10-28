@@ -70,19 +70,33 @@ func loadViolationGuardState(now, windowStart int64) bool {
 	return false
 }
 
+// Violation guard verdicts on a request.
+const (
+	violationVerdictSuspended    = "suspended"
+	violationVerdictConversation = "conversation"
+)
+
 // CheckViolationGuard rejects, before any channel is used, a request from an
 // account suspended for a violation, or one that resends a conversation the
 // upstream refused. In observe mode it only logs what it would reject. When
 // the state cannot be loaded the request passes.
 func CheckViolationGuard(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
+	_, apiErr := violationGuardVerdict(c, info)
+	return apiErr
+}
+
+// violationGuardVerdict is CheckViolationGuard that also reports what it
+// found, violationVerdictSuspended or violationVerdictConversation, in either
+// mode.
+func violationGuardVerdict(c *gin.Context, info *relaycommon.RelayInfo) (string, *types.NewAPIError) {
 	setting := operation_setting.GetViolationGuardSetting()
 	if !setting.Enabled || info == nil {
-		return nil
+		return "", nil
 	}
 	now := common.GetTimestamp()
 	windowStart := now - int64(setting.StrikeWindowDays)*86400
 	if !loadViolationGuardState(now, windowStart) {
-		return nil
+		return "", nil
 	}
 	enforce := setting.Mode == operation_setting.ViolationGuardModeEnforce
 
@@ -94,13 +108,14 @@ func CheckViolationGuard(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 	if suspendedUntil > now {
 		if enforce {
 			until := time.Unix(suspendedUntil, 0).UTC().Format("2006-01-02 15:04 UTC")
-			return types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationSuspended, map[string]any{"Until": until})),
+			return violationVerdictSuspended, types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationSuspended, map[string]any{"Until": until})),
 				types.ErrorCodeViolationSuspended, http.StatusForbidden, types.ErrOptionWithSkipRetry())
 		}
 		logger.LogInfo(c, common.LogText("violation guard (observe): user %d is suspended; enforce mode would reject this request", info.UserId))
+		return violationVerdictSuspended, nil
 	}
 	if !hasRefusedConversations {
-		return nil
+		return "", nil
 	}
 
 	keys := violationConversationKeys(humanMessages(info.Request))
@@ -114,14 +129,14 @@ func CheckViolationGuard(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 	}
 	violationGuardState.RUnlock()
 	if !refused {
-		return nil
+		return "", nil
 	}
 	if !enforce {
 		logger.LogInfo(c, common.LogText("violation guard (observe): user %d resent a refused conversation; enforce mode would reject this request", info.UserId))
-		return nil
+		return violationVerdictConversation, nil
 	}
 	RequestPolicy(c).AddEvent(PolicyEvent{ErrorCode: string(types.ErrorCodeViolationConversationBlocked), ErrorSource: "local", Decision: PolicyDecision{Action: "stop", Reason: "local_rejection", Source: "global"}, Health: "unchanged"})
-	return types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationConversationBlocked)),
+	return violationVerdictConversation, types.NewErrorWithStatusCode(errors.New(i18n.T(c, i18n.MsgViolationConversationBlocked)),
 		types.ErrorCodeViolationConversationBlocked, http.StatusForbidden, types.ErrOptionWithSkipRetry())
 }
 
@@ -151,7 +166,9 @@ func RecordUpstreamRefusal(c *gin.Context, info *relaycommon.RelayInfo) {
 	gopool.Go(func() {
 		if err := applyViolationStrike(setting, record, common.GetTimestamp()); err != nil {
 			common.SysError(common.LogText("violation guard: failed to record a refusal for user %d: %s", record.UserId, err.Error()))
+			return
 		}
+		rememberRefusedMessage(record.Excerpt)
 	})
 }
 

@@ -379,6 +379,8 @@ func migrateDB() error {
 		&QuotaAdjustmentRequest{},
 		&ViolationRecord{},
 		&UserViolationState{},
+		&RiskGateEvent{},
+		&RiskGateHourlyCount{},
 		&Affiliate{},
 		&AffiliateReferral{},
 		&AffiliateCommission{},

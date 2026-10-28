@@ -151,7 +151,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}()
 
-	if newAPIError = service.CheckViolationGuard(c, relayInfo); newAPIError != nil {
+	if newAPIError = service.CheckRiskGate(c, relayInfo); newAPIError != nil {
 		return
 	}
 
