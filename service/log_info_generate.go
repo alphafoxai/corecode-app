@@ -218,6 +218,10 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) 
 	if relayInfo.UserSetting.BillingPreference != "" {
 		other.SetPublic("billing_preference", relayInfo.UserSetting.BillingPreference)
 	}
+	if relayInfo.BillingOverflowQuota > 0 {
+		other.SetPublic("billing_overflow_source", relayInfo.BillingOverflowSource)
+		other.SetPublic("billing_overflow_quota", relayInfo.BillingOverflowQuota)
+	}
 	if relayInfo.BillingSource == "subscription" {
 		if relayInfo.SubscriptionId != 0 {
 			other.SetPublic("subscription_id", relayInfo.SubscriptionId)

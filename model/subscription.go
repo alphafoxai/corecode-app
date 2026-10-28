@@ -1343,6 +1343,17 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 
 // PreConsumeUserSubscription pre-consumes from any active subscription total quota.
 func PreConsumeUserSubscription(requestId string, userId int, modelName string, quotaType int, amount int64) (*SubscriptionPreConsumeResult, error) {
+	return preConsumeUserSubscription(requestId, userId, amount, false)
+}
+
+// PreConsumeUserSubscriptionUpTo reserves amount from the first subscription
+// that holds it, or else everything left on the subscription holding the
+// most. It fails only when no active subscription has quota left.
+func PreConsumeUserSubscriptionUpTo(requestId string, userId int, amount int64) (*SubscriptionPreConsumeResult, error) {
+	return preConsumeUserSubscription(requestId, userId, amount, true)
+}
+
+func preConsumeUserSubscription(requestId string, userId int, amount int64, partial bool) (*SubscriptionPreConsumeResult, error) {
 	if userId <= 0 {
 		return nil, errors.New("invalid userId")
 	}
@@ -1388,27 +1399,38 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 		if len(subs) == 0 {
 			return errors.New("no active subscription")
 		}
-		for _, candidate := range subs {
-			sub := candidate
+		var chosen *UserSubscription
+		take := amount
+		var largest *UserSubscription
+		for i := range subs {
+			sub := &subs[i]
 			plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
 			if err != nil {
 				return err
 			}
-			if err := maybeResetUserSubscriptionWithPlanTx(tx, &sub, plan, now); err != nil {
+			if err := maybeResetUserSubscriptionWithPlanTx(tx, sub, plan, now); err != nil {
 				return err
 			}
-			usedBefore := sub.AmountUsed
-			if sub.AmountTotal > 0 {
-				remain := sub.AmountTotal - usedBefore
-				if remain < amount {
-					continue
-				}
+			if sub.AmountTotal <= 0 || sub.AmountTotal-sub.AmountUsed >= amount {
+				chosen = sub
+				break
 			}
+			if remain := sub.AmountTotal - sub.AmountUsed; remain > 0 && (largest == nil || remain > largest.AmountTotal-largest.AmountUsed) {
+				largest = sub
+			}
+		}
+		if chosen == nil && partial && largest != nil {
+			chosen = largest
+			take = largest.AmountTotal - largest.AmountUsed
+		}
+		if chosen != nil {
+			sub := *chosen
+			usedBefore := sub.AmountUsed
 			record := &SubscriptionPreConsumeRecord{
 				RequestId:          requestId,
 				UserId:             userId,
 				UserSubscriptionId: sub.Id,
-				PreConsumed:        amount,
+				PreConsumed:        take,
 				Status:             "consumed",
 			}
 			if err := tx.Create(record).Error; err != nil {
@@ -1426,12 +1448,12 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 				}
 				return err
 			}
-			sub.AmountUsed += amount
+			sub.AmountUsed += take
 			if err := tx.Save(&sub).Error; err != nil {
 				return err
 			}
 			returnValue.UserSubscriptionId = sub.Id
-			returnValue.PreConsumed = amount
+			returnValue.PreConsumed = take
 			returnValue.AmountTotal = sub.AmountTotal
 			returnValue.AmountUsedBefore = usedBefore
 			returnValue.AmountUsedAfter = sub.AmountUsed
@@ -1463,7 +1485,8 @@ func RefundSubscriptionPreConsume(requestId string) error {
 			record.Status = "refunded"
 			return tx.Save(&record).Error
 		}
-		if err := PostConsumeUserSubscriptionDelta(record.UserSubscriptionId, -record.PreConsumed); err != nil {
+		// Same transaction as the status change, so a retry cannot refund twice.
+		if err := postConsumeUserSubscriptionDeltaTx(tx, record.UserSubscriptionId, -record.PreConsumed); err != nil {
 			return err
 		}
 		record.Status = "refunded"
@@ -1562,17 +1585,51 @@ func PostConsumeUserSubscriptionDelta(userSubscriptionId int, delta int64) error
 		return nil
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
+		return postConsumeUserSubscriptionDeltaTx(tx, userSubscriptionId, delta)
+	})
+}
+
+func postConsumeUserSubscriptionDeltaTx(tx *gorm.DB, userSubscriptionId int, delta int64) error {
+	var sub UserSubscription
+	if err := lockForUpdate(tx).
+		Where("id = ?", userSubscriptionId).
+		First(&sub).Error; err != nil {
+		return err
+	}
+	newUsed := max(sub.AmountUsed+delta, 0)
+	if sub.AmountTotal > 0 && newUsed > sub.AmountTotal {
+		return fmt.Errorf("subscription used exceeds total, used=%d total=%d", newUsed, sub.AmountTotal)
+	}
+	sub.AmountUsed = newUsed
+	return tx.Save(&sub).Error
+}
+
+// PostConsumeUserSubscriptionDeltaUpTo charges at most what the subscription
+// has left and returns the part it applied. A negative delta refunds in full.
+func PostConsumeUserSubscriptionDeltaUpTo(userSubscriptionId int, delta int64) (int64, error) {
+	if userSubscriptionId <= 0 {
+		return 0, errors.New("invalid userSubscriptionId")
+	}
+	if delta == 0 {
+		return 0, nil
+	}
+	var applied int64
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		var sub UserSubscription
 		if err := lockForUpdate(tx).
 			Where("id = ?", userSubscriptionId).
 			First(&sub).Error; err != nil {
 			return err
 		}
-		newUsed := max(sub.AmountUsed+delta, 0)
-		if sub.AmountTotal > 0 && newUsed > sub.AmountTotal {
-			return fmt.Errorf("subscription used exceeds total, used=%d total=%d", newUsed, sub.AmountTotal)
+		applied = delta
+		if delta > 0 && sub.AmountTotal > 0 {
+			applied = min(delta, max(sub.AmountTotal-sub.AmountUsed, 0))
 		}
-		sub.AmountUsed = newUsed
+		sub.AmountUsed = max(sub.AmountUsed+applied, 0)
 		return tx.Save(&sub).Error
 	})
+	if err != nil {
+		return 0, err
+	}
+	return applied, nil
 }
