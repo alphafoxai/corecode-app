@@ -271,8 +271,8 @@ func TestOpenInsightHoursAreReusedWithinTTL(t *testing.T) {
 	}
 	resetOpen()
 	t.Cleanup(resetOpen)
-	ttl := insightOpenHourTTL
-	t.Cleanup(func() { insightOpenHourTTL = ttl })
+	ttl, staleLimit := insightOpenHourTTL, insightOpenHourStaleLimit
+	t.Cleanup(func() { insightOpenHourTTL, insightOpenHourStaleLimit = ttl, staleLimit })
 
 	alice := registerAffiliateTestUser(t, "alice", "")
 	now := time.Now().Unix()
@@ -293,7 +293,18 @@ func TestOpenInsightHoursAreReusedWithinTTL(t *testing.T) {
 	assert.EqualValues(t, 1, cached.Requests, "an open hour computed within the TTL is reused")
 
 	insightOpenHourTTL = 0
+	stale, err := GetCapacityInsights(r)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, stale.Requests, "an older hour within the stale limit is served at once")
+	assert.Eventually(t, func() bool {
+		openInsightHours.mu.Lock()
+		defer openInsightHours.mu.Unlock()
+		return openInsightHours.byStart[hour].hour.summary.Requests == 2
+	}, 5*time.Second, 20*time.Millisecond, "and is recomputed in the background")
+
+	logAt(hour + 3)
+	insightOpenHourStaleLimit = 0
 	fresh, err := GetCapacityInsights(r)
 	require.NoError(t, err)
-	assert.EqualValues(t, 2, fresh.Requests, "an expired open hour is read from the logs again")
+	assert.EqualValues(t, 3, fresh.Requests, "an hour past the stale limit is read from the logs now")
 }
