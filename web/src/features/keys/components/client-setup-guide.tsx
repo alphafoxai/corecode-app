@@ -463,16 +463,16 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
         </div>
       )}
 
-      <div className='flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between'>
-        <div className='flex min-w-0 items-center gap-2 text-xs'>
-          <span className='text-muted-foreground shrink-0'>
+      <div className='flex flex-col gap-2.5 border-t pt-3'>
+        <div className='flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5'>
+          <span className='text-muted-foreground shrink-0 text-xs'>
             {t('Check the connection')}
           </span>
           <Button
-            variant='ghost'
-            size='xs'
+            variant='outline'
+            size='sm'
             onClick={handleCopyVerify}
-            className='min-w-0 font-mono'
+            className='bg-muted/40 max-w-full min-w-0 font-mono text-xs'
             aria-label={`${t('Copy')}: ${verifyCommand}`}
           >
             <span className='truncate'>{verifyCommand}</span>
@@ -484,9 +484,9 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
           </Button>
         </div>
         {activeClient === 'claude-code' && (
-          <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
+          <p className='text-muted-foreground flex items-start gap-1.5 text-xs leading-relaxed text-pretty'>
             <TriangleAlert
-              className='text-warning mt-px size-3.5 shrink-0'
+              className='text-warning mt-0.5 size-3.5 shrink-0'
               aria-hidden
             />
             {t(
