@@ -115,14 +115,16 @@ func (s *BillingSession) settleFunding(delta int) (applied bool, err error) {
 		return applied, nil
 	}
 
+	// 订阅写入失败或读不到钱包余额时，该部分改由钱包承担，出错也不会少扣。
 	primaryShare := delta
 	if s.overflow != nil {
 		if wallet, ok := s.funding.(*WalletFunding); ok {
 			balance, err := model.GetUserQuota(wallet.userId, false)
 			if err != nil {
-				return false, err
+				s.logSettleFallback("reading the wallet balance", err)
+			} else {
+				primaryShare = min(delta, max(balance, 0))
 			}
-			primaryShare = min(delta, max(balance, 0))
 		}
 	}
 	charged := 0
@@ -130,10 +132,11 @@ func (s *BillingSession) settleFunding(delta int) (applied bool, err error) {
 		if sub, ok := s.funding.(*SubscriptionFunding); ok {
 			n, err := model.PostConsumeUserSubscriptionDeltaUpTo(sub.subscriptionId, int64(primaryShare))
 			if err != nil {
-				return false, err
+				s.logSettleFallback("charging the subscription", err)
+			} else {
+				charged = int(n)
+				s.relayInfo.SubscriptionPostDelta += n
 			}
-			charged = int(n)
-			s.relayInfo.SubscriptionPostDelta += n
 		} else {
 			if err := s.funding.Settle(primaryShare); err != nil {
 				return false, err
@@ -148,18 +151,20 @@ func (s *BillingSession) settleFunding(delta int) (applied bool, err error) {
 		case *SubscriptionFunding:
 			n, err := model.PostConsumeUserSubscriptionDeltaUpTo(overflow.subscriptionId, int64(rest))
 			if err != nil {
-				return applied, err
+				s.logSettleFallback("charging the overflow subscription", err)
+			} else {
+				s.overflowQuota += int(n)
+				rest -= int(n)
+				applied = applied || n > 0
 			}
-			s.overflowQuota += int(n)
-			rest -= int(n)
 		case *WalletFunding:
 			if err := overflow.Settle(rest); err != nil {
 				return applied, err
 			}
 			s.overflowQuota += rest
 			rest = 0
+			applied = true
 		}
-		applied = true
 	}
 	if rest > 0 {
 		if wallet, ok := s.funding.(*WalletFunding); ok {
@@ -171,6 +176,10 @@ func (s *BillingSession) settleFunding(delta int) (applied bool, err error) {
 		return applied, fmt.Errorf("subscription quota exhausted, %d quota of user %d left uncharged", rest, s.relayInfo.UserId)
 	}
 	return applied, nil
+}
+
+func (s *BillingSession) logSettleFallback(step string, err error) {
+	common.SysError(common.LogText("settlement fell back to the wallet after %s failed (userId=%d): %s", step, s.relayInfo.UserId, err.Error()))
 }
 
 func (s *BillingSession) settlePrimary(delta int) error {

@@ -45,6 +45,12 @@ reservation.
   balance, then to the overflow source, and the wallet takes whatever is left.
   A negative delta first returns what the overflow source holds. A failed
   request refunds both sources.
+- **A failed step falls to the wallet.** It applies when settlement cannot
+  read the wallet balance or cannot charge a subscription. That share is
+  charged to the wallet and the failure is logged, so a database error never
+  leaves part of the cost uncharged. Without this, a failed balance read
+  dropped the whole delta, and a failed subscription charge dropped
+  everything after it.
 - **Full reservation is kept** for async tasks (`ForcePreConsume`), image
   requests, `subscription_only`, and plans that do not allow wallet overflow.
   Task billing adjusts later by `BillingSource` and expects one source; a plan
