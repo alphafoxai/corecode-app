@@ -18,13 +18,17 @@ type RankingQuotaBucket struct {
 	Tokens    int64  `json:"tokens"`
 }
 
+// rankingTokensSum counts every token: token_used leaves out the cache reads
+// and writes, which Claude Code traffic is mostly made of.
+const rankingTokensSum = "sum(token_used + cache_read_tokens + cache_creation_tokens)"
+
 func GetRankingQuotaTotals(startTime int64, endTime int64) ([]RankingQuotaTotal, error) {
 	var rows []RankingQuotaTotal
 	query := DB.Table("quota_data").
-		Select("model_name, sum(token_used) as total_tokens").
+		Select("model_name, " + rankingTokensSum + " as total_tokens").
 		Where("model_name <> ''").
 		Group("model_name").
-		Having("sum(token_used) > 0").
+		Having(rankingTokensSum + " > 0").
 		Order("total_tokens DESC")
 	query = applyRankingQuotaTimeRange(query, startTime, endTime)
 	err := query.Find(&rows).Error
@@ -38,10 +42,10 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64) ([
 	bucketExpr := rankingBucketExpr(bucketSize)
 	var rows []RankingQuotaBucket
 	query := DB.Table("quota_data").
-		Select(fmt.Sprintf("model_name, %s as bucket, sum(token_used) as tokens", bucketExpr)).
+		Select(fmt.Sprintf("model_name, %s as bucket, %s as tokens", bucketExpr, rankingTokensSum)).
 		Where("model_name <> ''").
 		Group(fmt.Sprintf("model_name, %s", bucketExpr)).
-		Having("sum(token_used) > 0").
+		Having(rankingTokensSum + " > 0").
 		Order("bucket ASC")
 	query = applyRankingQuotaTimeRange(query, startTime, endTime)
 	err := query.Find(&rows).Error

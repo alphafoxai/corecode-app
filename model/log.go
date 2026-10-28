@@ -346,6 +346,9 @@ type RecordConsumeLogParams struct {
 	IsStream         bool              `json:"is_stream"`
 	Group            string            `json:"group"`
 	Other            *LogOther         `json:"other"`
+	// PromptIncludesCache marks PromptTokens that count the cache reads and
+	// writes, as OpenAI usage does. Anthropic usage reports them apart.
+	PromptIncludesCache bool `json:"-"`
 }
 
 // upstreamRequestID is the upstream request ID recorded on a usage log. gpt-load's
@@ -409,13 +412,17 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			// Do not add the 5m/1h breakdown again or infer tokens from prices.
 			cacheCreationTokens, _ = other.public["cache_write_tokens"].(int)
 		}
+		promptTokens := params.PromptTokens
+		if params.PromptIncludesCache {
+			promptTokens = max(0, promptTokens-cacheReadTokens-cacheCreationTokens)
+		}
 		LogQuotaData(QuotaDataLogParams{
 			UserID:              userId,
 			Username:            username,
 			ModelName:           params.ModelName,
 			Quota:               params.Quota,
 			CreatedAt:           createdAt,
-			TokenUsed:           params.PromptTokens + params.CompletionTokens,
+			TokenUsed:           promptTokens + params.CompletionTokens,
 			CacheReadTokens:     int64(cacheReadTokens),
 			CacheCreationTokens: int64(cacheCreationTokens),
 			UseGroup:            params.Group,

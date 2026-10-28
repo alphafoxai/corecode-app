@@ -555,6 +555,9 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		IsStream:         relayInfo.IsStream,
 		Group:            relayInfo.UsingGroup,
 		Other:            other,
+		// Mirrors the base-price rule above: only OpenAI usage counts the
+		// cache inside prompt_tokens.
+		PromptIncludesCache: !summary.IsClaudeUsageSemantic && !isLegacyClaudeDerivedOpenAIUsage(relayInfo, billingUsage),
 	})
 	relayInfo.PerformanceOutputTokens = int64(summary.CompletionTokens)
 }
