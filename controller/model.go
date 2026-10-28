@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -227,6 +228,11 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 	}
 
+	if common.GetContextKeyBool(c, constant.ContextKeyAnonymousModelList) {
+		writeModelList(c, modelType, publicModelNames(modelType, acceptUnsetRatioModel), nil)
+		return
+	}
+
 	userModelNames := make([]string, 0)
 	groups, err := getModelListGroups(c)
 	if err != nil {
@@ -262,6 +268,31 @@ func ListModels(c *gin.Context, modelType int) {
 		userModelNames = append(userModelNames, modelName)
 	}
 
+	writeModelList(c, modelType, userModelNames, ownerGroups)
+}
+
+// publicModelNames lists the models the public pricing page shows a visitor
+// who is not signed in. The Anthropic shape keeps only those served on the
+// Messages API, since an Anthropic client can call no other.
+func publicModelNames(modelType int, acceptUnsetRatioModel bool) []string {
+	pricing := filterPricingByUsableGroups(model.GetPricing(), service.GetUserUsableGroups(""))
+	names := make([]string, 0, len(pricing))
+	for _, item := range pricing {
+		if modelType == constant.ChannelTypeAnthropic && !slices.Contains(item.SupportedEndpointTypes, constant.EndpointTypeAnthropic) {
+			continue
+		}
+		if !acceptUnsetRatioModel && !helper.HasModelBillingConfig(item.ModelName) {
+			continue
+		}
+		names = append(names, item.ModelName)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// writeModelList answers a model list in the shape of modelType: Anthropic,
+// Gemini, or OpenAI otherwise.
+func writeModelList(c *gin.Context, modelType int, userModelNames []string, ownerGroups []string) {
 	ownerByModel := map[string]string{}
 	if len(ownerGroups) > 0 {
 		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups)

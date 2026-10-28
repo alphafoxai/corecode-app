@@ -3,6 +3,7 @@ package router
 import (
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
@@ -20,11 +21,12 @@ func SetRelayRouter(router *gin.Engine) {
 	// https://platform.openai.com/docs/api-reference/introduction
 	modelsRouter := router.Group("/v1/models")
 	modelsRouter.Use(middleware.RouteTag("relay"))
-	modelsRouter.Use(middleware.TokenAuth())
+	modelsRouter.Use(middleware.ModelListAuth())
 	{
 		modelsRouter.GET("", func(c *gin.Context) {
+			anonymous := common.GetContextKeyBool(c, constant.ContextKeyAnonymousModelList)
 			switch {
-			case c.GetHeader("x-api-key") != "" && c.GetHeader("anthropic-version") != "":
+			case c.GetHeader("anthropic-version") != "" && (anonymous || c.GetHeader("x-api-key") != ""):
 				controller.ListModels(c, constant.ChannelTypeAnthropic)
 			case c.GetHeader("x-goog-api-key") != "" || c.Query("key") != "": // 单独的适配
 				controller.ListModels(c, constant.ChannelTypeGemini)
