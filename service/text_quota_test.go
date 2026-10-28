@@ -974,6 +974,63 @@ func TestPostTextConsumeQuotaBillsOpenAI12hCacheWrites(t *testing.T) {
 	}
 }
 
+// quota_data keeps cache tokens out of token_used whichever way the upstream
+// reports them, so token_used plus the cache columns counts each token once.
+func TestPostTextConsumeQuotaKeepsCacheOutOfQuotaDataTokens(t *testing.T) {
+	truncate(t)
+	const userID, channelID = 64, 64
+	seedUser(t, userID, 1_000_000)
+	seedChannel(t, channelID)
+	gin.SetMode(gin.TestMode)
+	exportEnabled := common.DataExportEnabled
+	common.DataExportEnabled = true
+	t.Cleanup(func() { common.DataExportEnabled = exportEnabled })
+
+	for _, tc := range []struct {
+		name   string
+		format types.RelayFormat
+		usage  *dto.Usage
+	}{
+		// OpenAI counts the 4000 cached and 7000 written tokens inside prompt_tokens.
+		{"openai", types.RelayFormatOpenAIResponses, &dto.Usage{PromptTokens: 12000, CompletionTokens: 50, PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 4000, CacheWriteTokens: 7000,
+		}}},
+		// Anthropic reports input_tokens without them.
+		{"anthropic", types.RelayFormatClaude, &dto.Usage{PromptTokens: 1000, CompletionTokens: 50, PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 4000, CachedCreationTokens: 7000,
+		}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model.CacheQuotaDataLock.Lock()
+			model.CacheQuotaData = make(map[string]*model.QuotaData)
+			model.CacheQuotaDataLock.Unlock()
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			ctx.Request = httptest.NewRequest("POST", "/v1/messages", nil)
+			info := &relaycommon.RelayInfo{
+				UserId:          userID,
+				OriginModelName: "test-model",
+				UsingGroup:      "default",
+				StartTime:       time.Now(),
+				RelayFormat:     tc.format,
+				ChannelMeta:     &relaycommon.ChannelMeta{ChannelId: channelID},
+				PriceData: hosttypes.PriceData{ModelRatio: 1, CompletionRatio: 1, CacheRatio: 0.1, CacheCreationRatio: 1.25,
+					GroupRatioInfo: hosttypes.GroupRatioInfo{GroupRatio: 1}},
+			}
+
+			PostTextConsumeQuota(ctx, info, tc.usage, nil)
+
+			model.CacheQuotaDataLock.Lock()
+			defer model.CacheQuotaDataLock.Unlock()
+			require.Len(t, model.CacheQuotaData, 1)
+			for _, row := range model.CacheQuotaData {
+				assert.Equal(t, 1050, row.TokenUsed)
+				assert.Equal(t, int64(4000), row.CacheReadTokens)
+				assert.Equal(t, int64(7000), row.CacheCreationTokens)
+			}
+		})
+	}
+}
+
 func TestCalculateTextQuotaSummarySeparatesOpenRouterCacheReadFromPromptBilling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
