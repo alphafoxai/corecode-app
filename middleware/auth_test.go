@@ -534,3 +534,17 @@ func TestApplyWebSocketSubprotocolAuthorizationReadsRepeatedHeaders(t *testing.T
 	assert.True(t, applyWebSocketSubprotocolAuthorization(header))
 	assert.Equal(t, "Bearer sk-later-field", header.Get("Authorization"))
 }
+
+func TestSplitTokenKeyKeepsStoredKeysWithHyphens(t *testing.T) {
+	setupDashboardAuthMiddlewareTest(t)
+	// InitLogDB reuses the main database here and sets the dialect's column quoting.
+	require.NoError(t, model.InitLogDB())
+	require.NoError(t, model.DB.AutoMigrate(&model.Token{}))
+	require.NoError(t, model.DB.Create(&model.Token{UserId: 1, Key: "gl-migrated", Name: "migrated"}).Error)
+	require.NoError(t, model.DB.Create(&model.Token{UserId: 1, Key: "plainkey", Name: "plain"}).Error)
+
+	assert.Equal(t, []string{"gl-migrated"}, splitTokenKey("gl-migrated"))
+	assert.Equal(t, []string{"plainkey", "7"}, splitTokenKey("plainkey-7"))
+	assert.Equal(t, []string{"plainkey"}, splitTokenKey("plainkey"))
+	assert.Equal(t, []string{"unknown", "key"}, splitTokenKey("unknown-key"))
+}
