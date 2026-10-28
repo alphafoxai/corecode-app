@@ -43,6 +43,8 @@ import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardSectionRouteImport } from './routes/_authenticated/dashboard/$section'
 import { Route as AuthenticatedEnterpriseApplicationsIndexRouteImport } from './routes/_authenticated/enterprise-applications/index'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedFeedbackAdminIndexRouteImport } from './routes/_authenticated/feedback-admin/index'
+import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback/index'
 import { Route as AuthenticatedInvitationsIndexRouteImport } from './routes/_authenticated/invitations/index'
 import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authenticated/keys/index'
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
@@ -253,6 +255,18 @@ const AuthenticatedErrorsErrorRoute =
   AuthenticatedErrorsErrorRouteImport.update({
     id: '/errors/$error',
     path: '/errors/$error',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedFeedbackAdminIndexRoute =
+  AuthenticatedFeedbackAdminIndexRouteImport.update({
+    id: '/feedback-admin/',
+    path: '/feedback-admin/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedFeedbackIndexRoute =
+  AuthenticatedFeedbackIndexRouteImport.update({
+    id: '/feedback/',
+    path: '/feedback/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedInvitationsIndexRoute =
@@ -505,6 +519,8 @@ export interface FileRoutesByFullPath {
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/enterprise-applications/': typeof AuthenticatedEnterpriseApplicationsIndexRoute
+  '/feedback-admin/': typeof AuthenticatedFeedbackAdminIndexRoute
+  '/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/invitations/': typeof AuthenticatedInvitationsIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
@@ -574,6 +590,8 @@ export interface FileRoutesByTo {
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/enterprise-applications': typeof AuthenticatedEnterpriseApplicationsIndexRoute
+  '/feedback-admin': typeof AuthenticatedFeedbackAdminIndexRoute
+  '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/invitations': typeof AuthenticatedInvitationsIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
@@ -647,6 +665,8 @@ export interface FileRoutesById {
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/enterprise-applications/': typeof AuthenticatedEnterpriseApplicationsIndexRoute
+  '/_authenticated/feedback-admin/': typeof AuthenticatedFeedbackAdminIndexRoute
+  '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/invitations/': typeof AuthenticatedInvitationsIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
@@ -719,6 +739,8 @@ export interface FileRouteTypes {
     | '/channels/'
     | '/dashboard/'
     | '/enterprise-applications/'
+    | '/feedback-admin/'
+    | '/feedback/'
     | '/invitations/'
     | '/keys/'
     | '/models/'
@@ -788,6 +810,8 @@ export interface FileRouteTypes {
     | '/channels'
     | '/dashboard'
     | '/enterprise-applications'
+    | '/feedback-admin'
+    | '/feedback'
     | '/invitations'
     | '/keys'
     | '/models'
@@ -860,6 +884,8 @@ export interface FileRouteTypes {
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/enterprise-applications/'
+    | '/_authenticated/feedback-admin/'
+    | '/_authenticated/feedback/'
     | '/_authenticated/invitations/'
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
@@ -1153,6 +1179,20 @@ declare module '@tanstack/react-router' {
       path: '/errors/$error'
       fullPath: '/errors/$error'
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/feedback-admin/': {
+      id: '/_authenticated/feedback-admin/'
+      path: '/feedback-admin'
+      fullPath: '/feedback-admin/'
+      preLoaderRoute: typeof AuthenticatedFeedbackAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/feedback/': {
+      id: '/_authenticated/feedback/'
+      path: '/feedback'
+      fullPath: '/feedback/'
+      preLoaderRoute: typeof AuthenticatedFeedbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/invitations/': {
@@ -1514,6 +1554,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedEnterpriseApplicationsIndexRoute: typeof AuthenticatedEnterpriseApplicationsIndexRoute
+  AuthenticatedFeedbackAdminIndexRoute: typeof AuthenticatedFeedbackAdminIndexRoute
+  AuthenticatedFeedbackIndexRoute: typeof AuthenticatedFeedbackIndexRoute
   AuthenticatedInvitationsIndexRoute: typeof AuthenticatedInvitationsIndexRoute
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
@@ -1546,6 +1588,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedEnterpriseApplicationsIndexRoute:
     AuthenticatedEnterpriseApplicationsIndexRoute,
+  AuthenticatedFeedbackAdminIndexRoute: AuthenticatedFeedbackAdminIndexRoute,
+  AuthenticatedFeedbackIndexRoute: AuthenticatedFeedbackIndexRoute,
   AuthenticatedInvitationsIndexRoute: AuthenticatedInvitationsIndexRoute,
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,

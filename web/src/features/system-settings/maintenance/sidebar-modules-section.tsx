@@ -140,6 +140,10 @@ export function SidebarModulesSection({
         title: t('Security & Access'),
         description: t('Manage your security settings and account access'),
       },
+      feedback: {
+        title: t('Feedback'),
+        description: t('Report a problem or suggest an idea.'),
+      },
     },
     admin: {
       channel: {
@@ -173,6 +177,10 @@ export function SidebarModulesSection({
       enterprise_application: {
         title: t('Enterprise Applications'),
         description: t('Requests for enterprise pricing from the public page.'),
+      },
+      feedback: {
+        title: t('Feedback Review'),
+        description: t('Reply to customer feedback and grant rewards.'),
       },
     },
   }

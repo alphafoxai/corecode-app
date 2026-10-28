@@ -61,6 +61,12 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"GET /api/verify/methods":                accessTokenAnyRule,
 	"POST /api/verify":                       accessTokenAnyRule,
 
+	// router/api-router.go: /api/feedback
+	"POST /api/feedback":            accessTokenSessionRule,
+	"GET /api/feedback/self":        accessTokenSessionRule,
+	"GET /api/feedback/admin":       accessTokenSessionRule,
+	"PATCH /api/feedback/admin/:id": accessTokenSessionRule,
+
 	// router/api-router.go: /api/user (self)
 	"GET /api/user/sessions":                       accessTokenSessionRule,
 	"DELETE /api/user/sessions/:sid":               accessTokenSessionRule,

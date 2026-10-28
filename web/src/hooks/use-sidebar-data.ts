@@ -27,8 +27,10 @@ import {
   HandCoins,
   Key,
   LayoutDashboard,
+  LifeBuoy,
   ListTodo,
   MessageSquare,
+  MessageSquareText,
   PlugZap,
   Radio,
   Receipt,
@@ -120,6 +122,11 @@ export function useSidebarData(): SidebarData {
             url: '/security',
             icon: ShieldCheck,
           },
+          {
+            title: t('Feedback'),
+            url: '/feedback',
+            icon: LifeBuoy,
+          },
         ],
       },
       {
@@ -176,6 +183,11 @@ export function useSidebarData(): SidebarData {
             title: t('Enterprise Applications'),
             url: '/enterprise-applications',
             icon: Building2,
+          },
+          {
+            title: t('Feedback Review'),
+            url: '/feedback-admin',
+            icon: MessageSquareText,
           },
           {
             title: t('Invitation program'),
