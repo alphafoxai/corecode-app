@@ -51,12 +51,14 @@ import {
 import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
 import { resolveChatUrl, type ChatPreset } from '@/features/chat/lib/chat-links'
 import { sendToFluent } from '@/features/chat/lib/send-to-fluent'
+import { useStatus } from '@/hooks/use-status'
 import { encodeChannelConnectionInfo } from '@/lib/channel-connection-info'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { updateApiKeyStatus } from '../api'
 import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
+import { buildMagpieImportURL, getAnthropicBaseUrl } from '../lib/client-setup'
 import { apiKeySchema } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
@@ -92,6 +94,7 @@ export function DataTableRowActions<TData>({
   } = useApiKeys()
   const isEnabled = apiKey.status === API_KEY_STATUS.ENABLED
   const { chatPresets, serverAddress } = useChatPresets()
+  const { status } = useStatus()
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
   const isRealKeyLoading = Boolean(loadingKeys[apiKey.id])
 
@@ -138,6 +141,17 @@ export function DataTableRowActions<TData>({
     },
     [resolveRealKey, apiKey.id, serverAddress, t]
   )
+
+  const handleOpenMagpie = async () => {
+    const realKey = await resolveRealKey(apiKey.id)
+    if (!realKey) return
+    const url = buildMagpieImportURL({
+      baseUrl: getAnthropicBaseUrl(serverAddress, window.location.origin),
+      apiKey: realKey,
+      providerName: status?.system_name?.trim() || 'CoreCode',
+    })
+    window.open(url, '_blank', 'noopener')
+  }
 
   const handleToggleStatus = async (
     event?: React.MouseEvent<HTMLButtonElement>
@@ -286,6 +300,15 @@ export function DataTableRowActions<TData>({
           {t('CC Switch')}
           <DropdownMenuShortcut>
             <ArrowRightLeft size={16} />
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isRealKeyLoading}
+          onClick={handleOpenMagpie}
+        >
+          {t('Magpie')}
+          <DropdownMenuShortcut>
+            <ExternalLink size={16} />
           </DropdownMenuShortcut>
         </DropdownMenuItem>
         {hasChatPresets && (

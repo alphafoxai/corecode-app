@@ -21,6 +21,7 @@ import { describe, expect, test } from 'vitest'
 import {
   buildCCSwitchURL,
   buildClientSetupSnippet,
+  buildMagpieImportURL,
   CC_SWITCH_USAGE_INTERVAL_MINUTES,
   DEFAULT_CLAUDE_MODELS,
   getAnthropicBaseUrl,
@@ -256,5 +257,42 @@ describe('buildCCSwitchURL usage script', () => {
       isValid: false,
       invalidMessage: '查询失败',
     })
+  })
+})
+
+describe('buildMagpieImportURL', () => {
+  const url = buildMagpieImportURL(args)
+  const params = new URLSearchParams(new URL(url).hash.slice(1))
+
+  test('keeps every parameter, the key included, in the fragment', () => {
+    const parsed = new URL(url)
+    expect(parsed.origin + parsed.pathname).toBe('https://usemagpie.ai/import')
+    expect(parsed.search).toBe('')
+    expect(url.split('#')[0]).not.toContain(args.apiKey)
+    expect(params.get('key')).toBe(args.apiKey)
+  })
+
+  test('points the three protocols at the gateway', () => {
+    expect(params.get('anthropic')).toBe('https://corecode.live')
+    expect(params.get('chat')).toBe('https://corecode.live/v1')
+    expect(params.get('responses')).toBe('https://corecode.live/v1')
+  })
+
+  test('names the provider with the shared id and leaves the models to /v1/models', () => {
+    expect(params.get('id')).toBe('corecode')
+    expect(params.get('name')).toBe('CoreCode')
+    expect(params.has('models')).toBe(false)
+    expect(params.get('website')).toBe('https://corecode.live')
+    expect(params.get('keys')).toBe('https://corecode.live/keys')
+    expect(params.get('icon')).toBe('https://corecode.live/brand/logo.svg')
+  })
+
+  test('encodes special characters', () => {
+    const encoded = new URLSearchParams(
+      new URL(
+        buildMagpieImportURL({ ...args, providerName: 'A & B' })
+      ).hash.slice(1)
+    )
+    expect(encoded.get('name')).toBe('A & B')
   })
 })
