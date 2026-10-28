@@ -34,6 +34,8 @@ type InvitationOverviewProps = {
   inviteeCount: number
   totals: InviteeTotals
   loading: boolean
+  /** The page also shows second-level commission, so this one is direct */
+  secondLevel?: boolean
 }
 
 export function InvitationOverview(props: InvitationOverviewProps) {
@@ -45,7 +47,12 @@ export function InvitationOverview(props: InvitationOverviewProps) {
   const stats = [
     [t('Invites'), formatNumber(props.inviteeCount, locale)],
     [t('Invitee spend'), formatQuota(props.totals.used_quota)],
-    [t('Commission from invitees'), formatQuota(props.totals.commission)],
+    [
+      props.secondLevel
+        ? t('Direct commission')
+        : t('Commission from invitees'),
+      formatQuota(props.totals.commission),
+    ],
     [t('Commission balance'), formatQuota(account?.balance ?? 0)],
   ] as const
 

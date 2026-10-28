@@ -8311,6 +8311,23 @@
     "Customize invite code": "Personnaliser le code d’invitation",
     "Brand names and simple codes such as 888 or 123 are reserved.": "Les noms de marque et les codes simples comme 888 ou 123 sont réservés.",
     "Reserved invite code words": "Mots réservés des codes d’invitation",
-    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "Un par ligne. Un utilisateur ne peut pas choisir l’un de ces mots comme code, sans tenir compte de la casse, des tirets ni des tirets bas ; un code qui en contient seulement un est accepté. Les codes simples comme 888, 6688 ou 123 sont toujours réservés. Les codes que vous attribuez à un utilisateur ne sont pas vérifiés."
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "Un par ligne. Un utilisateur ne peut pas choisir l’un de ces mots comme code, sans tenir compte de la casse, des tirets ni des tirets bas ; un code qui en contient seulement un est accepté. Les codes simples comme 888, 6688 ou 123 sont toujours réservés. Les codes que vous attribuez à un utilisateur ne sont pas vérifiés.",
+    "Direct commission": "Commission directe",
+    "Second-level commission": "Commission de second niveau",
+    "When users you invited invite others, you also earn {{rate}}% of what those users pay to use.": "Quand vos filleuls invitent d'autres personnes, vous gagnez aussi {{rate}} % de ce que ces personnes paient pour utiliser le service.",
+    "Second-level commission is for distributors. What you earned stays in your balance.": "La commission de second niveau est réservée aux distributeurs. Ce que vous avez gagné reste dans votre solde.",
+    "Second level {{rate}}%": "Second niveau {{rate}} %",
+    "You": "Vous",
+    "Earned in total": "Total gagné",
+    "Your invitees": "Vos filleuls",
+    "Users they invited": "Leurs filleuls",
+    "You earn {{rate}}% of their paid spend": "Vous gagnez {{rate}} % de leurs dépenses payées",
+    "Where your commission comes from": "D'où vient votre commission",
+    "Direct invitees": "Filleuls directs",
+    "Your commission balance is this total less what you transferred to your wallet or withdrew.": "Votre solde de commission correspond à ce total, moins ce que vous avez transféré vers votre portefeuille ou retiré.",
+    "Brought in by your invitees": "Apportés par vos filleuls",
+    "None of your invitees has invited anyone yet.": "Aucun de vos filleuls n'a encore invité quelqu'un.",
+    "Your commission": "Votre commission",
+    "Showing the {{shown}} invitees who earned you the most.": "Affichage des {{shown}} filleuls qui vous ont rapporté le plus."
   }
 }

@@ -8311,6 +8311,23 @@
     "Customize invite code": "自定义邀请码",
     "Brand names and simple codes such as 888 or 123 are reserved.": "品牌名和 888、123 这类简单号码为保留码，不能使用。",
     "Reserved invite code words": "邀请码保留词",
-    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "每行一个。用户不能把这些词本身设为邀请码，不区分大小写，忽略连字符和下划线；只是包含这些词的邀请码可以使用。888、6688、123 这类简单号码始终保留。你为用户设置的邀请码不受限制。"
+    "One per line. Users cannot choose one of these words as their code, ignoring case, hyphens and underscores; a code that only contains one is allowed. Simple codes such as 888, 6688 or 123 are always reserved. Codes you set for a user are not checked.": "每行一个。用户不能把这些词本身设为邀请码，不区分大小写，忽略连字符和下划线；只是包含这些词的邀请码可以使用。888、6688、123 这类简单号码始终保留。你为用户设置的邀请码不受限制。",
+    "Direct commission": "直接邀请佣金",
+    "Second-level commission": "二级收益",
+    "When users you invited invite others, you also earn {{rate}}% of what those users pay to use.": "你邀请的用户再邀请别人后，这些人用真实充值消费时，你还能获得 {{rate}}%。",
+    "Second-level commission is for distributors. What you earned stays in your balance.": "二级收益仅限分销商。已获得的收益仍在你的余额里。",
+    "Second level {{rate}}%": "二级 {{rate}}%",
+    "You": "你",
+    "Earned in total": "累计收益",
+    "Your invitees": "你邀请的用户",
+    "Users they invited": "他们邀请的用户",
+    "You earn {{rate}}% of their paid spend": "获得其真实充值消费的 {{rate}}%",
+    "Where your commission comes from": "收益来源",
+    "Direct invitees": "直接邀请",
+    "Your commission balance is this total less what you transferred to your wallet or withdrew.": "返佣余额 = 累计收益 − 已划转到钱包或已提现的部分。",
+    "Brought in by your invitees": "二级用户由谁带来",
+    "None of your invitees has invited anyone yet.": "你邀请的用户还没有邀请其他人。",
+    "Your commission": "你的收益",
+    "Showing the {{shown}} invitees who earned you the most.": "仅显示为你带来收益最多的 {{shown}} 位。"
   }
 }

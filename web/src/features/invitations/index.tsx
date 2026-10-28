@@ -23,10 +23,12 @@ import { useTranslation } from 'react-i18next'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
 import { SectionPageLayout } from '@/components/layout'
+import { useAffiliate } from '@/features/wallet/hooks/use-affiliate'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
 
 import { getInvitees } from './api'
 import { InvitationOverview } from './components/invitation-overview'
+import { SecondLevelCard } from './components/second-level-card'
 import type { Invitee } from './types'
 
 const EMPTY: Invitee[] = []
@@ -139,6 +141,14 @@ export function Invitations() {
   })
   const giftPlanTitle = query.data?.gift_plan_title ?? ''
   const columns = useInviteeColumns(giftPlanTitle)
+  const aff = useAffiliate()
+  const account = aff.summary?.affiliate ?? null
+  const secondLevel = query.data?.second_level
+  // A distributor earns at the second level; a former one still sees what it
+  // earned there, since that is part of its balance.
+  const distributor = account?.tier === 'distributor'
+  const showSecondLevel =
+    secondLevel !== undefined && (distributor || secondLevel.commission > 0)
 
   const { table } = useDataTable<Invitee>({
     columns,
@@ -168,7 +178,18 @@ export function Invitations() {
             inviteeCount={query.data?.total ?? 0}
             totals={query.data?.totals ?? NO_TOTALS}
             loading={query.isPending}
+            secondLevel={showSecondLevel}
           />
+          {showSecondLevel && (
+            <SecondLevelCard
+              secondLevel={secondLevel}
+              inviteeCount={query.data?.total ?? 0}
+              directCommission={query.data?.totals.commission ?? 0}
+              directRate={account?.rate ?? 0}
+              secondLevelRate={aff.summary?.second_level_rate ?? 0}
+              earning={distributor}
+            />
+          )}
           <DataTablePage
             table={table}
             columns={columns}
