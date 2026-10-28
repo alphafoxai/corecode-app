@@ -468,7 +468,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 			key = strings.TrimSpace(key[7:])
 		}
 		key = strings.TrimPrefix(key, "sk-")
-		parts := strings.Split(key, "-")
+		parts := splitTokenKey(key)
 		key = parts[0]
 
 		token, err := model.GetTokenByKey(key, false)
@@ -525,6 +525,19 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 	}
 }
 
+// splitTokenKey splits a presented key into the token key and an optional
+// "-<channel id>" pin. A stored key may itself contain "-" (keys migrated from
+// another gateway keep their value), so a value that names a token whole is
+// not split.
+func splitTokenKey(key string) []string {
+	if strings.Contains(key, "-") {
+		if _, err := model.GetTokenByKey(key, false); err == nil {
+			return []string{key}
+		}
+	}
+	return strings.Split(key, "-")
+}
+
 func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		// 先检测是否为ws
@@ -562,11 +575,11 @@ func TokenAuth() func(c *gin.Context) {
 				key = strings.TrimSpace(key[7:])
 			}
 			key = strings.TrimPrefix(key, "sk-")
-			parts = strings.Split(key, "-")
+			parts = splitTokenKey(key)
 			key = parts[0]
 		} else {
 			key = strings.TrimPrefix(key, "sk-")
-			parts = strings.Split(key, "-")
+			parts = splitTokenKey(key)
 			key = parts[0]
 		}
 		token, err := model.ValidateUserToken(key)
