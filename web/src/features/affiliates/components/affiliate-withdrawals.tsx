@@ -44,7 +44,7 @@ import {
   processWithdrawal,
   type AdminWithdrawal,
   type WithdrawalFilter,
-} from './api'
+} from '../api'
 
 type Action = 'pay' | 'reject'
 type Target = { action: Action; withdrawal: AdminWithdrawal }

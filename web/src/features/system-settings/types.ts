@@ -328,12 +328,6 @@ export type BillingSettings = {
   'payment_setting.compliance_confirmed_at': number
   'payment_setting.compliance_confirmed_by': number
   'payment_setting.compliance_confirmed_ip': string
-  'affiliate_setting.enabled': boolean
-  'affiliate_setting.self_serve_rate': number
-  'affiliate_setting.max_rate': number
-  'affiliate_setting.second_level_rate': number
-  'affiliate_setting.min_withdrawal': number
-  'affiliate_setting.gift_plan_id': number
   StripeApiSecret: string
   StripeWebhookSecret: string
   StripePriceId: string

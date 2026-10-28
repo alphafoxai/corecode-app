@@ -343,7 +343,10 @@ export interface AffiliateSummary {
   earned_money: number
 }
 
-/** GET /api/affiliate/admin/users/:id */
+/**
+ * GET /api/affiliate/admin/users/:id. Here aff_code is the user's code
+ * whatever their rate.
+ */
 export interface AffiliateAdminView extends AffiliateSummary {
   max_rate: number
   inviter_id: number

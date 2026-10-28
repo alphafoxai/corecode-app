@@ -16,23 +16,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import z from 'zod'
 
-import { SettingsSection } from '../components/settings-section'
-import { AffiliateForm, type AffiliateValues } from './affiliate-form'
-import { AffiliateWithdrawals } from './affiliate-withdrawals'
+import { AFFILIATE_TABS, Affiliates } from '@/features/affiliates'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
-type AffiliateSectionProps = {
-  defaultValues: AffiliateValues
-}
+const affiliatesSearchSchema = z.object({
+  tab: z.enum(AFFILIATE_TABS).optional().catch(undefined),
+})
 
-export function AffiliateSection(props: AffiliateSectionProps) {
-  const { t } = useTranslation()
+export const Route = createFileRoute('/_authenticated/affiliates/')({
+  beforeLoad: () => {
+    const { auth } = useAuthStore.getState()
 
-  return (
-    <SettingsSection title={t('Invitation program')}>
-      <AffiliateForm defaultValues={props.defaultValues} />
-      <AffiliateWithdrawals />
-    </SettingsSection>
-  )
-}
+    if (auth.user?.role !== ROLE.SUPER_ADMIN) {
+      throw redirect({
+        to: '/403',
+      })
+    }
+  },
+  validateSearch: affiliatesSearchSchema,
+  component: Affiliates,
+})

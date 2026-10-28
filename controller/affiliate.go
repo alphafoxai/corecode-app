@@ -235,6 +235,9 @@ func affiliateManagedUser(c *gin.Context) (*model.User, bool) {
 	return user, true
 }
 
+// adminAffiliateView is a user's invitation settings as an administrator
+// sees them. Unlike the wallet's summary, AffCode is the user's code even
+// when their rate is 0, so a root user can set one before granting a rate.
 type adminAffiliateView struct {
 	*affiliateSummary
 	MaxRate     int    `json:"max_rate"`
@@ -247,6 +250,12 @@ func buildAdminAffiliateView(user *model.User) (*adminAffiliateView, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Building the summary may have given the user their first code.
+	current, err := model.GetUserById(user.Id, false)
+	if err != nil {
+		return nil, err
+	}
+	summary.AffCode = current.AffCode
 	view := &adminAffiliateView{
 		affiliateSummary: summary,
 		MaxRate:          operation_setting.GetAffiliateSetting().MaxRate,
@@ -347,6 +356,107 @@ func AdminSetUserInviter(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, view)
+}
+
+type adminAffCodeRequest struct {
+	AffCode string `json:"aff_code"`
+}
+
+// AdminSetUserAffCode replaces a user's invite code with one a root user
+// chose. Links carrying the old code stop binding new sign-ups.
+func AdminSetUserAffCode(c *gin.Context) {
+	user, ok := affiliateManagedUser(c)
+	if !ok {
+		return
+	}
+	var req adminAffCodeRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	code, err := model.SetUserAffCode(user.Id, req.AffCode)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAuditFor(c, user.Id, "user.manage", map[string]any{
+		"username":     user.Username,
+		"id":           user.Id,
+		"action":       "set_aff_code",
+		"old_aff_code": user.AffCode,
+		"aff_code":     code,
+	})
+	view, err := buildAdminAffiliateView(user)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, view)
+}
+
+// AdminGetUserAffiliateInvitees pages the users a user invited, unmasked,
+// with the same totals the user sees on their invitations page.
+func AdminGetUserAffiliateInvitees(c *gin.Context) {
+	user, ok := affiliateManagedUser(c)
+	if !ok {
+		return
+	}
+	pageInfo := common.GetPageQuery(c)
+	invitees, total, err := model.ListAffiliateInvitees(user.Id, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	totals, err := model.SumAffiliateInvitees(user.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(invitees)
+	common.ApiSuccess(c, gin.H{
+		"page": pageInfo.Page, "page_size": pageInfo.PageSize, "total": pageInfo.Total,
+		"items": pageInfo.Items, "totals": totals,
+	})
+}
+
+// AdminListAffiliates pages every user who can invite or has invited
+// someone, for the root invitation page.
+func AdminListAffiliates(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	items, total, err := model.ListAffiliates(model.AffiliateListFilter{
+		Keyword: c.Query("keyword"),
+		Type:    c.Query("type"),
+		Sort:    c.Query("sort"),
+	}, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(items)
+	common.ApiSuccess(c, pageInfo)
+}
+
+// AdminGetAffiliateOverview returns the program's totals and its current
+// terms, with the commission amounts also in money.
+func AdminGetAffiliateOverview(c *gin.Context) {
+	overview, err := model.GetAffiliateOverview()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	setting := operation_setting.GetAffiliateSetting()
+	common.ApiSuccess(c, gin.H{
+		"overview":                 overview,
+		"earned_money":             model.AffiliateMoneyFromQuota(overview.Earned),
+		"balance_money":            model.AffiliateMoneyFromQuota(overview.Balance),
+		"pending_withdrawal_money": model.AffiliateMoneyFromQuota(overview.PendingWithdrawalQuota),
+		"enabled":                  setting.Enabled,
+		"self_serve_rate":          setting.SelfServeRate,
+		"max_rate":                 setting.MaxRate,
+		"second_level_rate":        setting.SecondLevelRate,
+	})
 }
 
 func AdminGetUserAffiliateCommissions(c *gin.Context) {

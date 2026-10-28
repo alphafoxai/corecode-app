@@ -206,16 +206,26 @@ func SetApiRouter(router *gin.Engine) {
 				affiliateSelfRoute.GET("/withdrawals", controller.GetSelfAffiliateWithdrawals)
 				affiliateSelfRoute.POST("/withdrawals", middleware.UserCriticalRateLimit("affiliate"), controller.RequestSelfAffiliateWithdrawal)
 			}
+			// Administrators read a user's inviter on the usage-log user card;
+			// managing the program is root's.
 			affiliateAdminRoute := affiliateRoute.Group("/admin")
 			affiliateAdminRoute.Use(middleware.AdminAuth())
 			{
 				affiliateAdminRoute.GET("/users/:id", controller.AdminGetUserAffiliate)
-				affiliateAdminRoute.PUT("/users/:id", controller.AdminSetUserAffiliate)
-				affiliateAdminRoute.PUT("/users/:id/inviter", controller.AdminSetUserInviter)
-				affiliateAdminRoute.GET("/users/:id/commissions", controller.AdminGetUserAffiliateCommissions)
-				affiliateAdminRoute.GET("/withdrawals", controller.AdminGetAffiliateWithdrawals)
-				affiliateAdminRoute.POST("/withdrawals/:id/pay", controller.AdminPayAffiliateWithdrawal)
-				affiliateAdminRoute.POST("/withdrawals/:id/reject", controller.AdminRejectAffiliateWithdrawal)
+			}
+			affiliateRootRoute := affiliateRoute.Group("/admin")
+			affiliateRootRoute.Use(middleware.RootAuth())
+			{
+				affiliateRootRoute.GET("/overview", controller.AdminGetAffiliateOverview)
+				affiliateRootRoute.GET("/affiliates", controller.AdminListAffiliates)
+				affiliateRootRoute.PUT("/users/:id", controller.AdminSetUserAffiliate)
+				affiliateRootRoute.PUT("/users/:id/code", controller.AdminSetUserAffCode)
+				affiliateRootRoute.PUT("/users/:id/inviter", controller.AdminSetUserInviter)
+				affiliateRootRoute.GET("/users/:id/commissions", controller.AdminGetUserAffiliateCommissions)
+				affiliateRootRoute.GET("/users/:id/invitees", controller.AdminGetUserAffiliateInvitees)
+				affiliateRootRoute.GET("/withdrawals", controller.AdminGetAffiliateWithdrawals)
+				affiliateRootRoute.POST("/withdrawals/:id/pay", controller.AdminPayAffiliateWithdrawal)
+				affiliateRootRoute.POST("/withdrawals/:id/reject", controller.AdminRejectAffiliateWithdrawal)
 			}
 		}
 

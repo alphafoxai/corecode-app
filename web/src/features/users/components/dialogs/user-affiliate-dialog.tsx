@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { useInviteeColumns } from '@/features/invitations'
 import { useCommissionColumns } from '@/features/wallet/components/affiliate-columns'
 import { AffiliatePagedTable } from '@/features/wallet/components/affiliate-paged-table'
 import { formatPaymentMoney } from '@/features/wallet/lib'
@@ -37,8 +38,10 @@ import { handleServerError } from '@/lib/handle-server-error'
 import {
   getUserAffiliate,
   getUserAffiliateCommissions,
+  getUserAffiliateInvitees,
   updateUserAffiliate,
 } from '../../api'
+import { UserAffCodeEditor } from './user-aff-code-editor'
 import { UserInviterEditor } from './user-inviter-editor'
 
 type UserAffiliateDialogProps = {
@@ -46,6 +49,8 @@ type UserAffiliateDialogProps = {
   onOpenChange: (open: boolean) => void
   user: { id: number; username: string }
 }
+
+const NO_GIFT = () => {}
 
 function Stat(props: { label: string; value: string }) {
   return (
@@ -66,6 +71,7 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
   const userId = props.user.id
   const queryKey = ['affiliate', 'admin-user', userId] as const
   const columns = useCommissionColumns()
+  const inviteeColumns = useInviteeColumns('', NO_GIFT)
   const [rate, setRate] = useState('0')
   const [channel, setChannel] = useState(false)
 
@@ -137,6 +143,12 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
             />
           </div>
 
+          <UserAffCodeEditor
+            userId={userId}
+            view={data}
+            onSaved={(next) => queryClient.setQueryData(queryKey, next)}
+          />
+
           <UserInviterEditor
             userId={userId}
             view={data}
@@ -199,6 +211,17 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
               {save.isPending && <Loader2 className='animate-spin' />}
               {t('Save')}
             </Button>
+          </div>
+
+          <div className='space-y-2'>
+            <h4 className='text-sm font-medium'>{t('Invitees')}</h4>
+            <AffiliatePagedTable
+              queryKey={['affiliate', 'admin-user-invitees', userId]}
+              load={(params) => getUserAffiliateInvitees(userId, params)}
+              columns={inviteeColumns}
+              emptyTitle={t('No invitees yet')}
+              enabled={props.open}
+            />
           </div>
 
           <div className='space-y-2'>

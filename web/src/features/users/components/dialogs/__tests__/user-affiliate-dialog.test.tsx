@@ -73,7 +73,7 @@ function renderDialog() {
         },
       }
     }
-    if (url.endsWith('/commissions')) {
+    if (url.endsWith('/commissions') || url.endsWith('/invitees')) {
       return {
         data: {
           success: true,
@@ -183,5 +183,37 @@ it('removes the inviter', async () => {
     expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9/inviter', {
       inviter_id: 0,
     })
+  )
+})
+
+it('replaces the invite code and shows the new link', async () => {
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: { success: true, data: { ...view, aff_code: 'partner-01' } },
+  })
+  const user = userEvent.setup()
+  renderDialog()
+
+  const code = await screen.findByLabelText('Invite code')
+  expect(screen.getByLabelText('Referral link')).toHaveValue(
+    `${window.location.origin}/sign-in?aff=XY`
+  )
+  const save = screen.getByRole('button', { name: 'Save invite code' })
+  await user.clear(code)
+  await user.type(code, 'a b')
+  expect(save).toBeDisabled()
+
+  await user.clear(code)
+  await user.type(code, 'partner-01')
+  await user.click(save)
+
+  await waitFor(() =>
+    expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9/code', {
+      aff_code: 'partner-01',
+    })
+  )
+  await waitFor(() =>
+    expect(screen.getByLabelText('Referral link')).toHaveValue(
+      `${window.location.origin}/sign-in?aff=partner-01`
+    )
   )
 })

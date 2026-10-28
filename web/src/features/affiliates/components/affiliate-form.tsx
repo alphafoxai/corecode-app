@@ -49,9 +49,9 @@ import {
   SettingsFormGrid,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from '../components/settings-form-layout'
-import { SettingsPageFormActions } from '../components/settings-page-context'
-import { useUpdateOption } from '../hooks/use-update-option'
+} from '@/features/system-settings/components/settings-form-layout'
+import { SettingsPageFormActions } from '@/features/system-settings/components/settings-page-context'
+import { useUpdateOption } from '@/features/system-settings/hooks/use-update-option'
 
 // Mirrors ValidateAffiliateOption on the server.
 const affiliateSchema = z

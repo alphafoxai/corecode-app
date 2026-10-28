@@ -24,6 +24,7 @@ import type {
   AffiliatePage,
   AffiliatePageParams,
 } from '@/features/wallet/types'
+import type { Invitee, InviteeTotals } from '@/features/invitations/types'
 import type { PermissionCatalog } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import type { CustomOAuthBinding } from '@/lib/oauth'
@@ -317,6 +318,33 @@ export async function updateUserInviter(
   )
   if (!res.data.success || !res.data.data) {
     throw createServerError(res.data, 'Failed to change the inviter')
+  }
+  return res.data.data
+}
+
+export async function updateUserAffCode(
+  userId: number,
+  affCode: string
+): Promise<AffiliateAdminView> {
+  const res = await api.put<ApiResponse<AffiliateAdminView>>(
+    `/api/affiliate/admin/users/${userId}/code`,
+    { aff_code: affCode }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to change the invite code')
+  }
+  return res.data.data
+}
+
+export async function getUserAffiliateInvitees(
+  userId: number,
+  params: AffiliatePageParams
+): Promise<AffiliatePage<Invitee> & { totals: InviteeTotals }> {
+  const res = await api.get<
+    ApiResponse<AffiliatePage<Invitee> & { totals: InviteeTotals }>
+  >(`/api/affiliate/admin/users/${userId}/invitees`, { params })
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load invitees')
   }
   return res.data.data
 }

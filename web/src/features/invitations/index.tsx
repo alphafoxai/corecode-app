@@ -37,7 +37,8 @@ import type { Invitee } from './types'
 const EMPTY: Invitee[] = []
 const NO_TOTALS = { used_quota: 0, commission_base: 0, commission: 0 }
 
-function useInviteeColumns(
+// An empty giftPlanTitle leaves out the gift column, as in the admin dialog.
+export function useInviteeColumns(
   giftPlanTitle: string,
   onGift: (invitee: Invitee) => void
 ): ColumnDef<Invitee>[] {
