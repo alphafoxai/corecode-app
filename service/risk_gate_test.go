@@ -324,6 +324,32 @@ func TestRiskGateStructuredPolicy(t *testing.T) {
 	assert.Nil(t, CheckRiskGate(other, &relaycommon.RelayInfo{Request: &dto.AudioRequest{}}), "structured chat rules do not parse multipart audio")
 }
 
+func TestRiskGateStructuredPolicyFaultsFailOpen(t *testing.T) {
+	previousGate := *operation_setting.GetRiskGateSetting()
+	previousGuard := *operation_setting.GetViolationGuardSetting()
+	t.Cleanup(func() {
+		*operation_setting.GetRiskGateSetting() = previousGate
+		*operation_setting.GetViolationGuardSetting() = previousGuard
+	})
+	useViolationTestDB(t, "sqlite")
+	*operation_setting.GetViolationGuardSetting() = operation_setting.ViolationGuardSetting{}
+	const policy = `{"enabled":true,"skip_official":true,"skip_zero":true,"hard_needles":[],"needles":[],"patterns":[],"fingerprints":[],"structure":{"min_max_tokens":8192,"require_no_tools":true,"require_single_turn":true,"contest_pattern":""}}`
+	*operation_setting.GetRiskGateSetting() = operation_setting.RiskGateSetting{Enabled: true, Mode: "enforce", DistillEnabled: true, DistillRules: policy, HardRegexEnabled: true, HardRegexRules: `slow | (\w+)+\1x`}
+	for i, body := range []string{
+		`{"model":"claude-opus-5-5","messages":[{"role":"user","content":"` + strings.Repeat("ab", 2000) + `"}]}`,
+		`not a json object`,
+	} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+		t.Cleanup(func() { common.CleanupBodyStorage(c) })
+		assert.Nil(t, CheckRiskGate(c, &relaycommon.RelayInfo{UserId: 900 + i, Request: &dto.ClaudeRequest{}}), "a fault in the gate does not reject the request")
+	}
+	for i, stage := range []string{model.RiskGateStageHardRegex, model.RiskGateStageDistill} {
+		events := riskGateEvents(t, 900+i, 1)
+		assert.Equal(t, []string{stage, "unavailable", model.RiskGateActionFailOpen}, []string{events[0].Stage, events[0].Rule, events[0].Action})
+	}
+}
+
 func TestRiskGateOfficialClient(t *testing.T) {
 	base := `{"system":"You are Claude Code","metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"s\"}"}}`
 	for _, tc := range []struct {

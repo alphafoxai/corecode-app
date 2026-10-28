@@ -139,7 +139,13 @@ func ValidateRiskGateOption(field string, value string) error {
 			if err := riskpolicy.ValidateDistill(value); err != nil {
 				return err
 			}
-			return riskpolicy.ValidateHard(GetRiskGateSetting().HardRegexRules)
+			// A structured policy runs the hard rules as case-insensitive
+			// JavaScript patterns, so the saved Go-syntax rules must pass that
+			// engine before the switch.
+			if err := riskpolicy.ValidateHard(GetRiskGateSetting().HardRegexRules); err != nil {
+				return fmt.Errorf("the saved hard regex rules are not valid JavaScript patterns; clear or convert them before saving a structured policy: %w", err)
+			}
+			return nil
 		}
 		if _, err := ParseRiskGateLines(value, true); err != nil {
 			return err

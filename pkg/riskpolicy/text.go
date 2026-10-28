@@ -192,21 +192,34 @@ type prompt struct {
 	joined string
 }
 
+// sources returns the request bodies to scan. A Body identical to Inbound is
+// scanned once, so an untransformed request does not double the work.
+func (input Input) sources() []gjson.Result {
+	if !input.Body.Exists() || input.Body.Raw == input.Inbound.Raw {
+		return []gjson.Result{input.Inbound}
+	}
+	return []gjson.Result{input.Inbound, input.Body}
+}
+
 func extractPrompt(input Input) prompt {
-	users := userTexts(input.Inbound, false)
-	users = append(users, userTexts(input.Body, false)...)
+	sources := input.sources()
+	var users []string
+	for _, src := range sources {
+		users = append(users, userTexts(src, false)...)
+	}
 	var latest string
 	if len(users) != 0 {
 		latest = users[len(users)-1]
 	}
 	var parts []string
-	for _, text := range []string{systemText(input.Inbound), systemText(input.Body)} {
-		if text != "" {
+	for _, src := range sources {
+		if text := systemText(src); text != "" {
 			parts = append(parts, text)
 		}
 	}
-	parts = append(parts, messageTexts(input.Inbound, false, "system", "developer")...)
-	parts = append(parts, messageTexts(input.Body, false, "system", "developer")...)
+	for _, src := range sources {
+		parts = append(parts, messageTexts(src, false, "system", "developer")...)
+	}
 	if latest != "" {
 		parts = append(parts, latest)
 	}
@@ -216,7 +229,7 @@ func extractPrompt(input Input) prompt {
 func hardDocument(input Input) string {
 	seen := make(map[string]struct{})
 	var parts []string
-	for _, src := range []gjson.Result{input.Inbound, input.Body} {
+	for _, src := range input.sources() {
 		for _, text := range userTexts(src, true) {
 			text = normalizeText(stripEnvironment(stripReminders(text)))
 			if text == "" {

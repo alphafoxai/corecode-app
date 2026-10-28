@@ -3,14 +3,20 @@
 package riskpolicy
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/tidwall/gjson"
 )
 
 // Input contains the original inbound request and the possibly transformed body.
-// Set both to the same parsed request when no transformation has occurred.
+// Leave Body empty, or set it to Inbound, when no transformation has occurred;
+// either way the request is scanned once.
 type Input struct {
 	Inbound    gjson.Result
 	Body       gjson.Result
@@ -56,7 +62,7 @@ func fingerprintHit(hay string, fingerprints []namedText) *namedText {
 	return nil
 }
 
-func matchDistill(config *distillConfig, input Input, prompt prompt) (Hit, error) {
+func matchDistill(config *distillConfig, input Input, prompt prompt, harvest bool) (Hit, error) {
 	if needle := needleHit(prompt.joined, config.hardNeedles); needle != nil {
 		return Hit{Stage: "distill", Rule: needle.name, Detail: needle.text, Excerpt: prompt.user}, nil
 	}
@@ -107,16 +113,17 @@ func matchDistill(config *distillConfig, input Input, prompt prompt) (Hit, error
 		if err != nil {
 			return Hit{}, fmt.Errorf("matching contest pattern: %w", err)
 		}
-		if contest && isHarvest(input, config) {
+		if contest && harvest {
 			return Hit{Stage: "distill", Rule: "harvest", Detail: "contest+harvest", Excerpt: prompt.user}, nil
 		}
 	}
 	return Hit{}, nil
 }
 
-func matchHard(rules []hardRule, input Input, distillOn, hardOn, openai bool, excerpt string) (Hit, error) {
-	var document string
-	prepared := false
+func matchHard(rules []hardRule, document string, distillOn, hardOn, openai bool, excerpt string) (Hit, error) {
+	if document == "" {
+		return Hit{}, nil
+	}
 	var session *regexSession
 	defer func() {
 		if session != nil {
@@ -131,13 +138,6 @@ func matchHard(rules []hardRule, input Input, distillOn, hardOn, openai bool, ex
 		} else if !hardOn {
 			continue
 		}
-		if !prepared {
-			document = hardDocument(input)
-			prepared = true
-			if document == "" {
-				return Hit{}, nil
-			}
-		}
 		if session == nil {
 			var err error
 			session, err = rule.re.engine.get()
@@ -147,7 +147,11 @@ func matchHard(rules []hardRule, input Input, distillOn, hardOn, openai bool, ex
 		}
 		match, found, err := session.match(rule.re, document, false)
 		if err != nil {
-			return Hit{}, fmt.Errorf("matching hard rule %s: %w", rule.name, err)
+			stage := "hard_regex"
+			if rule.distill {
+				stage = "distill"
+			}
+			return Hit{}, &StageError{Stage: stage, Err: fmt.Errorf("matching hard rule %s: %w", rule.name, err)}
 		}
 		if !found {
 			continue
@@ -189,36 +193,115 @@ func normalizeWhitespace(s string) string {
 	return out.String()
 }
 
+// StageError is a fault in one stage: an invalid rule source or a regex that
+// failed or ran out of time. It never stands for a clean match.
+type StageError struct {
+	Stage string
+	Err   error
+}
+
+func (e *StageError) Error() string { return e.Err.Error() }
+func (e *StageError) Unwrap() error { return e.Err }
+
+// Claude Code resends the whole conversation on every tool step while the text
+// the rules read stays the same, so a verdict is reused for that text.
+const (
+	verdictCacheTTL      = time.Hour
+	verdictCacheCapacity = 20000
+)
+
+type cachedVerdict struct {
+	hit     Hit
+	expires time.Time
+}
+
+var verdictCache = struct {
+	sync.Mutex
+	verdicts map[[32]byte]cachedVerdict
+}{verdicts: map[[32]byte]cachedVerdict{}}
+
+// verdictKey hashes everything a verdict depends on. Each part is length
+// prefixed, so no two different inputs share a key.
+func verdictKey(parts []string, flags ...bool) [32]byte {
+	hash := sha256.New()
+	var size [8]byte
+	for _, part := range parts {
+		binary.LittleEndian.PutUint64(size[:], uint64(len(part)))
+		hash.Write(size[:])
+		hash.Write([]byte(part))
+	}
+	for _, flag := range flags {
+		if flag {
+			hash.Write([]byte{1})
+		} else {
+			hash.Write([]byte{0})
+		}
+	}
+	var key [32]byte
+	hash.Sum(key[:0])
+	return key
+}
+
 // Evaluate applies a structured distill configuration and ordered hard rules.
-// Regex errors, including a finite match timeout, are returned to the caller;
-// they are never silently interpreted as a clean match.
+// Regex errors, including a finite match timeout, are returned to the caller
+// as a *StageError; they are never silently interpreted as a clean match.
+// Verdicts are cached; errors are not.
 func Evaluate(distillSource, hardSource string, input Input, distillEnabled, hardEnabled bool) (Hit, error) {
 	config, err := cachedDistill(distillSource)
 	if err != nil {
-		return Hit{}, err
+		return Hit{}, &StageError{Stage: "distill", Err: err}
 	}
 	openai := openaiModel(input)
 	if openai && !config.openaiEnabled {
 		return Hit{}, nil
 	}
 	distillOn := distillEnabled && config.enabled
-	var p prompt
-	if distillOn && !openai {
-		p = extractPrompt(input)
-		hit, err := matchDistill(config, input, p)
-		if err != nil || hit.Stage != "" {
-			return hit, err
-		}
-	}
 	if !distillOn && !hardEnabled || openai && !hardEnabled {
 		return Hit{}, nil
 	}
-	rules, err := cachedHard(hardSource)
+	p := extractPrompt(input)
+	document := hardDocument(input)
+	harvest := distillOn && !openai && config.contest != nil && isHarvest(input, config)
+	key := verdictKey([]string{distillSource, hardSource, p.user, p.joined, document},
+		distillOn, hardEnabled, openai, harvest, input.Official, input.ZeroInject)
+	now := time.Now()
+	verdictCache.Lock()
+	cached, found := verdictCache.verdicts[key]
+	verdictCache.Unlock()
+	if found && now.Before(cached.expires) {
+		return cached.hit, nil
+	}
+
+	hit, err := evaluate(config, hardSource, input, p, document, harvest, distillOn, hardEnabled, openai)
 	if err != nil {
 		return Hit{}, err
 	}
-	if p.user == "" {
-		p = extractPrompt(input)
+	verdictCache.Lock()
+	if len(verdictCache.verdicts) >= verdictCacheCapacity {
+		clear(verdictCache.verdicts)
 	}
-	return matchHard(rules, input, distillOn, hardEnabled, openai, p.user)
+	verdictCache.verdicts[key] = cachedVerdict{hit: hit, expires: now.Add(verdictCacheTTL)}
+	verdictCache.Unlock()
+	return hit, nil
+}
+
+func evaluate(config *distillConfig, hardSource string, input Input, p prompt, document string, harvest, distillOn, hardEnabled, openai bool) (Hit, error) {
+	if distillOn && !openai {
+		hit, err := matchDistill(config, input, p, harvest)
+		if err != nil {
+			return Hit{}, &StageError{Stage: "distill", Err: err}
+		}
+		if hit.Stage != "" {
+			return hit, nil
+		}
+	}
+	rules, err := cachedHard(hardSource)
+	if err != nil {
+		return Hit{}, &StageError{Stage: "hard_regex", Err: err}
+	}
+	hit, err := matchHard(rules, document, distillOn, hardEnabled, openai, p.user)
+	if stageErr := (*StageError)(nil); err != nil && !errors.As(err, &stageErr) {
+		err = &StageError{Stage: "hard_regex", Err: err}
+	}
+	return hit, err
 }

@@ -62,17 +62,20 @@ func CheckRiskGate(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErr
 	if strings.HasPrefix(strings.TrimSpace(gate.DistillRules), "{") {
 		switch info.Request.(type) {
 		case *dto.ClaudeRequest, *dto.GeneralOpenAIRequest, *dto.OpenAIResponsesRequest, *dto.OpenAIResponsesCompactionRequest:
+			// A fault in the gate itself never rejects the request: it is
+			// recorded and the later stages still run.
 			input, err := riskGatePolicyInput(c, gate.DistillRules)
-			if err != nil {
-				return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			var verdict riskpolicy.Hit
+			if err == nil {
+				verdict, err = riskpolicy.Evaluate(gate.DistillRules, gate.HardRegexRules, input, gate.DistillEnabled, gate.HardRegexEnabled)
 			}
-			verdict, err := riskpolicy.Evaluate(gate.DistillRules, gate.HardRegexRules, input, gate.DistillEnabled, gate.HardRegexEnabled)
 			if err != nil {
-				if gate.Mode != operation_setting.RiskGateModeEnforce {
-					hit.record(model.RiskGateStageHardRegex, "unavailable", err.Error(), model.RiskGateActionFailOpen)
-					return nil
+				stage := model.RiskGateStageDistill
+				if stageErr := (*riskpolicy.StageError)(nil); errors.As(err, &stageErr) {
+					stage = stageErr.Stage
 				}
-				return types.NewErrorWithStatusCode(err, types.ErrorCodeRiskGateBlocked, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+				hit.record(stage, "unavailable", err.Error(), model.RiskGateActionFailOpen)
+				break
 			}
 			if verdict.Stage != "" {
 				if hit.latest == "" {

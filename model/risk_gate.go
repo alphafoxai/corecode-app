@@ -19,7 +19,7 @@ const (
 const (
 	RiskGateActionBlocked  = "blocked"   // the request was rejected
 	RiskGateActionObserved = "observed"  // observe mode: it would have been rejected
-	RiskGateActionFailOpen = "fail_open" // the decision model failed and the request passed
+	RiskGateActionFailOpen = "fail_open" // a stage failed and the request passed
 )
 
 // RiskGateEvent is one request a risk gate stage stopped, would have stopped

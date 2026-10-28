@@ -278,3 +278,43 @@ func TestConcurrentPolicyEvaluation(t *testing.T) {
 		})
 	}
 }
+
+func TestIdenticalSourcesScannedOnce(t *testing.T) {
+	config := testConfig(`"hard_needles":[]`, `"hard_needles":["boundary\nboundary"]`)
+	hit, err := Evaluate(config, "", testInput(`{"system":"boundary","input":"latest"}`), true, false)
+	require.NoError(t, err)
+	assert.Empty(t, hit.Stage, "an untransformed request contributes its system prompt once")
+	assert.Equal(t, prompt{user: "latest", joined: "boundary\nlatest"}, extractPrompt(testInput(`{"system":"boundary","input":"latest"}`)))
+}
+
+func TestVerdictCache(t *testing.T) {
+	rules := "cached | needle"
+	input := testInput(`{"input":"a needle here"}`)
+	hit, err := Evaluate(emptyConfig, rules, input, false, true)
+	require.NoError(t, err)
+	assert.Equal(t, "cached", hit.Rule)
+	key := verdictKey([]string{emptyConfig, rules, "a needle here", "a needle here", hardDocument(input)}, false, true, false, false, false, false)
+	verdictCache.Lock()
+	cached, found := verdictCache.verdicts[key]
+	verdictCache.Unlock()
+	require.True(t, found)
+	assert.Equal(t, hit, cached.hit)
+
+	hit, err = Evaluate(emptyConfig, rules, testInput(`{"input":"a needle here"}`), false, true)
+	require.NoError(t, err)
+	assert.Equal(t, "cached", hit.Rule)
+	hit, err = Evaluate(emptyConfig, "other | needle", input, false, true)
+	require.NoError(t, err)
+	assert.Equal(t, "other", hit.Rule, "a rule change is a different key")
+}
+
+func TestRegexFaultCarriesStageAndIsNotCached(t *testing.T) {
+	rules := `slow | (\w+)+\1x`
+	input := testInput(`{"input":"` + strings.Repeat("ab", 2000) + `"}`)
+	for range 2 {
+		_, err := Evaluate(emptyConfig, rules, input, false, true)
+		var stageErr *StageError
+		require.ErrorAs(t, err, &stageErr)
+		assert.Equal(t, "hard_regex", stageErr.Stage)
+	}
+}
