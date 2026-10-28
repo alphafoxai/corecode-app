@@ -30,6 +30,23 @@ export async function getSetupStatus(): Promise<SetupResponse> {
   return res.data
 }
 
+// The page load's first setup check. main.tsx starts it before the locale
+// loads, so the root guard does not queue it behind that download.
+let pendingSetupStatus: Promise<SetupResponse> | null = null
+
+export function prefetchSetupStatus(): void {
+  pendingSetupStatus = getSetupStatus()
+  // The root guard handles a failure when it takes the result.
+  pendingSetupStatus.catch(() => undefined)
+}
+
+/** The prefetched check if one is waiting, otherwise a fresh request. */
+export function takeSetupStatus(): Promise<SetupResponse> {
+  const pending = pendingSetupStatus ?? getSetupStatus()
+  pendingSetupStatus = null
+  return pending
+}
+
 export async function submitSetup(
   payload: Record<string, unknown>
 ): Promise<SetupResponse> {

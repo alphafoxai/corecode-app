@@ -32,7 +32,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { saveAffiliateCode } from '@/features/auth/lib/storage'
 import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
-import { getSetupStatus } from '@/features/setup/api'
+import { takeSetupStatus } from '@/features/setup/api'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import {
   bootstrapAuthentication,
@@ -127,7 +127,7 @@ export const Route = createRootRouteWithContext<{
     // 只检查 setup 状态（如果需要）
     if (needsSetupCheck) {
       const [status] = await Promise.all([
-        getSetupStatus().catch((error) => {
+        takeSetupStatus().catch((error) => {
           if (import.meta.env.DEV) {
             // eslint-disable-next-line no-console
             console.warn('[root.beforeLoad] setup status check failed', error)

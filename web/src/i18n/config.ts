@@ -25,16 +25,20 @@ import { convertDetectedLanguage, toIntlLocale } from './languages'
 type LocaleModule = { default: { translation: Record<string, string> } }
 
 // Each locale is 0.5–0.8 MB and a visitor reads one, so each loads as its own
-// chunk on demand instead of all seven riding in the entry bundle. i18next
-// requests the current language and the `en` fallback.
+// chunk on demand instead of all seven riding in the entry bundle. Every locale
+// carries every key (locales.test.ts), so a supported language loads alone and
+// `en` is the fallback only for a language the console does not offer. The
+// chunk names let index.html preload the visitor's locale beside the entry
+// bundle (pluginPreloadLocale in rsbuild.config.ts).
 const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
-  en: () => import('./locales/en.json'),
-  zhCN: () => import('./locales/zh.json'),
-  fr: () => import('./locales/fr.json'),
-  ru: () => import('./locales/ru.json'),
-  ja: () => import('./locales/ja.json'),
-  vi: () => import('./locales/vi.json'),
-  zhTW: () => import('./locales/zh-TW.json'),
+  en: () => import(/* webpackChunkName: "locale-en" */ './locales/en.json'),
+  zhCN: () => import(/* webpackChunkName: "locale-zhCN" */ './locales/zh.json'),
+  fr: () => import(/* webpackChunkName: "locale-fr" */ './locales/fr.json'),
+  ru: () => import(/* webpackChunkName: "locale-ru" */ './locales/ru.json'),
+  ja: () => import(/* webpackChunkName: "locale-ja" */ './locales/ja.json'),
+  vi: () => import(/* webpackChunkName: "locale-vi" */ './locales/vi.json'),
+  zhTW: () =>
+    import(/* webpackChunkName: "locale-zhTW" */ './locales/zh-TW.json'),
 }
 
 // i18next awaits `read` when it takes two parameters and returns a promise.
@@ -54,14 +58,17 @@ i18n.on('languageChanged', (language) => {
   document.documentElement.lang = toIntlLocale(language) ?? 'en'
 })
 
-// Resolves once the current language and the fallback are loaded, or have
-// failed to load; keys then render as their English source text.
+// Resolves once the current language is loaded, or has failed to load; keys
+// then render as their English source text.
 export const i18nReady = i18n
   .use(lazyLocales)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    fallbackLng: 'en',
+    fallbackLng: {
+      default: ['en'],
+      ...Object.fromEntries(Object.keys(localeLoaders).map((lng) => [lng, []])),
+    },
     supportedLngs: Object.keys(localeLoaders),
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
