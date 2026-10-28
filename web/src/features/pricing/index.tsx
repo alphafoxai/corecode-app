@@ -25,7 +25,12 @@ import { PageTransition } from '@/components/page-transition'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { getLobeIcon } from '@/lib/lobe-icon'
 
-import { LoadingSkeleton, ClaudeCodeEstimator, PriceBoard } from './components'
+import {
+  LoadingSkeleton,
+  ClaudeCodeEstimator,
+  ModelCheckBanner,
+  PriceBoard,
+} from './components'
 import { VIEW_MODES } from './constants'
 import { usePricingData } from './hooks/use-pricing-data'
 
@@ -121,6 +126,9 @@ export function Pricing() {
           </header>
 
           <main className='min-w-0 space-y-4'>
+            {/* CoreCode fork: the fingerprint check sits above the prices it vouches for. */}
+            <ModelCheckBanner />
+
             <PriceBoard
               models={models || []}
               groupRatio={groupRatio || {}}
