@@ -390,6 +390,7 @@
     "Additional request domains": "額外存取網域",
     "Additional verification required": "需要進一步驗證",
     "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.": "把本站新增為 Magpie 供應商，並把 Claude Code 切換過去。新開工作階段生效。",
+    "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.": "把本站新增為 Magpie 供應商並把 Codex 切換過去。同一個供應商同時服務 Claude Code 和 Codex，只需新增一次。",
     "Adjust filters, then search to refresh the logs.": "調整篩選條件，然後搜尋以重新整理日誌。",
     "Adjust Quota": "調整額度",
     "Adjust quota for user “{{name}}”": "調整使用者「{{name}}」的額度",

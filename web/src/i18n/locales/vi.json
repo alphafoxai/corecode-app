@@ -390,6 +390,7 @@
     "Additional request domains": "Miền truy cập bổ sung",
     "Additional verification required": "Cần xác minh bổ sung",
     "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.": "Thêm cổng này làm nhà cung cấp Magpie và chuyển Claude Code sang đó. Áp dụng cho phiên mới.",
+    "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.": "Thêm cổng này làm nhà cung cấp Magpie và chuyển Codex sang đó. Một nhà cung cấp phục vụ cả Claude Code và Codex, nên chỉ cần thêm một lần.",
     "Adjust filters, then search to refresh the logs.": "Điều chỉnh bộ lọc, sau đó tìm kiếm để làm mới nhật ký.",
     "Adjust Quota": "Điều chỉnh hạn mức",
     "Adjust quota for user “{{name}}”": "Điều chỉnh hạn mức cho người dùng “{{name}}”",

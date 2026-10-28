@@ -390,6 +390,7 @@
     "Additional request domains": "追加のアクセス先ドメイン",
     "Additional verification required": "追加の確認が必要です",
     "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.": "このゲートウェイを Magpie のプロバイダーとして追加し、Claude Code を切り替えます。新しいセッションから有効です。",
+    "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.": "このゲートウェイを Magpie のプロバイダーとして追加し、Codex を切り替えます。1 つのプロバイダーで Claude Code と Codex の両方に使えるので、追加は一度だけです。",
     "Adjust filters, then search to refresh the logs.": "フィルターを調整してから検索し、ログを更新します。",
     "Adjust Quota": "クォータを調整",
     "Adjust quota for user “{{name}}”": "ユーザー「{{name}}」のクォータを調整",

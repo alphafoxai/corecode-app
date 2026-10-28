@@ -390,6 +390,7 @@
     "Additional request domains": "Дополнительные домены",
     "Additional verification required": "Требуется дополнительная проверка",
     "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.": "Добавляет этот шлюз как провайдера Magpie и переключает на него Claude Code. Действует в новых сессиях.",
+    "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.": "Добавляет этот шлюз как провайдера Magpie и переключает на него Codex. Один провайдер обслуживает Claude Code и Codex, поэтому добавьте его один раз.",
     "Adjust filters, then search to refresh the logs.": "Настройте фильтры, затем выполните поиск, чтобы обновить журналы.",
     "Adjust Quota": "Изменить квоту",
     "Adjust quota for user “{{name}}”": "Изменить квоту пользователя «{{name}}»",

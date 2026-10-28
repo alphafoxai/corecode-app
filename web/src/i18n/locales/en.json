@@ -390,6 +390,7 @@
     "Additional request domains": "Additional request domains",
     "Additional verification required": "Additional verification required",
     "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.": "Adds this gateway as a Magpie provider and switches Claude Code to it. New sessions use it.",
+    "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.": "Adds this gateway as a Magpie provider and switches Codex to it. One provider serves Claude Code and Codex, so add it once.",
     "Adjust filters, then search to refresh the logs.": "Adjust filters, then search to refresh the logs.",
     "Adjust Quota": "Adjust Quota",
     "Adjust quota for user “{{name}}”": "Adjust quota for user “{{name}}”",

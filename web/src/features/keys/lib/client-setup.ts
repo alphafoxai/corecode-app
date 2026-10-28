@@ -35,6 +35,7 @@ export const CLIENT_SETUP_TARGETS = [
   'codex-shell',
   'codex-powershell',
   'codex-cc-switch',
+  'codex-magpie',
   'openai-shell',
   'openai-powershell',
   'openai-curl',
@@ -58,6 +59,7 @@ export const CLIENT_TARGETS: Record<SetupClient, readonly ClientSetupTarget[]> =
       'codex-shell',
       'codex-powershell',
       'codex-cc-switch',
+      'codex-magpie',
     ],
     openai: ['openai-shell', 'openai-powershell', 'openai-curl'],
   }
@@ -239,14 +241,21 @@ export function buildClientSetupSnippet(
         '  -H "Content-Type: application/json" \\',
         `  -d '{"model":"${pickOpenAIModel(args.models)}","messages":[{"role":"user","content":"Hello"}]}'`,
       ].join('\n')
-    case 'magpie': {
+    case 'magpie':
+    case 'codex-magpie': {
+      // One provider for every agent: the Anthropic, Chat Completions and
+      // Responses addresses, and no model list, so Magpie reads /v1/models
+      // with the key as the import link does.
       const id = getMagpieProviderId(args.providerName)
-      const models = pickClaudeModels(args.models)
+      const agent =
+        target === 'magpie'
+          ? `magpie claude ${id}/${pickClaudeModels(args.models)[0]}`
+          : `magpie codex ${id}/${pickCodexModel(args.models)}`
       return [
-        `magpie provider add ${args.providerName} anthropic=${args.baseUrl} key=${args.apiKey} \\`,
-        `  models=${models.join(',')}`,
+        `magpie provider add ${args.providerName} anthropic=${args.baseUrl} \\`,
+        `  url=${args.baseUrl}/v1 responses=${args.baseUrl}/v1 key=${args.apiKey}`,
         `magpie provider test ${id}`,
-        `magpie claude ${id}/${models[0]}`,
+        agent,
       ].join('\n')
     }
   }
