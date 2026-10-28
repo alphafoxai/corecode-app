@@ -28,12 +28,15 @@ import { setSiteTitle } from '@/lib/document-title'
 import { applyFaviconToDom } from '@/lib/dom-utils'
 import '@/lib/dayjs'
 import { initializeFrontendCache } from '@/lib/frontend-cache'
+import { resolveLegacyRoute } from '@/lib/legacy-route'
 import { createAppQueryClient } from '@/lib/query-client'
+import { hasSessionHint } from '@/lib/session-hint'
 import { readCachedStatus, statusQueryOptions } from '@/lib/status-query'
 
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
+import { DASHBOARD_DEFAULT_SECTION } from './features/dashboard/section-registry'
 import { i18nReady } from './i18n/config'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
@@ -65,17 +68,13 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// The first route waits on the auth refresh, the setup check and its own code,
-// and the router asks for them only once it renders after the locale loads.
-// Start all three now so they overlap the locale download; the root guard and
-// the router pick up the same requests.
+// The root guard waits on the auth refresh and the setup check, and it runs
+// only once the router renders after the locale loads. Start both now so they
+// overlap the locale download; the guard picks up the same requests.
+// preloadCurrentRouteCode below does the same for the route's code.
 void bootstrapAuthentication()
 if (!window.location.pathname.startsWith('/setup')) {
   prefetchSetupStatus()
-}
-for (const route of router.getMatchedRoutes(window.location.pathname)
-  .matchedRoutes) {
-  router.loadRouteChunk(route)?.catch(() => undefined)
 }
 
 // Render the app
@@ -116,7 +115,32 @@ if (!rootElement) {
     /* empty */
   }
 })()
+// The router fetches a route's code only once it mounts, and mounting waits
+// for the locale below. Fetch the code of the routes this URL renders now, in
+// parallel with the locale. Guards and redirects still run when the router
+// loads; this only loads modules, so a redirect elsewhere wastes the bytes.
+function preloadCurrentRouteCode() {
+  const href = resolveLegacyRoute(window.location.href) ?? window.location.href
+  let { pathname } = new URL(href, window.location.origin)
+  // The home page and the legacy /console lead here; it redirects to a section.
+  if (pathname.replace(/\/$/, '') === '/dashboard') {
+    pathname = `/dashboard/${DASHBOARD_DEFAULT_SECTION}`
+  }
+  const { matchedRoutes } = router.getMatchedRoutes(pathname)
+  // Without a session hint, a protected route redirects to sign-in.
+  if (matchedRoutes.some((route) => route.id === '/_authenticated')) {
+    if (!hasSessionHint()) return
+  }
+  for (const route of matchedRoutes) {
+    void router.loadRouteChunk(route)?.catch(() => undefined)
+  }
+}
+
 if (!rootElement.innerHTML) {
+  // index.html preloads the locale, and i18next requests it from a zero-delay
+  // timer; queue behind that so the locale, which gates the first render, is
+  // first on the connection.
+  setTimeout(preloadCurrentRouteCode, 0)
   // Render after the locale loads so the first paint is already translated.
   void i18nReady.then(() => {
     const root = ReactDOM.createRoot(rootElement)
