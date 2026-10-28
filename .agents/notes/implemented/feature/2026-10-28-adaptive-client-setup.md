@@ -46,6 +46,10 @@ Claude 满血（仅限CC）, Claude 满血（可外接）, GPT, Grok, Gemini and
   and Magpie lists the key's own models. `url=` is the CLI's Chat Completions
   field: a `magpie provider add` run under a scratch `HOME` on 2026-10-28 wrote
   it to `chat` in providers.json.
+- Where a snippet or import names one Claude model (the Magpie command, the
+  CC Switch import), it uses `claude-opus-5-5` when the key can call it, as
+  Codex uses `gpt-6.1-sol`. The model list is in name order, so taking its
+  first entry had picked `claude-fable-5-1`.
 - The check command follows the client (`claude -p`, `codex exec`, a curl of
   `/v1/models`); the claude.ai sign-out warning shows for Claude Code only.
 - The row button's label and the dialog title follow the same clients:
