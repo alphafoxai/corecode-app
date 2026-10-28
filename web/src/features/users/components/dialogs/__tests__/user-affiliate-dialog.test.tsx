@@ -22,6 +22,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
+import { formatQuota } from '@/lib/format'
 
 import { UserAffiliateDialog } from '../user-affiliate-dialog'
 
@@ -74,7 +75,25 @@ function renderDialog() {
         },
       }
     }
-    if (url.endsWith('/commissions') || url.endsWith('/invitees')) {
+    if (url.endsWith('/invitees')) {
+      return {
+        data: {
+          success: true,
+          data: {
+            items: [],
+            total: 2,
+            page: 1,
+            page_size: 10,
+            totals: {
+              used_quota: 1_200_000,
+              commission_base: 900_000,
+              commission: 180_000,
+            },
+          },
+        },
+      }
+    }
+    if (url.endsWith('/commissions')) {
       return {
         data: {
           success: true,
@@ -133,6 +152,15 @@ it('shows the inviter and saves the new rate and channel tier', async () => {
       tier: 'retail',
     })
   )
+})
+
+it('shows what the invitees spent and the commission they earned', async () => {
+  renderDialog()
+
+  expect(await screen.findByText('Invitee spend')).toBeVisible()
+  expect(await screen.findByText(formatQuota(1_200_000))).toBeVisible()
+  expect(screen.getByText('Commission from invitees')).toBeVisible()
+  expect(screen.getByText(formatQuota(180_000))).toBeVisible()
 })
 
 it('blocks a rate above the configured maximum', async () => {

@@ -18,27 +18,33 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
 
 import type { AffiliatePage } from '../types'
 
-type AffiliatePagedTableProps<T extends { id: number }> = {
+type AffiliatePagedTableProps<
+  T extends { id: number },
+  P extends AffiliatePage<T>,
+> = {
   queryKey: readonly unknown[]
-  load: (params: { p: number; page_size: number }) => Promise<AffiliatePage<T>>
+  load: (params: { p: number; page_size: number }) => Promise<P>
   columns: ColumnDef<T>[]
   emptyTitle: string
   enabled?: boolean
+  /** Rendered above the table from the same response, such as its totals */
+  summary?: (page: P | undefined, loading: boolean) => ReactNode
 }
 
 const EMPTY: never[] = []
 
 // One paged list for commission and withdrawal records, used by the wallet and
 // by the admin dialog.
-export function AffiliatePagedTable<T extends { id: number }>(
-  props: AffiliatePagedTableProps<T>
-) {
+export function AffiliatePagedTable<
+  T extends { id: number },
+  P extends AffiliatePage<T> = AffiliatePage<T>,
+>(props: AffiliatePagedTableProps<T, P>) {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
 
   const query = useQuery({
@@ -71,19 +77,22 @@ export function AffiliatePagedTable<T extends { id: number }>(
   })
 
   return (
-    <DataTablePage
-      table={table}
-      columns={props.columns}
-      isLoading={query.isPending}
-      isFetching={query.isFetching}
-      emptyTitle={props.emptyTitle}
-      toolbarProps={null}
-      hideMobile
-      className='h-auto min-h-0'
-      applyHeaderSize
-      // Rendered inside dialogs, so the pagination stays with the table
-      // instead of moving to the page footer behind the overlay.
-      paginationInFooter={false}
-    />
+    <>
+      {props.summary?.(query.data, query.isPending)}
+      <DataTablePage
+        table={table}
+        columns={props.columns}
+        isLoading={query.isPending}
+        isFetching={query.isFetching}
+        emptyTitle={props.emptyTitle}
+        toolbarProps={null}
+        hideMobile
+        className='h-auto min-h-0'
+        applyHeaderSize
+        // Rendered inside dialogs, so the pagination stays with the table
+        // instead of moving to the page footer behind the overlay.
+        paginationInFooter={false}
+      />
+    </>
   )
 }

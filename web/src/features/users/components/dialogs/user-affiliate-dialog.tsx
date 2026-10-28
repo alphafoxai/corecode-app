@@ -251,6 +251,22 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
               columns={inviteeColumns}
               emptyTitle={t('No invitees yet')}
               enabled={props.open}
+              summary={(page, loading) => (
+                <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
+                  <Stat
+                    label={t('Invitee spend')}
+                    value={
+                      loading ? '-' : formatQuota(page?.totals.used_quota ?? 0)
+                    }
+                  />
+                  <Stat
+                    label={t('Commission from invitees')}
+                    value={
+                      loading ? '-' : formatQuota(page?.totals.commission ?? 0)
+                    }
+                  />
+                </div>
+              )}
             />
           </div>
 
