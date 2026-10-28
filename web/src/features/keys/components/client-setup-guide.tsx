@@ -59,6 +59,7 @@ import { fetchTokenKey } from '../api'
 import {
   buildCCSwitchURL,
   buildClientSetupSnippet,
+  buildMagpieImportURL,
   CLIENT_SETUP_TARGETS,
   getAnthropicBaseUrl,
   maskApiKey,
@@ -126,7 +127,9 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
   const { copyToClipboard } = useCopyToClipboard({ notify: false })
   const [target, setTarget] = useState<ClientSetupTarget>('settings')
   const [pickedKeyId, setPickedKeyId] = useState<number | null>(null)
-  const [busy, setBusy] = useState<'copy' | 'verify' | 'cc-switch' | null>(null)
+  const [busy, setBusy] = useState<
+    'copy' | 'verify' | 'cc-switch' | 'magpie' | null
+  >(null)
   const [copied, setCopied] = useState<'copy' | 'verify' | null>(null)
 
   const modelsQuery = useQuery({
@@ -230,6 +233,21 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
     }
   }
 
+  const handleOpenMagpie = async () => {
+    setBusy('magpie')
+    try {
+      const apiKey = await resolveKey()
+      if (!apiKey) return
+      window.open(
+        buildMagpieImportURL({ baseUrl, apiKey, providerName }),
+        '_blank',
+        'noopener'
+      )
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <div className={cn('flex min-w-0 flex-col gap-3', props.className)}>
       <div className='flex flex-wrap items-center justify-between gap-2'>
@@ -322,6 +340,22 @@ export function ClientSetupGuide(props: ClientSetupGuideProps) {
             <ArrowRightLeft data-icon='inline-start' />
           )}
           {t('Import to CC Switch')}
+        </Button>
+      )}
+
+      {target === 'magpie' && selectedKey && (
+        <Button
+          className='self-start'
+          size='sm'
+          onClick={handleOpenMagpie}
+          disabled={busy === 'magpie'}
+        >
+          {busy === 'magpie' ? (
+            <Loader2 className='animate-spin' data-icon='inline-start' />
+          ) : (
+            <ArrowRightLeft data-icon='inline-start' />
+          )}
+          {t('Add to Magpie')}
         </Button>
       )}
 
