@@ -505,6 +505,8 @@ const VALUE_TICKS = 4
 const AXIS_LABELS = 7
 // A series this short labels each bar with its total.
 const LABELLED_BARS = 14
+// A series up to this long keeps a gap between its bars.
+const SPACED_BARS = 60
 
 /** The smallest round step (1, 2, 2.5 or 5 × 10^n) at least value. */
 function niceStep(value: number) {
@@ -548,6 +550,10 @@ export function BarSeries(props: {
     .map((point, index) => ({ index, text: point.axis ?? point.title }))
     .filter((_, index) => !segmented || props.points[index].axis)
   const barLabels = count <= LABELLED_BARS
+  // The space between bars sits inside each bar's hover area, so every point
+  // across the chart answers the pointer. A dense series, such as a week of
+  // hours in a narrow panel, has no room for it and draws bars edge to edge.
+  const spaced = count <= SPACED_BARS
   const every = barLabels
     ? 1
     : Math.max(1, Math.ceil(candidates.length / AXIS_LABELS))
@@ -605,7 +611,7 @@ export function BarSeries(props: {
           </div>
           <TooltipProvider delay={0}>
             <ol
-              className='relative flex h-full items-end gap-px sm:gap-0.5'
+              className='relative flex h-full items-end'
               aria-label={props.ariaLabel}
             >
               {props.points.map((point, pointIndex) => {
@@ -648,7 +654,10 @@ export function BarSeries(props: {
                           <div
                             tabIndex={0}
                             aria-label={ariaLabel}
-                            className='group/bar focus-visible:ring-ring/50 hover:bg-muted/40 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3'
+                            className={cn(
+                              'group/bar focus-visible:ring-ring/50 hover:bg-muted/40 flex flex-1 flex-col-reverse items-stretch justify-start rounded-sm outline-none focus-visible:ring-3',
+                              spaced && 'px-px sm:px-[3px]'
+                            )}
                           />
                         }
                       >

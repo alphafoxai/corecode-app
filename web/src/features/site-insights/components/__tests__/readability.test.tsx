@@ -278,3 +278,37 @@ describe('sparkline', () => {
     expect(screen.getByRole('status')).toHaveTextContent('10/27 ¥300')
   })
 })
+
+describe('bar hover areas', () => {
+  it('keeps the gap between bars inside each bar, so no point is dead', () => {
+    render(
+      <BarSeries
+        ariaLabel='daily'
+        series={[{ label: 'Count' }]}
+        points={[
+          { key: 1, title: 'a', values: [1] },
+          { key: 2, title: 'b', values: [2] },
+        ]}
+      />
+    )
+    const list = screen.getByRole('list', { name: 'daily' })
+    expect(list.className).not.toMatch(/\bgap-/)
+    const bar = screen.getByLabelText(/^a,/)
+    expect(bar).toHaveClass('px-px')
+  })
+
+  it('draws a dense series edge to edge', () => {
+    render(
+      <BarSeries
+        ariaLabel='hourly'
+        series={[{ label: 'Count' }]}
+        points={Array.from({ length: 168 }, (_, hour) => ({
+          key: hour,
+          title: `h${hour}`,
+          values: [1],
+        }))}
+      />
+    )
+    expect(screen.getByLabelText(/^h0,/)).not.toHaveClass('px-px')
+  })
+})
