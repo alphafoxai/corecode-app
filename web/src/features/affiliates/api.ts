@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import type { ApiResponse } from '@/features/profile/types'
 import type {
   AffiliatePage,
+  AffiliateTier,
   AffiliateWithdrawal,
   AffiliateWithdrawalStatus,
 } from '@/features/wallet/types'
@@ -71,6 +72,7 @@ export interface AffiliateListItem {
   has_affiliate: boolean
   rate: number
   channel: boolean
+  tier: AffiliateTier
   invitee_count: number
   /** Quota units */
   balance: number
@@ -78,7 +80,13 @@ export interface AffiliateListItem {
   earned: number
 }
 
-export type AffiliateListType = '' | 'channel' | 'inviting' | 'revoked'
+export type AffiliateListType =
+  | ''
+  | 'channel'
+  | 'retail'
+  | 'distributor'
+  | 'inviting'
+  | 'revoked'
 export type AffiliateListSort = 'invitees' | 'earned' | 'recent'
 
 export async function getAffiliates(params: {
@@ -115,6 +123,10 @@ export interface AffiliateOverview {
     balance: number
     pending_withdrawals: number
     pending_withdrawal_quota: number
+    /** Sign-up gifts given in the last 24 hours */
+    signup_gifts: number
+    /** Sign-up gifts a limit withheld in the last 24 hours */
+    signup_gifts_withheld: number
   }
   earned_money: number
   balance_money: number

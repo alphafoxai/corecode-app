@@ -15,22 +15,26 @@ import (
 
 // Affiliate is a user who may invite others and earn commission on what the
 // invitees pay for. Rate is the percent of a direct invitee's paid
-// consumption the affiliate earns. Channel marks a promotion channel, which
-// also earns the second-level rate from the users its invitees invite.
+// consumption the affiliate earns. Tier makes the user a promotion channel:
+// both tiers can withdraw in cash and their invitees receive the tier's gift
+// plan when they sign up, and a distributor also earns the second-level rate
+// from the users its invitees invite. Channel is true for either tier; it
+// predates Tier and stays for the consoles that read it.
 //
 // Balance is commission not yet transferred or withdrawn and Earned is
 // everything ever credited, both in quota units. They are kept apart from
 // users.aff_quota, which holds upstream's fixed sign-up reward.
 type Affiliate struct {
-	Id        int   `json:"id"`
-	UserId    int   `json:"user_id" gorm:"uniqueIndex"`
-	Rate      int   `json:"rate" gorm:"not null"`
-	Channel   bool  `json:"channel" gorm:"not null"`
-	GrantedBy int   `json:"granted_by" gorm:"not null"` // 0 when the user applied in the wallet
-	Balance   int64 `json:"balance" gorm:"type:bigint;not null;default:0"`
-	Earned    int64 `json:"earned" gorm:"type:bigint;not null;default:0"`
-	CreatedAt int64 `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt int64 `json:"updated_at" gorm:"autoUpdateTime"`
+	Id        int    `json:"id"`
+	UserId    int    `json:"user_id" gorm:"uniqueIndex"`
+	Rate      int    `json:"rate" gorm:"not null"`
+	Channel   bool   `json:"channel" gorm:"not null"`
+	Tier      string `json:"tier" gorm:"type:varchar(16);not null;default:''"`
+	GrantedBy int    `json:"granted_by" gorm:"not null"` // 0 when the user applied in the wallet
+	Balance   int64  `json:"balance" gorm:"type:bigint;not null;default:0"`
+	Earned    int64  `json:"earned" gorm:"type:bigint;not null;default:0"`
+	CreatedAt int64  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt int64  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // AffiliateReferral tracks how far one invitee's consumption has been
@@ -80,6 +84,25 @@ type AffiliateWithdrawal struct {
 	ProcessedBy int     `json:"processed_by"`
 }
 
+// The promotion channel tiers; an ordinary inviter has none.
+const (
+	AffiliateTierRetail      = "retail"
+	AffiliateTierDistributor = "distributor"
+)
+
+// ValidAffiliateTier reports whether tier is a channel tier or empty.
+func ValidAffiliateTier(tier string) bool {
+	return tier == "" || tier == AffiliateTierRetail || tier == AffiliateTierDistributor
+}
+
+// MigrateAffiliateTiers makes every channel from before tiers a distributor,
+// which keeps the second-level commission and the gift plan it had. It is
+// idempotent, so two servers starting together both run it safely.
+func MigrateAffiliateTiers() error {
+	return DB.Model(&Affiliate{}).Where("channel = ? AND tier = ?", true, "").
+		Update("tier", AffiliateTierDistributor).Error
+}
+
 const (
 	AffiliateWithdrawalPending  = "pending"
 	AffiliateWithdrawalPaid     = "paid"
@@ -99,9 +122,7 @@ var (
 	ErrAffiliateWithdrawalProcessed error = common.NewMessage("This withdrawal has already been processed")
 	ErrAffiliateInviterInvalid      error = common.NewMessage("This user cannot be the inviter")
 	ErrAffiliateInviterLoop         error = common.NewMessage("This user was invited, directly or indirectly, by the user being changed")
-	ErrAffiliateGiftUnavailable     error = common.NewMessage("No plan is available to gift")
-	ErrAffiliateGiftNotInvitee      error = common.NewMessage("This user is not your invitee")
-	ErrAffiliateGiftTaken           error = common.NewMessage("This invitee already has this plan")
+	ErrAffiliateGiftAutomatic       error = common.NewMessage("Invitees now receive the gift plan automatically when they sign up")
 )
 
 // InviterIdForAffCode resolves the account a sign-up's invite code binds to,
@@ -228,7 +249,7 @@ type affiliateCredit struct {
 
 // affiliateCreditsFor lists who earns from an invitee's consumption: the
 // inviter at their own rate, and the inviter's inviter at the second-level
-// rate when that account is a channel. Disabled accounts earn nothing.
+// rate when that account is a distributor. Disabled accounts earn nothing.
 func affiliateCreditsFor(tx *gorm.DB, inviterId int) ([]affiliateCredit, error) {
 	if inviterId == 0 {
 		return nil, nil
@@ -268,7 +289,7 @@ func affiliateCreditsFor(tx *gorm.DB, inviterId int) ([]affiliateCredit, error) 
 		return nil, err
 	}
 	var count int64
-	if err := tx.Model(&Affiliate{}).Where("user_id = ? AND channel = ?", channel.Id, true).Count(&count).Error; err != nil {
+	if err := tx.Model(&Affiliate{}).Where("user_id = ? AND tier = ?", channel.Id, AffiliateTierDistributor).Count(&count).Error; err != nil {
 		return nil, err
 	}
 	if count > 0 {
@@ -456,9 +477,10 @@ func EnsureDefaultAffiliate(userId int) error {
 }
 
 // SetAffiliate is the administrator's grant: any rate up to the configured
-// maximum, and the channel mark. Rate 0 removes invite rights and also keeps
-// the user from applying in the wallet; the balance is kept.
-func SetAffiliate(userId int, rate int, channel bool, adminId int) (*Affiliate, error) {
+// maximum, and the channel tier, empty for an ordinary inviter. Rate 0
+// removes invite rights; the balance is kept.
+func SetAffiliate(userId int, rate int, tier string, adminId int) (*Affiliate, error) {
+	channel := tier != ""
 	var affiliate Affiliate
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := ensureAffCodeWithTx(tx, userId); err != nil {
@@ -466,7 +488,7 @@ func SetAffiliate(userId int, rate int, channel bool, adminId int) (*Affiliate, 
 		}
 		err := lockForUpdate(tx).Where("user_id = ?", userId).First(&affiliate).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			affiliate = Affiliate{UserId: userId, Rate: rate, Channel: channel, GrantedBy: adminId}
+			affiliate = Affiliate{UserId: userId, Rate: rate, Channel: channel, Tier: tier, GrantedBy: adminId}
 			return tx.Create(&affiliate).Error
 		}
 		if err != nil {
@@ -474,8 +496,9 @@ func SetAffiliate(userId int, rate int, channel bool, adminId int) (*Affiliate, 
 		}
 		affiliate.Rate = rate
 		affiliate.Channel = channel
+		affiliate.Tier = tier
 		affiliate.GrantedBy = adminId
-		return tx.Model(&affiliate).Select("rate", "channel", "granted_by", "updated_at").Updates(&affiliate).Error
+		return tx.Model(&affiliate).Select("rate", "channel", "tier", "granted_by", "updated_at").Updates(&affiliate).Error
 	})
 	if err != nil {
 		return nil, err
@@ -493,8 +516,9 @@ func CountAffiliateInvitees(userId int) (int64, error) {
 // AffiliateInvitee is one user who signed up with the affiliate's code, as
 // the affiliate sees them: who they are, everything they have consumed, the
 // direct commission their consumption has earned the affiliate, and whether
-// they hold the gift plan. GiftPlan is "gifted" when an inviter gave it,
-// "owned" when they got it another way, and empty when they can be given it.
+// they hold the affiliate's gift plan. GiftPlan is "gifted" when they
+// received it at sign-up, "owned" when they got it another way, and empty
+// when they hold neither.
 //
 // CommissionBase is the part of UsedQuota that commission was paid on: the
 // consumption the invitee's own payments covered, summed over the same
@@ -556,7 +580,12 @@ func ListAffiliateInvitees(userId int, pageInfo *common.PageInfo) ([]*AffiliateI
 		}
 	}
 	giftPlans := make(map[int]string, len(users))
-	if planId := operation_setting.GetAffiliateSetting().GiftPlanId; planId > 0 && len(ids) > 0 {
+	plan, err := AffiliateGiftPlan(userId)
+	if err != nil {
+		return nil, 0, err
+	}
+	if plan != nil && len(ids) > 0 {
+		planId := plan.Id
 		var subscriptions []UserSubscription
 		if err := DB.Select("user_id", "source").Where("plan_id = ? AND user_id IN ?", planId, ids).
 			Find(&subscriptions).Error; err != nil {
@@ -606,23 +635,34 @@ func SumAffiliateInvitees(userId int) (AffiliateInviteeTotals, error) {
 	return totals, nil
 }
 
-// AffiliateGiftPlan returns the plan a user can gift their invitees, or nil
-// when gifting is off, the configured plan is disabled or gone, or the user
-// is not a promotion channel with invite rights.
+// AffiliateGiftPlan returns the plan a user's invitees receive when they sign
+// up, or nil when the user is not a promotion channel with invite rights, or
+// their tier's plan is unset, disabled or gone.
 func AffiliateGiftPlan(userId int) (*SubscriptionPlan, error) {
-	planId := operation_setting.GetAffiliateSetting().GiftPlanId
-	if planId <= 0 {
+	return affiliateGiftPlanWithTx(DB, userId)
+}
+
+func affiliateGiftPlanWithTx(tx *gorm.DB, userId int) (*SubscriptionPlan, error) {
+	var affiliate Affiliate
+	err := tx.Select("tier", "rate").Where("user_id = ?", userId).First(&affiliate).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
-	var channels int64
-	if err := DB.Model(&Affiliate{}).Where("user_id = ? AND channel = ? AND rate > 0", userId, true).
-		Count(&channels).Error; err != nil {
+	if err != nil {
 		return nil, err
 	}
-	if channels == 0 {
+	setting := operation_setting.GetAffiliateSetting()
+	planId := 0
+	switch affiliate.Tier {
+	case AffiliateTierDistributor:
+		planId = setting.GiftPlanId
+	case AffiliateTierRetail:
+		planId = setting.RetailGiftPlanId
+	}
+	if planId <= 0 || affiliate.Rate <= 0 {
 		return nil, nil
 	}
-	plan, err := GetSubscriptionPlanById(planId)
+	plan, err := getSubscriptionPlanByIdTx(tx, planId)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -633,53 +673,6 @@ func AffiliateGiftPlan(userId int) (*SubscriptionPlan, error) {
 		return nil, nil
 	}
 	return plan, nil
-}
-
-// GiftAffiliatePlan gives one of a promotion channel's invitees the gift
-// plan, free, and returns the plan and the subscription it created. An
-// invitee who already has the plan, gifted or bought, cannot be given it,
-// and one who was given it cannot buy it; the invitee's row is locked first,
-// as purchases lock it, so a gift and a purchase cannot both pass the check.
-func GiftAffiliatePlan(inviterId int, inviteeId int) (*SubscriptionPlan, *UserSubscription, error) {
-	plan, err := AffiliateGiftPlan(inviterId)
-	if err != nil {
-		return nil, nil, err
-	}
-	if plan == nil {
-		return nil, nil, ErrAffiliateGiftUnavailable
-	}
-	var subscription *UserSubscription
-	var invitee User
-	err = DB.Transaction(func(tx *gorm.DB) error {
-		if err := lockForUpdate(tx).Select("id", "username", "inviter_id").Where("id = ?", inviteeId).First(&invitee).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrAffiliateGiftNotInvitee
-			}
-			return err
-		}
-		if inviterId == 0 || invitee.InviterId != inviterId {
-			return ErrAffiliateGiftNotInvitee
-		}
-		var count int64
-		if err := tx.Model(&UserSubscription{}).Where("user_id = ? AND plan_id = ?", inviteeId, plan.Id).
-			Count(&count).Error; err != nil {
-			return err
-		}
-		if count > 0 {
-			return ErrAffiliateGiftTaken
-		}
-		subscription, err = CreateUserSubscriptionFromPlanTx(tx, inviteeId, plan, SubscriptionSourceAffiliateGift)
-		return err
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	if subscription.PrevUserGroup != "" {
-		refreshSubscriptionUserGroupCache(inviteeId, common.LogText("affiliate plan gift"))
-	}
-	RecordLog(inviteeId, LogTypeSystem, common.NewMessage("Your inviter gave you the plan {{plan}}", map[string]any{"plan": plan.Title}))
-	RecordLog(inviterId, LogTypeSystem, common.NewMessage("You gave {{user}} the plan {{plan}}", map[string]any{"user": invitee.Username, "plan": plan.Title}))
-	return plan, subscription, nil
 }
 
 // SetUserInviter is the administrator's change of who invited a user; 0

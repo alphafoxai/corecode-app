@@ -35,6 +35,9 @@ const AFFILIATE_DEFAULTS: AffiliateValues = {
   'affiliate_setting.second_level_rate': 5,
   'affiliate_setting.min_withdrawal': 100,
   'affiliate_setting.gift_plan_id': 0,
+  'affiliate_setting.retail_gift_plan_id': 0,
+  'affiliate_setting.gift_daily_cap': 50,
+  'affiliate_setting.gift_blocked_email_domains': '',
 }
 
 /** The program's terms, saved as option rows like any system setting. */

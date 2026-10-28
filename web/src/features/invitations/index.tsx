@@ -16,21 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Gift } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTablePage, useDataTable } from '@/components/data-table'
 import { SectionPageLayout } from '@/components/layout'
-import { Button } from '@/components/ui/button'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
-import { handleServerError } from '@/lib/handle-server-error'
 
-import { getInvitees, giftInvitee } from './api'
+import { getInvitees } from './api'
 import { InvitationOverview } from './components/invitation-overview'
 import type { Invitee } from './types'
 
@@ -38,10 +33,8 @@ const EMPTY: Invitee[] = []
 const NO_TOTALS = { used_quota: 0, commission_base: 0, commission: 0 }
 
 // An empty giftPlanTitle leaves out the gift column, as in the admin dialog.
-export function useInviteeColumns(
-  giftPlanTitle: string,
-  onGift: (invitee: Invitee) => void
-): ColumnDef<Invitee>[] {
+// Invitees receive the plan when they sign up, so the column only reports it.
+export function useInviteeColumns(giftPlanTitle: string): ColumnDef<Invitee>[] {
   const { t } = useTranslation()
   return useMemo(() => {
     const columns: ColumnDef<Invitee>[] = [
@@ -122,29 +115,18 @@ export function useInviteeColumns(
               </span>
             )
           }
-          return (
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => onGift(row.original)}
-            >
-              <Gift />
-              {t('Gift')}
-            </Button>
-          )
+          return <span className='text-muted-foreground'>-</span>
         },
         meta: { label: giftPlanTitle },
       })
     }
     return columns
-  }, [t, giftPlanTitle, onGift])
+  }, [t, giftPlanTitle])
 }
 
 export function Invitations() {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [giftTarget, setGiftTarget] = useState<Invitee | null>(null)
 
   const query = useQuery({
     queryKey: ['affiliate', 'invitees', pagination],
@@ -156,18 +138,7 @@ export function Invitations() {
     placeholderData: (previous) => previous,
   })
   const giftPlanTitle = query.data?.gift_plan_title ?? ''
-  const columns = useInviteeColumns(giftPlanTitle, setGiftTarget)
-
-  const gift = useMutation({
-    mutationFn: (invitee: Invitee) => giftInvitee(invitee.id),
-    onSuccess: () => {
-      toast.success(t('Gave {{plan}}', { plan: giftPlanTitle }))
-      setGiftTarget(null)
-    },
-    onError: (error) => handleServerError(error),
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: ['affiliate', 'invitees'] }),
-  })
+  const columns = useInviteeColumns(giftPlanTitle)
 
   const { table } = useDataTable<Invitee>({
     columns,
@@ -212,20 +183,6 @@ export function Invitations() {
             applyHeaderSize
           />
         </div>
-        <ConfirmDialog
-          open={giftTarget !== null}
-          onOpenChange={(open) => {
-            if (!open && !gift.isPending) setGiftTarget(null)
-          }}
-          title={t('Gift {{plan}}', { plan: giftPlanTitle })}
-          desc={t(
-            'Give {{user}} the plan {{plan}} for free. Each invitee can receive it once, and cannot buy it after receiving it.',
-            { user: giftTarget?.name ?? '', plan: giftPlanTitle }
-          )}
-          confirmText={t('Gift')}
-          isLoading={gift.isPending}
-          handleConfirm={() => giftTarget && gift.mutate(giftTarget)}
-        />
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )

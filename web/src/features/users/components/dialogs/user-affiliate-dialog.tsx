@@ -26,12 +26,13 @@ import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
 import { useInviteeColumns } from '@/features/invitations'
 import { useCommissionColumns } from '@/features/wallet/components/affiliate-columns'
 import { AffiliatePagedTable } from '@/features/wallet/components/affiliate-paged-table'
 import { formatPaymentMoney } from '@/features/wallet/lib'
+import type { AffiliateTier } from '@/features/wallet/types'
 import { formatQuota } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 
@@ -49,8 +50,6 @@ type UserAffiliateDialogProps = {
   onOpenChange: (open: boolean) => void
   user: { id: number; username: string }
 }
-
-const NO_GIFT = () => {}
 
 function Stat(props: { label: string; value: string }) {
   return (
@@ -71,9 +70,9 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
   const userId = props.user.id
   const queryKey = ['affiliate', 'admin-user', userId] as const
   const columns = useCommissionColumns()
-  const inviteeColumns = useInviteeColumns('', NO_GIFT)
+  const inviteeColumns = useInviteeColumns('')
   const [rate, setRate] = useState('0')
-  const [channel, setChannel] = useState(false)
+  const [tier, setTier] = useState<AffiliateTier>('')
 
   const view = useQuery({
     queryKey,
@@ -86,12 +85,12 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
     if (data) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRate(String(data.affiliate?.rate ?? 0))
-      setChannel(data.affiliate?.channel ?? false)
+      setTier(data.affiliate?.tier ?? '')
     }
   }, [data])
 
   const save = useMutation({
-    mutationFn: (body: { rate: number; channel: boolean }) =>
+    mutationFn: (body: { rate: number; tier: AffiliateTier }) =>
       updateUserAffiliate(userId, body),
     onSuccess: (next) => {
       queryClient.setQueryData(queryKey, next)
@@ -110,7 +109,7 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
   const dirty =
     data !== undefined &&
     (parsedRate !== (data.affiliate?.rate ?? 0) ||
-      channel !== (data.affiliate?.channel ?? false))
+      tier !== (data.affiliate?.tier ?? ''))
 
   return (
     <Dialog
@@ -183,30 +182,61 @@ export function UserAffiliateDialog(props: UserAffiliateDialogProps) {
                 {t('Rate 0 removes invitation rights and blocks re-applying.')}
               </p>
             </div>
-            <div className='flex items-start justify-between gap-3 rounded-lg border p-3'>
-              <div className='space-y-1'>
-                <Label htmlFor='affiliate-channel'>
-                  {t('Promotion channel')}
-                </Label>
-                <p className='text-muted-foreground text-xs'>
-                  {t(
-                    'Channels also earn {{rate}}% from users their invitees invite and can withdraw cash.',
-                    { rate: data.second_level_rate }
-                  )}
-                </p>
-              </div>
-              <Switch
-                id='affiliate-channel'
-                checked={channel}
-                onCheckedChange={setChannel}
-              />
+            <div className='space-y-2'>
+              <Label>{t('Channel type')}</Label>
+              <RadioGroup
+                value={tier}
+                onValueChange={(value) => setTier(value as AffiliateTier)}
+              >
+                {(
+                  [
+                    {
+                      value: '',
+                      label: t('Ordinary inviter'),
+                      desc: t(
+                        'Commission goes to their own balance. Invitees receive no gift.'
+                      ),
+                    },
+                    {
+                      value: 'retail',
+                      label: t('Retail channel'),
+                      desc: t(
+                        'For KOLs and ranking sites. Can withdraw cash; invitees receive the retail gift plan at sign-up. No second-level commission.'
+                      ),
+                    },
+                    {
+                      value: 'distributor',
+                      label: t('Distributor channel'),
+                      desc: t(
+                        'For business resellers. Can withdraw cash; invitees receive the distributor gift plan at sign-up; also earns {{rate}}% from users their invitees invite.',
+                        { rate: data.second_level_rate }
+                      ),
+                    },
+                  ] as const
+                ).map((option) => (
+                  <label
+                    key={option.value}
+                    className='has-data-checked:border-primary flex cursor-pointer items-start gap-3 rounded-lg border p-3'
+                  >
+                    <RadioGroupItem value={option.value} className='mt-0.5' />
+                    <span className='space-y-0.5'>
+                      <span className='block text-sm font-medium'>
+                        {option.label}
+                      </span>
+                      <span className='text-muted-foreground block text-xs'>
+                        {option.desc}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </RadioGroup>
             </div>
           </div>
 
           <div className='flex justify-end'>
             <Button
               disabled={!rateValid || !dirty || save.isPending}
-              onClick={() => save.mutate({ rate: parsedRate, channel })}
+              onClick={() => save.mutate({ rate: parsedRate, tier })}
             >
               {save.isPending && <Loader2 className='animate-spin' />}
               {t('Save')}

@@ -132,8 +132,11 @@ export function AffiliateList() {
           return (
             <span className='flex items-center gap-1.5'>
               <span className='tabular-nums'>{row.original.rate}%</span>
-              {row.original.channel && (
-                <Badge variant='secondary'>{t('Channel')}</Badge>
+              {row.original.tier === 'retail' && (
+                <Badge variant='secondary'>{t('Retail channel')}</Badge>
+              )}
+              {row.original.tier === 'distributor' && (
+                <Badge variant='secondary'>{t('Distributor channel')}</Badge>
               )}
               {row.original.rate === 0 && (
                 <Badge variant='outline'>{t('Revoked')}</Badge>
@@ -216,6 +219,8 @@ export function AffiliateList() {
     { value: '', label: t('All') },
     { value: 'inviting', label: t('With invitees') },
     { value: 'channel', label: t('Promotion channels') },
+    { value: 'retail', label: t('Retail channels') },
+    { value: 'distributor', label: t('Distributor channels') },
     { value: 'revoked', label: t('Revoked') },
   ]
   const sortItems = [

@@ -24,14 +24,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -226,7 +219,7 @@ it('marks a promotion channel next to its rate', async () => {
   expect(screen.getByText('Promotion channel')).toBeVisible()
 })
 
-it('gifts the plan to an invitee who can receive it, after confirming', async () => {
+it('reports which invitees received the plan at sign-up, with nothing to click', async () => {
   const invitee = (
     id: number,
     name: string,
@@ -253,21 +246,10 @@ it('gifts the plan to an invitee who can receive it, after confirming', async ()
     totals: { used_quota: 0, commission_base: 0, commission: 0 },
     gift_plan_title: 'Trial pack',
   })
-  const post = vi
-    .spyOn(api, 'post')
-    .mockResolvedValue({ data: { success: true, data: null } })
 
-  const carol = (await screen.findByText('carol')).closest('tr') as HTMLElement
+  expect(await screen.findByText('carol')).toBeVisible()
+  expect(screen.getByText('Trial pack')).toBeVisible()
   expect(screen.getByText('Gifted')).toBeVisible()
   expect(screen.getByText('Already has it')).toBeVisible()
-  expect(screen.getAllByRole('button', { name: 'Gift' })).toHaveLength(1)
-
-  fireEvent.click(within(carol).getByRole('button', { name: 'Gift' }))
-  const dialog = await screen.findByRole('alertdialog')
-  expect(within(dialog).getByText('Gift Trial pack')).toBeVisible()
-  expect(post).not.toHaveBeenCalled()
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Gift' }))
-  await waitFor(() =>
-    expect(post).toHaveBeenCalledWith('/api/affiliate/self/invitees/3/gift')
-  )
+  expect(screen.queryByRole('button', { name: 'Gift' })).toBeNull()
 })

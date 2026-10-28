@@ -214,7 +214,7 @@ func TestMagicLinkSignUpBindsTheInviterFromItsCode(t *testing.T) {
 	inviter := &model.User{Username: "magic_inviter", DisplayName: "magic_inviter", Role: common.RoleCommonUser, Status: common.UserStatusEnabled}
 	require.NoError(t, inviter.Insert(0))
 	require.NoError(t, model.DB.First(inviter, inviter.Id).Error)
-	_, err := model.SetAffiliate(inviter.Id, 10, false, 1)
+	_, err := model.SetAffiliate(inviter.Id, 10, "", 1)
 	require.NoError(t, err)
 
 	sent := magicLinkPost(t, "/api/magic_link/send", `{"email":"`+magicLinkTestEmail+`","aff":"`+inviter.AffCode+`"}`, SendMagicLink)
@@ -234,6 +234,60 @@ func TestMagicLinkSignUpBindsTheInviterFromItsCode(t *testing.T) {
 	var referrals int64
 	require.NoError(t, model.DB.Model(&model.AffiliateReferral{}).Where("user_id = ?", user.Id).Count(&referrals).Error)
 	assert.EqualValues(t, 1, referrals, "the new invitee starts counting toward commission at once")
+}
+
+// A retail channel's invitee receives the tier's gift plan when the emailed
+// link creates the account, without anyone clicking anything, and is told by
+// email.
+func TestMagicLinkSignUpGivesTheChannelGiftPlan(t *testing.T) {
+	messages := setupMagicLinkTest(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.Affiliate{}, &model.AffiliateReferral{}, &model.AffiliateSignupGift{},
+		&model.SubscriptionPlan{}, &model.UserSubscription{}))
+	affiliateSetting := operation_setting.GetAffiliateSetting()
+	previousSetting := *affiliateSetting
+	t.Cleanup(func() { *affiliateSetting = previousSetting })
+	affiliateSetting.Enabled = true
+
+	plan := &model.SubscriptionPlan{Title: "retail trial", DurationUnit: model.SubscriptionDurationDay, DurationValue: 7, Enabled: true}
+	require.NoError(t, model.DB.Create(plan).Error)
+	model.InvalidateSubscriptionPlanCache(plan.Id)
+	t.Cleanup(func() { model.InvalidateSubscriptionPlanCache(plan.Id) })
+	affiliateSetting.RetailGiftPlanId = plan.Id
+	notified := make(chan int, 1)
+	previousNotify := notifyAffiliateGift
+	notifyAffiliateGift = func(_ string, _ int, inviteeId int, _ *model.SubscriptionPlan, _ *model.UserSubscription) {
+		notified <- inviteeId
+	}
+	t.Cleanup(func() { notifyAffiliateGift = previousNotify })
+
+	inviter := &model.User{Username: "magic_channel", DisplayName: "magic_channel", Role: common.RoleCommonUser, Status: common.UserStatusEnabled}
+	require.NoError(t, inviter.Insert(0))
+	require.NoError(t, model.DB.First(inviter, inviter.Id).Error)
+	_, err := model.SetAffiliate(inviter.Id, 30, model.AffiliateTierRetail, 1)
+	require.NoError(t, err)
+
+	sent := magicLinkPost(t, "/api/magic_link/send", `{"email":"`+magicLinkTestEmail+`","aff":"`+inviter.AffCode+`"}`, SendMagicLink)
+	require.Equal(t, http.StatusOK, sent.Code)
+	var raw string
+	select {
+	case raw = <-messages:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no sign-in email was delivered")
+	}
+	recorder := magicLinkPost(t, "/api/magic_link/login", `{"token":"`+extractMagicLinkToken(t, raw)+`"}`, LoginWithMagicLink)
+	require.Equal(t, true, decodeMagicLinkResponse(t, recorder)["success"])
+
+	user, err := model.GetUniqueUserByEmail(magicLinkTestEmail)
+	require.NoError(t, err)
+	var subscription model.UserSubscription
+	require.NoError(t, model.DB.Where("user_id = ? AND plan_id = ?", user.Id, plan.Id).First(&subscription).Error)
+	assert.Equal(t, model.SubscriptionSourceAffiliateGift, subscription.Source)
+	select {
+	case inviteeId := <-notified:
+		assert.Equal(t, user.Id, inviteeId)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the invitee was not emailed about the gift")
+	}
 }
 
 // Two mailboxes can share a local part. The link is spent before the account

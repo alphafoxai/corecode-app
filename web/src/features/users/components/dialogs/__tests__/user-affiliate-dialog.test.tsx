@@ -35,6 +35,7 @@ const view = {
     user_id: 9,
     rate: 10,
     channel: false,
+    tier: '' as const,
     granted_by: 0,
     balance: 0,
     earned: 0,
@@ -98,13 +99,18 @@ function renderDialog() {
   )
 }
 
-it('shows the inviter and saves the new rate and channel flag', async () => {
+it('shows the inviter and saves the new rate and channel tier', async () => {
   const put = vi.spyOn(api, 'put').mockResolvedValue({
     data: {
       success: true,
       data: {
         ...view,
-        affiliate: { ...view.affiliate, rate: 15, channel: true },
+        affiliate: {
+          ...view.affiliate,
+          rate: 15,
+          channel: true,
+          tier: 'retail' as const,
+        },
       },
     },
   })
@@ -118,13 +124,13 @@ it('shows the inviter and saves the new rate and channel flag', async () => {
   const rate = screen.getByLabelText('Commission rate (%)')
   await user.clear(rate)
   await user.type(rate, '15')
-  await user.click(screen.getByRole('switch'))
+  await user.click(screen.getByRole('radio', { name: /Retail channel/ }))
   await user.click(save)
 
   await waitFor(() =>
     expect(put).toHaveBeenCalledWith('/api/affiliate/admin/users/9', {
       rate: 15,
-      channel: true,
+      tier: 'retail',
     })
   )
 })
