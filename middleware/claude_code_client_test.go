@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -147,7 +148,8 @@ func TestClaudeCodeOnlyGroupGate(t *testing.T) {
 		{"missing X-App", "cc", nil, "/v1/messages", withHeader("X-App", ""), claudeCodeCLIBody, false},
 		{"missing anthropic-beta", "cc", nil, "/v1/messages", withHeader("anthropic-beta", ""), claudeCodeCLIBody, false},
 		{"end-user metadata.user_id", "cc", nil, "/v1/messages", claudeCodeCLIHeaders, endUserID, false},
-		{"auto token that can land in the group", "auto", []string{"default", "cc"}, "/v1/messages", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, false},
+		{"auto token that can land elsewhere", "auto", []string{"default", "cc"}, "/v1/messages", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, true},
+		{"auto token whose only candidate is the group", "auto", []string{"cc"}, "/v1/messages", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, false},
 		{"auto token outside the group", "auto", []string{"default"}, "/v1/messages", map[string]string{"User-Agent": "curl/8.7.1"}, foreignPrompt, true},
 	}
 	for _, test := range tests {
@@ -162,6 +164,38 @@ func TestClaudeCodeOnlyGroupGate(t *testing.T) {
 			assert.Contains(t, recorder.Body.String(), `"code":"access_denied"`)
 		})
 	}
+}
+
+// An auto token keeps the Claude Code only candidates for Claude Code and drops
+// them for any other client, so channel selection picks among the rest.
+func TestClaudeCodeOnlyGroupAutoCandidates(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	setClaudeCodeClientSetting(t, operation_setting.ClaudeCodeClientSetting{Groups: []string{"cc"}})
+	originalUsableGroups := setting.UserUsableGroups2JSONString()
+	originalRatios := ratio_setting.GroupRatio2JSONString()
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"default":"Default","cc":"Claude Code","gpt":"GPT"}`))
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"cc":1,"gpt":1}`))
+	t.Cleanup(func() {
+		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(originalUsableGroups))
+		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(originalRatios))
+	})
+
+	candidates := func(headers map[string]string, body string) []string {
+		gin.SetMode(gin.TestMode)
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		for name, value := range headers {
+			c.Request.Header.Set(name, value)
+		}
+		common.SetContextKey(c, constant.ContextKeyUsingGroup, "auto")
+		common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, []string{"cc", "default", "gpt"})
+		require.True(t, enforceClaudeCodeOnlyGroup(c, "default"))
+		return service.GetRequestAutoGroups(c, "default")
+	}
+
+	assert.Equal(t, []string{"cc", "default", "gpt"}, candidates(claudeCodeCLIHeaders, claudeCodeCLIBody))
+	assert.Equal(t, []string{"default", "gpt"}, candidates(withHeader("User-Agent", "curl/8.7.1"), claudeCodeCLIBody))
 }
 
 // A body the gate cannot read or parse was never judged, so it is refused the

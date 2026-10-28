@@ -82,17 +82,50 @@ type claudeCodeSystemBlock struct {
 
 // enforceClaudeCodeOnlyGroup rejects a relay request whose group accepts Claude
 // Code only and that does not look like Claude Code. userGroup is the user's own
-// group, used to resolve the candidates of an "auto" token. It returns false
-// after aborting the request.
+// group, used to resolve the candidates of an "auto" token: such a request drops
+// the Claude Code only candidates instead, and is rejected only when none remain.
+// It returns false after aborting the request.
 func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
 	if isModelListRequest(c) {
 		return true
 	}
-	group := restrictedClaudeCodeGroup(c, userGroup)
-	if group == "" {
-		return true
+	usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
+	if usingGroup != "auto" {
+		if !operation_setting.IsClaudeCodeOnlyGroup(usingGroup) {
+			return true
+		}
+		return admitClaudeCode(c, usingGroup, true)
 	}
 
+	candidates := service.GetRequestAutoGroups(c, userGroup)
+	open := make([]string, 0, len(candidates))
+	restricted := ""
+	for _, group := range candidates {
+		if !operation_setting.IsClaudeCodeOnlyGroup(group) {
+			open = append(open, group)
+		} else if restricted == "" {
+			restricted = group
+		}
+	}
+	if restricted == "" {
+		return true
+	}
+	if admitClaudeCode(c, restricted, len(open) == 0) {
+		return true
+	}
+	if c.IsAborted() {
+		return false
+	}
+	// The group is chosen during channel selection, which reads this key.
+	common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, open)
+	return true
+}
+
+// admitClaudeCode reports whether the request looks like Claude Code within the
+// configured versions. A body that cannot be read is always refused. Otherwise a
+// failed check aborts the request when reject is set and only returns false
+// when it is not.
+func admitClaudeCode(c *gin.Context, group string, reject bool) bool {
 	version, failedCheck, bodyErr := detectClaudeCodeClient(c)
 	if bodyErr != nil {
 		// An aborted upload, an oversized body or malformed JSON says nothing
@@ -104,21 +137,27 @@ func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
 		return false
 	}
 	if failedCheck != "" {
-		logger.LogWarn(c.Request.Context(), "claude code only group %s: request rejected, %s check failed", group, failedCheck)
-		abortWithOpenAiMessage(c, http.StatusForbidden,
-			i18n.T(c, i18n.MsgAuthClaudeCodeOnly, map[string]any{"Group": group}), types.ErrorCodeAccessDenied)
+		logger.LogWarn(c.Request.Context(), "claude code only group %s: %s check failed, rejected=%t", group, failedCheck, reject)
+		if reject {
+			abortWithOpenAiMessage(c, http.StatusForbidden,
+				i18n.T(c, i18n.MsgAuthClaudeCodeOnly, map[string]any{"Group": group}), types.ErrorCodeAccessDenied)
+		}
 		return false
 	}
 
 	setting := operation_setting.GetClaudeCodeClientSetting()
 	if setting.MinVersion != "" && compareClaudeCodeVersions(version, setting.MinVersion) < 0 {
-		abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooLow,
-			map[string]any{"Group": group, "Version": version, "MinVersion": setting.MinVersion}), types.ErrorCodeAccessDenied)
+		if reject {
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooLow,
+				map[string]any{"Group": group, "Version": version, "MinVersion": setting.MinVersion}), types.ErrorCodeAccessDenied)
+		}
 		return false
 	}
 	if setting.MaxVersion != "" && compareClaudeCodeVersions(version, setting.MaxVersion) > 0 {
-		abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooHigh,
-			map[string]any{"Group": group, "Version": version, "MaxVersion": setting.MaxVersion}), types.ErrorCodeAccessDenied)
+		if reject {
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthClaudeCodeVersionTooHigh,
+				map[string]any{"Group": group, "Version": version, "MaxVersion": setting.MaxVersion}), types.ErrorCodeAccessDenied)
+		}
 		return false
 	}
 	return true
@@ -130,25 +169,6 @@ func enforceClaudeCodeOnlyGroup(c *gin.Context, userGroup string) bool {
 func isModelListRequest(c *gin.Context) bool {
 	path := c.Request.URL.Path
 	return c.Request.Method == http.MethodGet && (path == "/v1/models" || strings.HasPrefix(path, "/v1/models/"))
-}
-
-// restrictedClaudeCodeGroup returns the Claude Code only group the request would
-// use, or "". An "auto" token is restricted when any of its candidate groups is,
-// since the group is chosen later, during channel selection.
-func restrictedClaudeCodeGroup(c *gin.Context, userGroup string) string {
-	usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
-	if usingGroup != "auto" {
-		if operation_setting.IsClaudeCodeOnlyGroup(usingGroup) {
-			return usingGroup
-		}
-		return ""
-	}
-	for _, group := range service.GetRequestAutoGroups(c, userGroup) {
-		if operation_setting.IsClaudeCodeOnlyGroup(group) {
-			return group
-		}
-	}
-	return ""
 }
 
 // detectClaudeCodeClient returns the Claude Code version from the User-Agent,
