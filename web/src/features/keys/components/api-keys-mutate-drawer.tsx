@@ -25,12 +25,11 @@ import {
   Settings2,
   WalletCards,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useForm, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { DateTimePicker } from '@/components/datetime-picker'
 import {
   SideDrawerSection,
   SideDrawerSectionHeader,
@@ -67,6 +66,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { RelatedPolicyLink } from '@/features/system-settings/request-policies/related-policy-link'
@@ -101,6 +101,15 @@ import {
 } from './api-key-group-combobox'
 import { useApiKeys } from './api-keys-provider'
 
+// The calendar (react-day-picker with every locale, about 23 KB brotli) is not
+// part of the keys page's first load. It downloads once the page is idle, so
+// the drawer usually has it by the time it opens.
+const loadDateTimePicker = () =>
+  import('@/components/datetime-picker').then((m) => ({
+    default: m.DateTimePicker,
+  }))
+const DateTimePicker = lazy(loadDateTimePicker)
+
 type ApiKeyMutateDrawerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -118,6 +127,12 @@ export function ApiKeysMutateDrawer({
   const { triggerRefresh, setCurrentRow, setOpen } = useApiKeys()
   const { status, loading: statusLoading } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const idle =
+      window.requestIdleCallback ?? ((run) => window.setTimeout(run, 1))
+    idle(() => void loadDateTimePicker())
+  }, [])
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [initializedTarget, setInitializedTarget] = useState<string | null>(
     null
@@ -525,12 +540,16 @@ export function ApiKeysMutateDrawer({
                     <FormLabel>{t('Expiration Time')}</FormLabel>
                     <div className='grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center'>
                       <FormControl>
-                        <DateTimePicker
-                          value={field.value ?? undefined}
-                          onChange={(date) => field.onChange(date ?? null)}
-                          placeholder={t('Never expires')}
-                          className='min-w-0 [&_input[type=time]]:w-24 sm:[&_input[type=time]]:w-32'
-                        />
+                        <Suspense
+                          fallback={<Skeleton className='h-9 w-full' />}
+                        >
+                          <DateTimePicker
+                            value={field.value ?? undefined}
+                            onChange={(date) => field.onChange(date ?? null)}
+                            placeholder={t('Never expires')}
+                            className='min-w-0 [&_input[type=time]]:w-24 sm:[&_input[type=time]]:w-32'
+                          />
+                        </Suspense>
                       </FormControl>
                       <div className='grid grid-cols-4 gap-2 sm:flex'>
                         <Button
