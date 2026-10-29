@@ -54,6 +54,8 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			feedbackRoute.POST("", middleware.UserCriticalRateLimit("feedback"), controller.SubmitFeedback)
 			feedbackRoute.GET("/self", controller.GetSelfFeedback)
+			feedbackRoute.GET("/self/unread", controller.GetSelfUnreadFeedback)
+			feedbackRoute.POST("/self/seen", controller.MarkSelfFeedbackSeen)
 		}
 		feedbackAdminRoute := apiRouter.Group("/feedback/admin", middleware.DisableCache(), middleware.AdminAuth())
 		{

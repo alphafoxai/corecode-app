@@ -48,8 +48,8 @@ and a reward for a confirmed bug so customers bother to report one.
 - **Rewards through redemption codes.** They work today, but the operator has
   to send the code back through another channel, and nothing ties the code to
   the report.
-- **Notify the customer when a reply arrives.** Left out of this change; the
-  reply shows on the feedback page.
+- **Notify the customer when a reply arrives.** Left out of this change; added
+  in [2026-10-29-feedback-reply-notice](2026-10-29-feedback-reply-notice.md).
 
 ## Verification
 

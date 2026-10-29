@@ -16,27 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquareText } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { LoadingState } from '@/components/loading-state'
 import { StatusBadge } from '@/components/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 import { formatTimestampToDate } from '@/lib/format'
 
-import { getMyFeedback } from '../api'
+import { getMyFeedback, markFeedbackSeen } from '../api'
 import {
   FEEDBACK_CATEGORY_CONFIG,
+  FEEDBACK_POLL_MS,
   FEEDBACK_STATUS_CONFIG,
+  FEEDBACK_UNREAD_KEY,
   MY_FEEDBACK_KEY,
 } from '../constants'
 import type { Feedback } from '../types'
 
 const PAGE = { p: 1, page_size: 50 }
 
-function FeedbackItem(props: { feedback: Feedback }) {
+function FeedbackItem(props: { feedback: Feedback; fresh: boolean }) {
   const { t } = useTranslation()
   const status = FEEDBACK_STATUS_CONFIG[props.feedback.status]
   const category = FEEDBACK_CATEGORY_CONFIG[props.feedback.category]
@@ -46,6 +50,7 @@ function FeedbackItem(props: { feedback: Feedback }) {
         <span className='min-w-0 flex-1 truncate font-medium'>
           {props.feedback.title}
         </span>
+        {props.fresh && <Badge>{t('New reply')}</Badge>}
         <StatusBadge
           label={t(status?.label ?? props.feedback.status)}
           variant={status?.variant ?? 'neutral'}
@@ -64,7 +69,17 @@ function FeedbackItem(props: { feedback: Feedback }) {
       </p>
       {props.feedback.admin_reply && (
         <div className='bg-muted/50 rounded-md p-3 text-sm'>
-          <p className='text-muted-foreground mb-1 text-xs'>{t('Reply')}</p>
+          <p className='text-muted-foreground mb-1 text-xs'>
+            {t('Reply')}
+            {props.feedback.replied_time > 0 && (
+              <>
+                {' · '}
+                <span className='tabular-nums'>
+                  {formatTimestampToDate(props.feedback.replied_time)}
+                </span>
+              </>
+            )}
+          </p>
           <p className='break-words whitespace-pre-wrap'>
             {props.feedback.admin_reply}
           </p>
@@ -84,10 +99,33 @@ function FeedbackItem(props: { feedback: Feedback }) {
 /** The signed-in customer's reports, newest first, with replies. */
 export function MyFeedbackList() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: [...MY_FEEDBACK_KEY, PAGE],
     queryFn: () => getMyFeedback(PAGE),
+    refetchInterval: FEEDBACK_POLL_MS,
   })
+  // Replies that were unread when shown keep their mark for this visit,
+  // after the server has recorded them as seen.
+  const [freshIds, setFreshIds] = useState<ReadonlySet<number>>(new Set())
+
+  useEffect(() => {
+    const unread = (query.data?.items ?? []).filter(
+      (feedback) => feedback.replied_time > feedback.seen_time
+    )
+    if (unread.length === 0) return
+    setFreshIds((previous) => {
+      const next = new Set(previous)
+      for (const feedback of unread) next.add(feedback.id)
+      return next
+    })
+    const until = Math.max(...unread.map((feedback) => feedback.replied_time))
+    markFeedbackSeen(until)
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: FEEDBACK_UNREAD_KEY })
+      )
+      .catch(() => undefined)
+  }, [query.data, queryClient])
 
   if (query.isPending) return <LoadingState />
   const items = query.data?.items ?? []
@@ -103,7 +141,11 @@ export function MyFeedbackList() {
   return (
     <ul className='flex flex-col gap-3' aria-label={t('My feedback')}>
       {items.map((feedback) => (
-        <FeedbackItem key={feedback.id} feedback={feedback} />
+        <FeedbackItem
+          key={feedback.id}
+          feedback={feedback}
+          fresh={freshIds.has(feedback.id)}
+        />
       ))}
     </ul>
   )

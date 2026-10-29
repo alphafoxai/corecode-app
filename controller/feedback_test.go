@@ -215,3 +215,71 @@ func TestUpdateFeedbackRejectsOutOfRangeRewards(t *testing.T) {
 	}
 	assert.Equal(t, 1000, userQuota(t, 11))
 }
+
+func TestFeedbackReplyUnread(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useFeedbackTestDB(t, dialect)
+			unread := func(userId int) any {
+				t.Helper()
+				_, response := callFeedback(t, GetSelfUnreadFeedback, http.MethodGet, "/api/feedback/self/unread", "", userId)
+				require.Equal(t, true, response["success"], response)
+				return response["data"].(map[string]any)["count"]
+			}
+			repliedTime := func(id int) int64 {
+				t.Helper()
+				var feedback model.Feedback
+				require.NoError(t, model.DB.Where("id = ?", id).First(&feedback).Error)
+				return feedback.RepliedTime
+			}
+			markSeen := func(userId int, until int64) map[string]any {
+				t.Helper()
+				_, response := callFeedback(t, MarkSelfFeedbackSeen, http.MethodPost, "/api/feedback/self/seen", `{"until":`+strconv.FormatInt(until, 10)+`}`, userId)
+				return response
+			}
+
+			_, response := callFeedback(t, SubmitFeedback, http.MethodPost, "/api/feedback", validFeedback, 11)
+			require.Equal(t, true, response["success"], response)
+			var saved model.Feedback
+			require.NoError(t, model.DB.Where("user_id = ?", 11).First(&saved).Error)
+			target := "/api/feedback/admin/" + strconv.Itoa(saved.Id)
+			assert.EqualValues(t, 0, unread(11), "a new report has no reply")
+
+			_, response = callFeedback(t, UpdateFeedback, http.MethodPatch, target, `{"status":"processing","admin_reply":"Looking into it"}`, 1)
+			require.Equal(t, true, response["success"], response)
+			assert.EqualValues(t, 1, unread(11))
+			assert.EqualValues(t, 0, unread(12), "another account sees nothing")
+
+			// Seeing the reply clears it; another account cannot clear it.
+			first := repliedTime(saved.Id)
+			assert.Equal(t, true, markSeen(12, first)["success"])
+			assert.EqualValues(t, 1, unread(11))
+			assert.Equal(t, true, markSeen(11, first)["success"])
+			assert.EqualValues(t, 0, unread(11))
+
+			// Saving the same status and reply is not news.
+			_, response = callFeedback(t, UpdateFeedback, http.MethodPatch, target, `{"status":"processing","admin_reply":"Looking into it"}`, 1)
+			require.Equal(t, true, response["success"], response)
+			assert.EqualValues(t, 0, unread(11))
+
+			// A new reply, even within the same second, is unread again, and
+			// marking only what was shown earlier leaves it unread.
+			_, response = callFeedback(t, UpdateFeedback, http.MethodPatch, target, `{"status":"resolved","admin_reply":"Fixed, thanks"}`, 1)
+			require.Equal(t, true, response["success"], response)
+			second := repliedTime(saved.Id)
+			assert.Greater(t, second, first)
+			assert.EqualValues(t, 1, unread(11))
+			assert.Equal(t, true, markSeen(11, first)["success"])
+			assert.EqualValues(t, 1, unread(11))
+			assert.Equal(t, true, markSeen(11, second)["success"])
+			assert.EqualValues(t, 0, unread(11))
+
+			// A reward alone is news.
+			_, response = callFeedback(t, UpdateFeedback, http.MethodPatch, target, `{"status":"resolved","admin_reply":"Fixed, thanks","reward_usd":5}`, 1)
+			require.Equal(t, true, response["success"], response)
+			assert.EqualValues(t, 1, unread(11))
+
+			assert.Equal(t, false, markSeen(11, 0)["success"])
+		})
+	}
+}

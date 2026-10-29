@@ -47,6 +47,30 @@ export async function getMyFeedback(page: PageParams): Promise<FeedbackPage> {
   return res.data.data
 }
 
+/** Counts the customer's reports with a reply they have not seen. */
+export async function getFeedbackUnreadCount(): Promise<number> {
+  const res = await api.get<Envelope<{ count: number }>>(
+    '/api/feedback/self/unread',
+    { skipErrorHandler: true }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw createServerError(res.data, 'Failed to load feedback')
+  }
+  return res.data.data.count
+}
+
+/** Marks the replies shown to the customer, up to `until`, as seen. */
+export async function markFeedbackSeen(until: number): Promise<void> {
+  const res = await api.post<Envelope<null>>(
+    '/api/feedback/self/seen',
+    { until },
+    { skipErrorHandler: true }
+  )
+  if (!res.data.success) {
+    throw createServerError(res.data, 'Failed to update feedback')
+  }
+}
+
 export async function getAllFeedback(
   filters: FeedbackFilters,
   page: PageParams

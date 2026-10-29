@@ -8330,6 +8330,8 @@
     "Brought in by your invitees": "二級使用者由誰帶來",
     "None of your invitees has invited anyone yet.": "你邀請的使用者還沒有邀請其他人。",
     "Your commission": "你的收益",
-    "Showing the {{shown}} invitees who earned you the most.": "僅顯示為你帶來收益最多的 {{shown}} 位。"
+    "Showing the {{shown}} invitees who earned you the most.": "僅顯示為你帶來收益最多的 {{shown}} 位。",
+    "New reply": "新回覆",
+    "Your feedback has a new reply": "你的回饋有新回覆"
   }
 }

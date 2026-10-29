@@ -58,6 +58,8 @@ const pending: Feedback = {
   reward_quota: 0,
   rewarded_by: 0,
   rewarded_time: 0,
+  replied_time: 0,
+  seen_time: 0,
   created_time: 1761616000,
   updated_time: 1761616000,
 }
