@@ -16,7 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { queryOptions } from '@tanstack/react-query'
+
 import { api } from '@/lib/api'
+import { requireServerSuccess } from '@/lib/server-error-message'
 
 import type { PerformanceMetricsData, PerfSummaryAllData } from './types'
 
@@ -42,4 +45,15 @@ export async function getPerfMetrics(
     },
   })
   return res.data
+}
+
+/** The summary the dashboard's performance panels show, over the last `hours`. */
+export function perfMetricsSummaryQueryOptions(hours: number) {
+  return queryOptions({
+    queryKey: ['perf-metrics-summary', hours],
+    queryFn: async () =>
+      requireServerSuccess(await getPerfMetricsSummary(hours)),
+    staleTime: 60 * 1000,
+    retry: false,
+  })
 }

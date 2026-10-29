@@ -38,6 +38,7 @@ import {
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { prefetchCustomerOverview } from '../../../hooks/use-customer-overview'
 import { OverviewDashboard } from '../overview-dashboard'
 
 // The FAQ panel's scroll area reads element animations, which jsdom lacks.
@@ -121,6 +122,9 @@ beforeEach(() => {
     }
     if (url === '/api/data/self') {
       return { data: { success: true, data: [] } }
+    }
+    if (url === '/api/perf-metrics/summary') {
+      return { data: { success: true, data: { summary: null, models: [] } } }
     }
     throw new Error(`Unexpected request: ${url}`)
   })
@@ -213,5 +217,23 @@ describe('customer overview', () => {
     const title = await screen.findByText('Your balance has run out')
     expect(title).toBeVisible()
     expect(screen.queryByText(/long requests missed the cache/)).toBeNull()
+  })
+
+  it('reads the requests the dashboard route started instead of repeating them', async () => {
+    prefetchCustomerOverview(client)
+    await renderOverview()
+    await screen.findByText('90%')
+
+    const paths = vi
+      .mocked(api.get)
+      .mock.calls.map(([url]) => url.split('?')[0])
+    for (const path of [
+      '/api/data/self',
+      '/api/log/self',
+      '/api/perf-metrics/summary',
+      '/api/token/',
+    ]) {
+      expect(paths.filter((requested) => requested === path)).toEqual([path])
+    }
   })
 })
