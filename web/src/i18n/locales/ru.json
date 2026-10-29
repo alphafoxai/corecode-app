@@ -8330,6 +8330,8 @@
     "Brought in by your invitees": "Кто привёл пользователей второго уровня",
     "None of your invitees has invited anyone yet.": "Ваши приглашённые пока никого не пригласили.",
     "Your commission": "Ваша комиссия",
-    "Showing the {{shown}} invitees who earned you the most.": "Показаны {{shown}} приглашённых, принёсших вам больше всего."
+    "Showing the {{shown}} invitees who earned you the most.": "Показаны {{shown}} приглашённых, принёсших вам больше всего.",
+    "New reply": "Новый ответ",
+    "Your feedback has a new reply": "На ваш отзыв пришёл новый ответ"
   }
 }

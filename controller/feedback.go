@@ -110,6 +110,37 @@ func GetSelfFeedback(c *gin.Context) {
 	listFeedback(c, model.FeedbackFilter{UserId: c.GetInt("id")})
 }
 
+// GetSelfUnreadFeedback counts the signed-in customer's reports with a reply
+// they have not seen, for the console's reminder.
+func GetSelfUnreadFeedback(c *gin.Context) {
+	count, err := model.CountUnreadFeedback(c.GetInt("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"count": count})
+}
+
+type feedbackSeenRequest struct {
+	// Until is the latest replied_time the console showed the customer.
+	Until int64 `json:"until"`
+}
+
+// MarkSelfFeedbackSeen records that the signed-in customer has seen the
+// replies the console showed them.
+func MarkSelfFeedbackSeen(c *gin.Context) {
+	var request feedbackSeenRequest
+	if err := common.DecodeJson(c.Request.Body, &request); err != nil || request.Until <= 0 {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	if err := model.MarkFeedbackSeen(c.GetInt("id"), request.Until); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
+}
+
 // GetAllFeedback pages every account's reports for administrators, filtered
 // by status, category and a keyword on the title or description.
 func GetAllFeedback(c *gin.Context) {

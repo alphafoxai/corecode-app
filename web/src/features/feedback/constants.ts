@@ -22,6 +22,10 @@ import type { FeedbackCategory, FeedbackStatus } from './types'
 
 export const MY_FEEDBACK_KEY = ['feedback', 'self'] as const
 export const ALL_FEEDBACK_KEY = ['feedback', 'admin'] as const
+export const FEEDBACK_UNREAD_KEY = ['feedback', 'self', 'unread'] as const
+
+/** How often the console checks for a reply the customer has not seen. */
+export const FEEDBACK_POLL_MS = 60_000
 
 /** `label` is the i18n key for each category. */
 export const FEEDBACK_CATEGORY_CONFIG: Record<

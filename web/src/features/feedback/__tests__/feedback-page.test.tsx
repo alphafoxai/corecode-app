@@ -40,6 +40,8 @@ const answered: Feedback = {
   reward_quota: 2500000,
   rewarded_by: 1,
   rewarded_time: 1761616920,
+  replied_time: 1761616920,
+  seen_time: 1761616920,
   created_time: 1761616000,
   updated_time: 1761616920,
 }
@@ -77,6 +79,35 @@ it('lists my feedback with its status, the reply and the reward', async () => {
   expect(get).toHaveBeenCalledWith('/api/feedback/self', {
     params: { p: 1, page_size: 50 },
   })
+})
+
+it('an unread reply is marked new and recorded as seen', async () => {
+  renderPage([
+    { ...answered, replied_time: 1761617000 },
+    { ...answered, id: 4, title: 'Older report' },
+  ])
+  const post = vi
+    .spyOn(api, 'post')
+    .mockResolvedValue({ data: { success: true } })
+
+  expect(await screen.findByText('New reply')).toBeVisible()
+  expect(screen.getAllByText('New reply')).toHaveLength(1)
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith(
+      '/api/feedback/self/seen',
+      { until: 1761617000 },
+      { skipErrorHandler: true }
+    )
+  )
+})
+
+it('a reply already seen is not marked new', async () => {
+  renderPage([answered])
+  const post = vi.spyOn(api, 'post')
+
+  expect(await screen.findByText('Fixed, thanks')).toBeVisible()
+  expect(screen.queryByText('New reply')).toBeNull()
+  expect(post).not.toHaveBeenCalled()
 })
 
 it('an empty list shows the empty state', async () => {

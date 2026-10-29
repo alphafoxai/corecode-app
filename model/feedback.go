@@ -73,8 +73,14 @@ type Feedback struct {
 	RewardQuota  int   `json:"reward_quota" gorm:"not null;default:0"`
 	RewardedBy   int   `json:"rewarded_by" gorm:"not null;default:0"`
 	RewardedTime int64 `json:"rewarded_time" gorm:"bigint;not null;default:0"`
-	CreatedTime  int64 `json:"created_time" gorm:"bigint;index"`
-	UpdatedTime  int64 `json:"updated_time" gorm:"bigint"`
+	// RepliedTime is when an administrator last changed what the customer
+	// sees: the status, the reply or the reward. SeenTime is the RepliedTime
+	// the customer has seen. The report carries an unread reply while
+	// RepliedTime > SeenTime.
+	RepliedTime int64 `json:"replied_time" gorm:"bigint;not null;default:0"`
+	SeenTime    int64 `json:"seen_time" gorm:"bigint;not null;default:0"`
+	CreatedTime int64 `json:"created_time" gorm:"bigint;index"`
+	UpdatedTime int64 `json:"updated_time" gorm:"bigint"`
 }
 
 // FeedbackLogEntry is the part of a usage log entry attached to a report.
@@ -134,6 +140,25 @@ func RecentFeedbackLogs(userId int) ([]FeedbackLogEntry, error) {
 	return entries, err
 }
 
+// CountUnreadFeedback counts userId's reports whose latest reply the
+// customer has not seen.
+func CountUnreadFeedback(userId int) (int64, error) {
+	var count int64
+	err := DB.Model(&Feedback{}).
+		Where("user_id = ? AND replied_time > seen_time", userId).
+		Count(&count).Error
+	return count, err
+}
+
+// MarkFeedbackSeen marks userId's replies up to until, a unix second, as
+// seen. A reply made after until, which the customer has not been shown,
+// stays unread.
+func MarkFeedbackSeen(userId int, until int64) error {
+	return DB.Model(&Feedback{}).
+		Where("user_id = ? AND replied_time > seen_time AND replied_time <= ?", userId, until).
+		Update("seen_time", gorm.Expr("replied_time")).Error
+}
+
 // ListFeedback pages reports, newest first.
 func ListFeedback(filter FeedbackFilter, pageInfo *common.PageInfo) ([]*Feedback, int64, error) {
 	query := DB.Model(&Feedback{})
@@ -179,6 +204,11 @@ func UpdateFeedback(id int, update FeedbackUpdate) (*Feedback, error) {
 			"status":       update.Status,
 			"admin_reply":  update.AdminReply,
 			"updated_time": now,
+		}
+		// Each change moves RepliedTime forward, even within one second, so a
+		// customer who saw the previous one sees this one as unread.
+		if update.Status != feedback.Status || update.AdminReply != feedback.AdminReply || update.RewardQuota > 0 {
+			changes["replied_time"] = max(now, feedback.RepliedTime+1)
 		}
 		if update.RewardQuota > 0 {
 			if feedback.RewardQuota > 0 {

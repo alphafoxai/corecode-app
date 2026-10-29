@@ -37,6 +37,10 @@ export interface Feedback {
   reward_quota: number
   rewarded_by: number
   rewarded_time: number
+  /** When an administrator last changed the status, reply or reward */
+  replied_time: number
+  /** The replied_time the customer has seen; less than replied_time is unread */
+  seen_time: number
   created_time: number
   updated_time: number
 }

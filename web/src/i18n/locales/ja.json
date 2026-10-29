@@ -8330,6 +8330,8 @@
     "Brought in by your invitees": "2段階目のユーザーを連れてきた人",
     "None of your invitees has invited anyone yet.": "招待したユーザーはまだ誰も招待していません。",
     "Your commission": "あなたの報酬",
-    "Showing the {{shown}} invitees who earned you the most.": "報酬の多い上位 {{shown}} 人のみ表示しています。"
+    "Showing the {{shown}} invitees who earned you the most.": "報酬の多い上位 {{shown}} 人のみ表示しています。",
+    "New reply": "新しい返信",
+    "Your feedback has a new reply": "フィードバックに新しい返信があります"
   }
 }

@@ -47,6 +47,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import { useFeedbackUnreadCount } from '@/features/feedback/hooks/use-feedback-unread'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -57,6 +58,7 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const unreadFeedback = useFeedbackUnreadCount()
 
   return {
     navGroups: [
@@ -126,6 +128,7 @@ export function useSidebarData(): SidebarData {
             title: t('Feedback'),
             url: '/feedback',
             icon: LifeBuoy,
+            badge: unreadFeedback > 0 ? String(unreadFeedback) : undefined,
           },
         ],
       },
