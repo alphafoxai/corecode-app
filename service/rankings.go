@@ -19,6 +19,9 @@ const (
 	rankingMoverLimit       = 6
 	rankingOthersLabel      = "Others"
 	rankingUnknownVendor    = "Unknown"
+	// rankingMaxOffsetMinutes bounds the viewer's UTC offset; real zones span
+	// UTC-12 to UTC+14.
+	rankingMaxOffsetMinutes = 14 * 60
 )
 
 type RankingsResponse struct {
@@ -108,6 +111,10 @@ type rankingPeriodConfig struct {
 	bucketSize  int64
 	labelLayout string
 	hasPrevious bool
+	// offsetSeconds is the viewer's offset east of UTC. Buckets start and
+	// labels read in that zone.
+	offsetSeconds int64
+	location      *time.Location
 }
 
 type rankingCacheItem struct {
@@ -135,15 +142,23 @@ var (
 	rankingCache   = map[string]rankingCacheItem{}
 )
 
-func GetRankingsSnapshot(period string) (*RankingsResponse, error) {
+// GetRankingsSnapshot builds the rankings for period as seen from a viewer
+// offsetMinutes east of UTC (the negation of JavaScript's getTimezoneOffset).
+func GetRankingsSnapshot(period string, offsetMinutes int) (*RankingsResponse, error) {
 	config, err := rankingConfig(period)
 	if err != nil {
 		return nil, err
 	}
+	if offsetMinutes < -rankingMaxOffsetMinutes || offsetMinutes > rankingMaxOffsetMinutes {
+		return nil, fmt.Errorf("invalid timezone offset: %d", offsetMinutes)
+	}
+	config.offsetSeconds = int64(offsetMinutes) * 60
+	config.location = time.FixedZone("", int(config.offsetSeconds))
+	cacheKey := fmt.Sprintf("%s|%d", config.id, offsetMinutes)
 
 	now := time.Now()
 	rankingCacheMu.Lock()
-	if item, ok := rankingCache[config.id]; ok && now.Before(item.expiresAt) {
+	if item, ok := rankingCache[cacheKey]; ok && now.Before(item.expiresAt) {
 		rankingCacheMu.Unlock()
 		return item.data, nil
 	}
@@ -155,7 +170,7 @@ func GetRankingsSnapshot(period string) (*RankingsResponse, error) {
 	}
 
 	rankingCacheMu.Lock()
-	rankingCache[config.id] = rankingCacheItem{
+	rankingCache[cacheKey] = rankingCacheItem{
 		expiresAt: now.Add(rankingCacheTTL),
 		data:      data,
 	}
@@ -185,7 +200,7 @@ func buildRankingsSnapshot(config rankingPeriodConfig, now time.Time) (*Rankings
 	if err != nil {
 		return nil, err
 	}
-	currentBuckets, err := model.GetRankingQuotaBuckets(startTime, endTime, config.bucketSize)
+	currentBuckets, err := model.GetRankingQuotaBuckets(startTime, endTime, config.bucketSize, config.offsetSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +541,7 @@ func rankingBucketTs(bucket int64) string {
 }
 
 func rankingBucketLabel(bucket int64, config rankingPeriodConfig) string {
-	return time.Unix(bucket, 0).Format(config.labelLayout)
+	return time.Unix(bucket, 0).In(config.location).Format(config.labelLayout)
 }
 
 func rankingRankMap(totals []model.RankingQuotaTotal) map[string]int {

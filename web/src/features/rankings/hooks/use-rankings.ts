@@ -24,9 +24,11 @@ import { getRankings } from '../api'
 import type { RankingPeriod } from '../types'
 
 export function useRankings(period: RankingPeriod) {
+  const tzOffset = -new Date().getTimezoneOffset()
   return useQuery({
-    queryKey: ['rankings', period],
-    queryFn: async () => requireServerSuccess(await getRankings(period)),
+    queryKey: ['rankings', period, tzOffset],
+    queryFn: async () =>
+      requireServerSuccess(await getRankings(period, tzOffset)),
     staleTime: 5 * 60 * 1000,
   })
 }

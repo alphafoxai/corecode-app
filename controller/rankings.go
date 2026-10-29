@@ -2,13 +2,22 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 )
 
 func GetRankings(c *gin.Context) {
-	result, err := service.GetRankingsSnapshot(c.DefaultQuery("period", "week"))
+	offsetMinutes, err := strconv.Atoi(c.DefaultQuery("tz_offset", "0"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid timezone offset",
+		})
+		return
+	}
+	result, err := service.GetRankingsSnapshot(c.DefaultQuery("period", "week"), offsetMinutes)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

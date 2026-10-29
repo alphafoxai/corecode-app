@@ -35,11 +35,15 @@ func GetRankingQuotaTotals(startTime int64, endTime int64) ([]RankingQuotaTotal,
 	return rows, err
 }
 
-func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64) ([]RankingQuotaBucket, error) {
+// GetRankingQuotaBuckets groups usage into buckets of bucketSize seconds whose
+// boundaries fall on multiples of bucketSize in the zone offsetSeconds east of
+// UTC, so a day bucket starts at the viewer's midnight. Bucket keeps the UTC
+// Unix time of each boundary.
+func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, offsetSeconds int64) ([]RankingQuotaBucket, error) {
 	if bucketSize <= 0 {
 		bucketSize = 3600
 	}
-	bucketExpr := rankingBucketExpr(bucketSize)
+	bucketExpr := rankingBucketExpr(bucketSize, offsetSeconds)
 	var rows []RankingQuotaBucket
 	query := DB.Table("quota_data").
 		Select(fmt.Sprintf("model_name, %s as bucket, %s as tokens", bucketExpr, rankingTokensSum)).
@@ -52,11 +56,11 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64) ([
 	return rows, err
 }
 
-func rankingBucketExpr(bucketSize int64) string {
+func rankingBucketExpr(bucketSize int64, offsetSeconds int64) string {
 	if common.UsingMainDatabase(common.DatabaseTypeMySQL) {
-		return fmt.Sprintf("FLOOR(created_at / %d) * %d", bucketSize, bucketSize)
+		return fmt.Sprintf("FLOOR((created_at + %d) / %d) * %d - %d", offsetSeconds, bucketSize, bucketSize, offsetSeconds)
 	}
-	return fmt.Sprintf("(created_at / %d) * %d", bucketSize, bucketSize)
+	return fmt.Sprintf("((created_at + %d) / %d) * %d - %d", offsetSeconds, bucketSize, bucketSize, offsetSeconds)
 }
 
 func applyRankingQuotaTimeRange(query *gorm.DB, startTime int64, endTime int64) *gorm.DB {
