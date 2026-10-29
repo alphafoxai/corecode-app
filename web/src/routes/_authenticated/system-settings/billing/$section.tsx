@@ -27,7 +27,8 @@ import {
 export const Route = createFileRoute(
   '/_authenticated/system-settings/billing/$section'
 )({
-  beforeLoad: ({ params }) => {
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params }) => {
     const validSections = BILLING_SECTION_IDS as unknown as string[]
     if (!validSections.includes(params.section)) {
       throw redirect({

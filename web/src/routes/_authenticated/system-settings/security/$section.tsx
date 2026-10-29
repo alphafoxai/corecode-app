@@ -27,7 +27,8 @@ import {
 export const Route = createFileRoute(
   '/_authenticated/system-settings/security/$section'
 )({
-  beforeLoad: ({ params }) => {
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params }) => {
     if (params.section === 'sensitive-words') {
       throw redirect({
         to: '/system-settings/request-policies/$section',
