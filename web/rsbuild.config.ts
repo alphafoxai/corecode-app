@@ -54,32 +54,12 @@ export default defineConfig(({ envMode }) => {
       pluginTailwindcss({ optimize: false }),
       pluginPreloadLocale(),
     ],
-    // Rsbuild 2: replaces deprecated `performance.chunkSplit` (RSPack 2 aligned)
+    // Rsbuild 2: replaces deprecated `performance.chunkSplit` (RSPack 2 aligned).
+    // No forced vendor groups: a group with `chunks: 'all'` and `enforce` pulls
+    // every module it matches, from any page, into one chunk that the entry
+    // needs, so a first visit downloaded all of Base UI and TanStack Table.
     splitChunks: {
       preset: 'default',
-      cacheGroups: {
-        'vendor-react': {
-          test: /node_modules[\\/](react|react-dom)[\\/]/,
-          name: 'vendor-react',
-          chunks: 'all',
-          priority: 0,
-          enforce: true,
-        },
-        'vendor-ui-primitives': {
-          test: /node_modules[\\/](@base-ui|@radix-ui)[\\/]/,
-          name: 'vendor-ui-primitives',
-          chunks: 'all',
-          priority: 0,
-          enforce: true,
-        },
-        'vendor-tanstack': {
-          test: /node_modules[\\/]@tanstack[\\/]/,
-          name: 'vendor-tanstack',
-          chunks: 'all',
-          priority: 0,
-          enforce: true,
-        },
-      },
     },
     source: {
       entry: {
