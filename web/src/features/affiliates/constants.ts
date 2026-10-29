@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-
 // The route's search schema reads these, so they live apart from the page:
 // importing them from index.tsx would put the whole page in the entry bundle.
 export const AFFILIATE_TABS = ['affiliates', 'withdrawals', 'settings'] as const
