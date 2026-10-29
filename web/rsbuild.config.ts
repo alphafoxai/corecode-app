@@ -49,7 +49,7 @@ function pluginPreloadRoute(): RsbuildPlugin {
         const chunks = new Map<string, Set<string>>()
         for (const group of compilation.chunkGroups) {
           for (const origin of group.origins) {
-            const resource = origin.module?.resource
+            const resource = origin.module?.nameForCondition()
             if (!resource?.startsWith(routesDir)) continue
             if (!origin.request?.includes('tsr-split')) continue
             const file = resource.slice(routesDir.length).replace(/\.tsx?$/, '')
