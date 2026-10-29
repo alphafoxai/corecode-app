@@ -34,8 +34,8 @@ import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
 import { takeSetupStatus } from '@/features/setup/api'
 import { useSystemConfig } from '@/hooks/use-system-config'
-import { loadRestLocale } from '@/i18n/config'
-import { isCoreRoute } from '@/i18n/core-routes'
+import { loadLocaleParts } from '@/i18n/config'
+import { localePartsFor } from '@/i18n/core-routes'
 import {
   bootstrapAuthentication,
   clearAuthenticatedClientState,
@@ -118,10 +118,8 @@ export const Route = createRootRouteWithContext<{
       throw redirect({ href: legacyTarget, replace: true })
     }
 
-    // A page outside core-routes.ts may name keys the core locale lacks.
-    const restLocale = isCoreRoute(matches.at(-1)?.routeId)
-      ? undefined
-      : loadRestLocale()
+    // The parts of the locale the page renders from (core-routes.ts).
+    const localeParts = loadLocaleParts(localePartsFor(matches.at(-1)?.routeId))
 
     const pathname = location?.pathname || ''
     const needsSetupCheck =
@@ -139,7 +137,7 @@ export const Route = createRootRouteWithContext<{
           return null
         }),
         authBootstrap,
-        restLocale,
+        localeParts,
       ])
 
       if (status?.success && status.data) {
@@ -149,7 +147,7 @@ export const Route = createRootRouteWithContext<{
         setupStatusChecked = true
       }
     } else {
-      await Promise.all([authBootstrap, restLocale])
+      await Promise.all([authBootstrap, localeParts])
     }
   },
   component: RootComponent,

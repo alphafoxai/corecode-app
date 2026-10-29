@@ -24,7 +24,12 @@ declare module '*.json?overrides' {
   export default locale
 }
 
-// A locale's core or rest part; see scripts/i18n-locale-split-loader.mjs.
+// A locale's boot, core or rest part; see scripts/i18n-locale-split-loader.mjs.
+declare module '*.json?boot' {
+  const locale: { translation: Record<string, string> }
+  export default locale
+}
+
 declare module '*.json?core' {
   const locale: { translation: Record<string, string> }
   export default locale

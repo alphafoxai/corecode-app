@@ -20,13 +20,13 @@ import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+import type { LocalePart } from './core-routes'
 import { convertDetectedLanguage, toIntlLocale } from './languages'
 
 type LocaleModule = { default: { translation: Record<string, string> } }
 type LocaleLoader = {
-  core: () => Promise<LocaleModule>
-  rest?: () => Promise<LocaleModule>
-}
+  boot: () => Promise<LocaleModule>
+} & Partial<Record<LocalePart, () => Promise<LocaleModule>>>
 
 // Each locale is 0.5–0.8 MB and a visitor reads one, so each loads as its own
 // chunk on demand instead of all seven riding in the entry bundle. Every locale
@@ -35,51 +35,66 @@ type LocaleLoader = {
 // loads only the entries that differ from their keys
 // (scripts/i18n-en-overrides-loader.cjs); the rest render as the key itself.
 //
-// The other languages load in two parts (scripts/i18n-locale-split-loader.mjs):
-// `core` has every key the pages in core-routes.ts can show, and the first
-// render waits only for it; `rest` has the keys only other pages name, and
-// loads after that render or before another page renders (loadRestLocale).
-// The chunk names let index.html preload the visitor's locale beside the entry
-// bundle, and its rest when the page is not a core one (pluginPreloadLocale in
+// The other languages load in three parts (scripts/i18n-locale-split-loader.mjs):
+// `boot` has every key the sign-in and error pages can show, `core` adds the
+// overview and keys pages', and `rest` has the keys only other pages name. The
+// first render waits only for the parts its page needs (core-routes.ts); the
+// others load after that render, or before another page renders
+// (loadLocaleParts). The chunk names let index.html preload the parts the
+// visitor's page needs beside the entry bundle (pluginPreloadLocale in
 // rsbuild.config.ts).
 const localeLoaders: Record<string, LocaleLoader> = {
   en: {
-    core: () =>
+    boot: () =>
       import(/* webpackChunkName: "locale-en" */ './locales/en.json?overrides'),
   },
   zhCN: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-zhCN" */ './locales/zh.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-zhCN" */ './locales/zh.json?core'),
+      import(/* webpackChunkName: "i18n-core-zhCN" */ './locales/zh.json?core'),
     rest: () =>
       import(/* webpackChunkName: "i18n-rest-zhCN" */ './locales/zh.json?rest'),
   },
   fr: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-fr" */ './locales/fr.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-fr" */ './locales/fr.json?core'),
+      import(/* webpackChunkName: "i18n-core-fr" */ './locales/fr.json?core'),
     rest: () =>
       import(/* webpackChunkName: "i18n-rest-fr" */ './locales/fr.json?rest'),
   },
   ru: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-ru" */ './locales/ru.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-ru" */ './locales/ru.json?core'),
+      import(/* webpackChunkName: "i18n-core-ru" */ './locales/ru.json?core'),
     rest: () =>
       import(/* webpackChunkName: "i18n-rest-ru" */ './locales/ru.json?rest'),
   },
   ja: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-ja" */ './locales/ja.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-ja" */ './locales/ja.json?core'),
+      import(/* webpackChunkName: "i18n-core-ja" */ './locales/ja.json?core'),
     rest: () =>
       import(/* webpackChunkName: "i18n-rest-ja" */ './locales/ja.json?rest'),
   },
   vi: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-vi" */ './locales/vi.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-vi" */ './locales/vi.json?core'),
+      import(/* webpackChunkName: "i18n-core-vi" */ './locales/vi.json?core'),
     rest: () =>
       import(/* webpackChunkName: "i18n-rest-vi" */ './locales/vi.json?rest'),
   },
   zhTW: {
+    boot: () =>
+      import(/* webpackChunkName: "locale-zhTW" */ './locales/zh-TW.json?boot'),
     core: () =>
-      import(/* webpackChunkName: "locale-zhTW" */ './locales/zh-TW.json?core'),
+      import(
+        /* webpackChunkName: "i18n-core-zhTW" */ './locales/zh-TW.json?core'
+      ),
     rest: () =>
       import(
         /* webpackChunkName: "i18n-rest-zhTW" */ './locales/zh-TW.json?rest'
@@ -87,12 +102,13 @@ const localeLoaders: Record<string, LocaleLoader> = {
   },
 }
 
-// Languages whose rest part is loaded, or loading.
-const restLoads = new Map<string, Promise<void>>()
+// Each language's parts beyond boot that are loaded, or loading.
+const partLoads = new Map<string, Promise<void>>()
+
 let firstRead = true
 
 // i18next awaits `read` when it takes two parameters and returns a promise.
-// The page load's first language reads its core part; a language the visitor
+// The page load's first language reads its boot part; a language the visitor
 // switches to later reads whole, so the page on screen never lacks a key.
 const lazyLocales: BackendModule = {
   type: 'backend',
@@ -100,45 +116,58 @@ const lazyLocales: BackendModule = {
   async read(language: string, _namespace: string) {
     const loader = localeLoaders[language]
     if (!loader) return {}
-    if (firstRead || !loader.rest) {
+    if (firstRead) {
       firstRead = false
-      return (await loader.core()).default.translation
+      return (await loader.boot()).default.translation
     }
-    const [core, rest] = await Promise.all([loader.core(), loader.rest()])
-    restLoads.set(language, Promise.resolve())
-    return { ...core.default.translation, ...rest.default.translation }
+    const parts = (['core', 'rest'] as const).filter((part) => loader[part])
+    const modules = await Promise.all(
+      [loader.boot, ...parts.map((part) => loader[part])].map((load) =>
+        load?.()
+      )
+    )
+    for (const part of parts) {
+      partLoads.set(`${language}:${part}`, Promise.resolve())
+    }
+    return Object.assign({}, ...modules.map((m) => m?.default.translation))
   },
 }
 
 /**
- * Load the rest of a language's locale, the keys only non-core pages name.
- * Resolves once they are in, or once loading failed; the next call retries,
- * and until then those keys render as their English source text.
+ * Load parts of a language's locale beyond its boot part. Resolves once they
+ * are in, or once loading failed; the next call retries, and until then those
+ * keys render as their English source text.
  */
-export function loadRestLocale(
+export function loadLocaleParts(
+  parts: readonly LocalePart[],
   language: string = i18n.resolvedLanguage ?? i18n.language
 ): Promise<void> {
-  const rest = localeLoaders[language]?.rest
-  if (!rest) return Promise.resolve()
-  let pending = restLoads.get(language)
-  if (!pending) {
-    pending = rest().then(
-      (locale) => {
-        i18n.addResourceBundle(
-          language,
-          'translation',
-          locale.default.translation,
-          true,
-          false
+  return Promise.all(
+    parts.map((part) => {
+      const load = localeLoaders[language]?.[part]
+      if (!load) return undefined
+      const id = `${language}:${part}`
+      let pending = partLoads.get(id)
+      if (!pending) {
+        pending = load().then(
+          (locale) => {
+            i18n.addResourceBundle(
+              language,
+              'translation',
+              locale.default.translation,
+              true,
+              false
+            )
+          },
+          () => {
+            partLoads.delete(id)
+          }
         )
-      },
-      () => {
-        restLoads.delete(language)
+        partLoads.set(id, pending)
       }
-    )
-    restLoads.set(language, pending)
-  }
-  return pending
+      return pending
+    })
+  ).then(() => undefined)
 }
 
 // <html lang> follows the interface language, for screen readers, browser

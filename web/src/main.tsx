@@ -37,8 +37,8 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import { DASHBOARD_DEFAULT_SECTION } from './features/dashboard/section-registry'
-import { i18nReady, loadRestLocale } from './i18n/config'
-import { isCoreRoute } from './i18n/core-routes'
+import { i18nReady, loadLocaleParts } from './i18n/config'
+import { localePartsFor } from './i18n/core-routes'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 
@@ -144,10 +144,11 @@ function preloadCurrentRouteCode() {
   }
 }
 
-// A core page renders from the core part of the locale and takes the rest
-// once the browser is idle; any other page needs the rest to render.
-const renderNeedsRestLocale =
-  currentRoutes !== null && !isCoreRoute(currentRoutes.at(-1)?.id)
+// The parts of the locale beyond boot this page renders from (core-routes.ts).
+// A protected page without a session redirects to sign-in, a boot page. The
+// others load once the browser is idle after the first render.
+const renderLocaleParts =
+  currentRoutes === null ? [] : localePartsFor(currentRoutes.at(-1)?.id)
 
 if (!rootElement.innerHTML) {
   // index.html preloads the locale, and i18next requests it from a zero-delay
@@ -156,7 +157,7 @@ if (!rootElement.innerHTML) {
   setTimeout(preloadCurrentRouteCode, 0)
   // Render after the locale loads so the first paint is already translated.
   void i18nReady
-    .then(() => (renderNeedsRestLocale ? loadRestLocale() : undefined))
+    .then(() => loadLocaleParts(renderLocaleParts))
     .then(() => {
       const root = ReactDOM.createRoot(rootElement)
       root.render(
@@ -172,10 +173,8 @@ if (!rootElement.innerHTML) {
           </QueryClientProvider>
         </StrictMode>
       )
-      if (!renderNeedsRestLocale) {
-        const idle =
-          window.requestIdleCallback ?? ((run) => window.setTimeout(run, 1))
-        idle(() => void loadRestLocale())
-      }
+      const idle =
+        window.requestIdleCallback ?? ((run) => window.setTimeout(run, 1))
+      idle(() => void loadLocaleParts(['core', 'rest']))
     })
 }

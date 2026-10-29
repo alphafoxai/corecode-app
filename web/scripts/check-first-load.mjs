@@ -23,8 +23,8 @@ import path from 'node:path'
 // first-load-budget.json. A page's first load is what a cold visit downloads
 // before the console can render it: the scripts and stylesheet index.html
 // references, the chunks the inline route preload names for the page (and its
-// layouts), and the zhCN core locale. Sizes are the brotli files the server
-// sends. One import from a route's options once added 144 KB to every page's
+// layouts), and the parts of the zhCN locale the page renders from. Sizes are
+// the brotli files the server sends. One import from a route's options once added 144 KB to every page's
 // first load and nothing in review showed it; this makes such a change fail CI
 // until the budget is raised on purpose.
 //
@@ -45,16 +45,19 @@ const size = (file) => {
 const entry = [
   ...html.matchAll(/(?:src|href)="\/(static\/[^"]+\.(?:js|css))"/g),
 ].map((m) => m[1])
-const locale = html.match(/"zhCN":"\/([^"]+)"/)?.[1]
+// pluginPreloadLocale's chunk URLs by language, for the boot, core and rest
+// parts of the locale.
+const localeUrls = html.match(/var u=(\[\{.*?\}\]);/)?.[1]
 // pluginPreloadRoute's table (rsbuild.config.ts): chunk names, then rows of
-// [pattern, protected, chunk indexes, core].
+// [pattern, protected, chunk indexes, locale tier].
 const table = html.match(/var f=(\[.*?\]),r=(\[.*?\]),s=(\[.*?\]);/)
-if (entry.length === 0 || !locale || !table) {
+if (entry.length === 0 || !localeUrls || !table) {
   console.error(
     'check-first-load: dist/index.html has no entry, locale preload or route table; did the preload plugins change?'
   )
   process.exit(1)
 }
+const locale = JSON.parse(localeUrls).map((urls) => urls.zhCN.slice(1))
 const names = JSON.parse(table[1])
 const routes = JSON.parse(table[2])
 const chunkFile = (name) =>
@@ -72,7 +75,7 @@ for (const [page, limitKB] of Object.entries(budget)) {
   }
   const files = new Set([
     ...entry,
-    locale,
+    ...locale.slice(0, route[3] + 1),
     ...route[2].map((i) => chunkFile(names[i])),
   ])
   const kb = [...files].reduce((sum, file) => sum + size(file), 0) / 1024
