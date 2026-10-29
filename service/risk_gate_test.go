@@ -186,6 +186,34 @@ func TestRiskGate(t *testing.T) {
 				assert.Nil(t, checkRiskGate(t, 5, short))
 			})
 
+			t.Run("a refused client template is not compared", func(t *testing.T) {
+				resetRiskGateState()
+				*operation_setting.GetRiskGateSetting() = base
+				templates := []string{
+					"CRITICAL: Respond with TEXT ONLY. Do NOT call any tools.\n\nYour task is to create a detailed summary of the conversation so far.",
+					"Your response above was stopped by a safety classifier — this is not a tool or API error. Do not produce that content again, even reworded.",
+					"The user sent a new message while you were working:\nkeep going\n\nThis is how Claude Code surfaces messages the user sends mid-turn — within the running turn.",
+				}
+				for _, template := range templates {
+					require.NoError(t, model.DB.Create(&model.ViolationRecord{UserId: 4, CreatedAt: common.GetTimestamp(), Category: "cyber", Excerpt: template, Action: "strike", Mode: "enforce"}).Error)
+				}
+				for _, template := range templates {
+					encoded, err := common.Marshal(template)
+					require.NoError(t, err)
+					request := claudeConversation(t, `{"model":"claude","messages":[{"role":"user","content":`+string(encoded)+`}]}`)
+					assert.Nil(t, checkRiskGate(t, 5, request), "another customer's request with the same template passes")
+				}
+
+				riskGateRefusals.Lock()
+				loaded := len(riskGateRefusals.fingerprints)
+				riskGateRefusals.Unlock()
+				rememberRefusedMessage(templates[0])
+				riskGateRefusals.Lock()
+				remembered := len(riskGateRefusals.fingerprints)
+				riskGateRefusals.Unlock()
+				assert.Equal(t, loaded, remembered, "a template refused at run time is not remembered either")
+			})
+
 			t.Run("the decision model blocks above the threshold, once per conversation text", func(t *testing.T) {
 				resetRiskGateState()
 				var status atomic.Int32

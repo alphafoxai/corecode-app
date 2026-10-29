@@ -74,6 +74,27 @@ const (
 	minFingerprintRunes = 32
 )
 
+// clientTemplateMarkers are sentences Claude Code writes into the user turn
+// itself: its compaction prompt, its notice after a classifier stop, and its
+// wrapper around a message sent mid-turn.
+var clientTemplateMarkers = []string{
+	"CRITICAL: Respond with TEXT ONLY. Do NOT call any tools.",
+	"Your response above was stopped by a safety classifier",
+	"This is how Claude Code surfaces messages the user sends mid-turn",
+}
+
+// ClientTemplate reports whether a refused message carries a client template.
+// The upstream refused the conversation behind such a turn, not its text, and
+// every customer of the client sends the same text, so it must not be compared.
+func ClientTemplate(text string) bool {
+	for _, marker := range clientTemplateMarkers {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 // Fingerprint is the sorted set of hashed character shingles of a message.
 type Fingerprint []uint64
 
