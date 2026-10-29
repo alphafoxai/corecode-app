@@ -6,26 +6,33 @@ import { pluginReact } from '@rsbuild/plugin-react'
 import { pluginTailwindcss } from '@rsbuild/plugin-tailwindcss'
 import { tanstackRouter } from '@tanstack/router-plugin/rspack'
 
+import { CORE_ROUTE_IDS } from './src/i18n/core-routes'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// The console renders only once the visitor's locale (about 140 KB brotli) has
-// loaded, and the bundle asks for it only after it has downloaded and run. This
-// inline script picks the language as i18next will (the `i18nextLng` cache,
-// then the browser languages, mapped as convertDetectedLanguage maps them) and
-// preloads that locale's chunk beside the entry bundle.
+// The console renders only once the visitor's locale has loaded, and the bundle
+// asks for it only after it has downloaded and run. This inline script picks the
+// language as i18next will (the `i18nextLng` cache, then the browser languages,
+// mapped as convertDetectedLanguage maps them) and preloads that locale's core
+// chunk beside the entry bundle, and its rest chunk unless pluginPreloadRoute's
+// script, which runs first, found a core page (src/i18n/core-routes.ts).
 function pluginPreloadLocale(): RsbuildPlugin {
   return {
     name: 'preload-locale',
     setup(api) {
       api.modifyHTMLTags((tags, { compilation, assetPrefix }) => {
         const urls: Record<string, string> = {}
+        const restUrls: Record<string, string> = {}
         for (const chunk of compilation.chunks) {
-          const language = chunk.name?.match(/^locale-(.+)$/)?.[1]
           const file = [...chunk.files].find((name) => name.endsWith('.js'))
-          if (language && file) urls[language] = assetPrefix + file
+          if (!file) continue
+          const language = chunk.name?.match(/^locale-(.+)$/)?.[1]
+          if (language) urls[language] = assetPrefix + file
+          const restLanguage = chunk.name?.match(/^i18n-rest-(.+)$/)?.[1]
+          if (restLanguage) restUrls[restLanguage] = assetPrefix + file
         }
         if (!urls.en) return tags
-        const script = `(function(){var u=${JSON.stringify(urls)};function p(c){if(!c)return;var x=String(c).toLowerCase().replace(/_/g,'-');if(x.indexOf('zh')===0)return /^(zhtw|zh-tw|zh-hk|zh-mo|zh-hant)/.test(x)?'zhTW':'zhCN';if(u[c])return c;x=x.split('-')[0];if(u[x])return x}var c;try{c=p(localStorage.getItem('i18nextLng'))}catch(e){}var n=navigator.languages||[navigator.language];for(var i=0;!c&&i<n.length;i++)c=p(n[i]);var l=document.createElement('link');l.rel='preload';l.as='script';l.href=u[c||'en'];document.head.appendChild(l)})()`
+        const script = `(function(){var u=${JSON.stringify(urls)},r=${JSON.stringify(restUrls)};function p(c){if(!c)return;var x=String(c).toLowerCase().replace(/_/g,'-');if(x.indexOf('zh')===0)return /^(zhtw|zh-tw|zh-hk|zh-mo|zh-hant)/.test(x)?'zhTW':'zhCN';if(u[c])return c;x=x.split('-')[0];if(u[x])return x}var c;try{c=p(localStorage.getItem('i18nextLng'))}catch(e){}var n=navigator.languages||[navigator.language];for(var i=0;!c&&i<n.length;i++)c=p(n[i]);c=c||'en';var h=[u[c]];if(window.__coreRoute!==true&&r[c])h.push(r[c]);for(i=0;i<h.length;i++){var l=document.createElement('link');l.rel='preload';l.as='script';l.href=h[i];document.head.appendChild(l)}})()`
         tags.headTags.unshift({ tag: 'script', children: script })
         return tags
       })
@@ -38,7 +45,9 @@ function pluginPreloadLocale(): RsbuildPlugin {
 // visit. This inline script matches the URL against the route files' paths and
 // preloads that route's chunks, with its layouts', beside the entry. A protected
 // route without the session hint cookie preloads the sign-in page it redirects
-// to. A miss costs nothing: main.tsx still loads the route's code.
+// to. A miss costs nothing: main.tsx still loads the route's code. It also sets
+// window.__coreRoute for pluginPreloadLocale's script, false when the page
+// needs the rest of the locale.
 function pluginPreloadRoute(): RsbuildPlugin {
   return {
     name: 'preload-route',
@@ -91,8 +100,12 @@ function pluginPreloadRoute(): RsbuildPlugin {
           pattern: string
           params: number
           protected: boolean
+          core: boolean
           files: Set<string>
         }[] = []
+        // A route file's id, as TanStack names it: an index file is its directory.
+        const routeId = (leaf: string) =>
+          `/${leaf.endsWith('/index') ? leaf.slice(0, -'index'.length) : leaf}`
         for (const leaf of chunks.keys()) {
           const segments = leaf.split('/')
           const last = segments.at(-1)
@@ -102,6 +115,7 @@ function pluginPreloadRoute(): RsbuildPlugin {
               pattern: pattern(pathSegments),
               params: pathSegments.filter((s) => s.startsWith('$')).length,
               protected: segments[0] === '_authenticated',
+              core: CORE_ROUTE_IDS.includes(routeId(leaf)),
               files: withLayouts(leaf),
             })
           add(last === 'index' ? segments.slice(0, -1) : segments)
@@ -131,9 +145,10 @@ function pluginPreloadRoute(): RsbuildPlugin {
           r.pattern,
           r.protected ? 1 : 0,
           [...r.files].map(index),
+          r.core ? 1 : 0,
         ])
         const signIn = [...withLayouts('(auth)/sign-in')].map(index)
-        const script = `(function(){var f=${JSON.stringify(names)},r=${JSON.stringify(table)},s=${JSON.stringify(signIn)};var p=location.pathname.replace(/[/]+$/,'')||'/';var h=/(^|; *)new_api_has_session=/.test(document.cookie);for(var i=0;i<r.length;i++){if(!new RegExp('^'+r[i][0]+'$').test(p))continue;var l=r[i][1]&&!h?s:r[i][2];for(var j=0;j<l.length;j++){var n=f[l[j]],e=document.createElement('link');e.rel='preload';e.as='script';e.href=${JSON.stringify(assetPrefix)}+(n.indexOf('/')<0?${JSON.stringify(prefix)}+n+'.js':n);document.head.appendChild(e)}break}})()`
+        const script = `(function(){var f=${JSON.stringify(names)},r=${JSON.stringify(table)},s=${JSON.stringify(signIn)};var p=location.pathname.replace(/[/]+$/,'')||'/';var h=/(^|; *)new_api_has_session=/.test(document.cookie);window.__coreRoute=true;for(var i=0;i<r.length;i++){if(!new RegExp('^'+r[i][0]+'$').test(p))continue;var a=r[i][1]&&!h,l=a?s:r[i][2];window.__coreRoute=a||r[i][3]===1;for(var j=0;j<l.length;j++){var n=f[l[j]],e=document.createElement('link');e.rel='preload';e.as='script';e.href=${JSON.stringify(assetPrefix)}+(n.indexOf('/')<0?${JSON.stringify(prefix)}+n+'.js':n);document.head.appendChild(e)}break}})()`
         tags.headTags.unshift({ tag: 'script', children: script })
         return tags
       })
@@ -214,6 +229,13 @@ export default defineConfig(({ envMode }) => {
               resourceQuery: /overrides/,
               use: [
                 path.resolve(__dirname, 'scripts/i18n-en-overrides-loader.cjs'),
+              ],
+            },
+            {
+              test: /\.json$/,
+              resourceQuery: /^\?(core|rest)$/,
+              use: [
+                path.resolve(__dirname, 'scripts/i18n-locale-split-loader.mjs'),
               ],
             },
           ],
