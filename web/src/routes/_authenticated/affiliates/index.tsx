@@ -19,7 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import z from 'zod'
 
-import { AFFILIATE_TABS, Affiliates } from '@/features/affiliates'
+import { Affiliates } from '@/features/affiliates'
+import { AFFILIATE_TABS } from '@/features/affiliates/constants'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
