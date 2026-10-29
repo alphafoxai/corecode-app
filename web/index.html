@@ -40,9 +40,10 @@
          instead of after it has run: the status, the setup check and, when
          the app would send it anyway, the auth refresh (a session hint
          cookie, or the sign-in page, which checks for a usable Refresh
-         Cookie). src/lib/boot-requests.ts hands each response to the code
-         that would otherwise make the request. Keep the conditions in sync
-         with bootstrapAuthentication and the sign-in route. -->
+         Cookie), then the overview's or keys page's first data.
+         src/lib/boot-requests.ts hands each response to the code that would
+         otherwise make the request. Keep the conditions in sync with
+         bootstrapAuthentication and the sign-in route. -->
     <script>
       ;(function () {
         function send(url, init) {
@@ -75,6 +76,55 @@
             path === '/sign-in'
           ) {
             boot.refresh = send('/api/user/auth/refresh', { method: 'POST' })
+          }
+          // The first data of the overview and the keys page, fetched with the
+          // refresh's access token as soon as it returns. Each URL must equal
+          // the one the page requests: prefetchCustomerOverview (with
+          // dailySpendRange), the balance card's subscriptions, the uptime
+          // panel and prefetchApiKeys (src/lib/boot-requests.test.ts checks
+          // them).
+          var page = path.replace(/[/]+$/, '')
+          var urls = []
+          if (page === '/dashboard' || page === '/dashboard/overview') {
+            var start = new Date()
+            start.setHours(0, 0, 0, 0)
+            start.setDate(start.getDate() - 13)
+            var end = new Date()
+            end.setHours(23, 59, 59, 999)
+            urls = [
+              '/api/data/self?start_timestamp=' +
+                Math.floor(start.getTime() / 1000) +
+                '&end_timestamp=' +
+                Math.floor(end.getTime() / 1000) +
+                '&default_time=hour',
+              '/api/log/self?p=1&page_size=100&type=2',
+              '/api/token/?p=1&size=50',
+              '/api/perf-metrics/summary?hours=24',
+              '/api/subscription/self',
+              '/api/uptime/status',
+            ]
+          } else if (page === '/keys' && !location.search) {
+            var size = 20
+            try {
+              var stored = parseInt(localStorage.getItem('page-size'), 10)
+              if (stored > 0) size = stored
+            } catch (e) {}
+            urls = ['/api/token/?p=1&size=' + size]
+          }
+          if (boot.refresh && urls.length) {
+            var token = boot.refresh.then(function (r) {
+              return r.status === 200 && r.data && r.data.data
+                ? r.data.data.access_token
+                : null
+            })
+            boot.data = {}
+            urls.forEach(function (url) {
+              boot.data[url] = token.then(function (value) {
+                return value
+                  ? send(url, { headers: { Authorization: 'Bearer ' + value } })
+                  : { status: 0 }
+              })
+            })
           }
         } catch (e) {}
       })()

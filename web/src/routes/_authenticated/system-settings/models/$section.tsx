@@ -27,7 +27,8 @@ import {
 export const Route = createFileRoute(
   '/_authenticated/system-settings/models/$section'
 )({
-  beforeLoad: ({ params }) => {
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params }) => {
     if (params.section === 'channel-affinity') {
       throw redirect({
         to: '/system-settings/request-policies/$section',

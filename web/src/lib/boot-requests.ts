@@ -37,8 +37,22 @@ type BootRequestName = 'status' | 'setup' | 'refresh'
 
 declare global {
   interface Window {
-    __bootRequests?: Partial<Record<BootRequestName, Promise<BootResponse>>>
+    __bootRequests?: Partial<Record<BootRequestName, Promise<BootResponse>>> & {
+      /** GET responses by URL: the overview's and keys page's first data. */
+      data?: Record<string, Promise<BootResponse>>
+    }
   }
+}
+
+// A boot data response serves only the page load that sent it: once the page
+// has been open this long, the data may be older than what a request returns.
+const BOOT_DATA_MAX_AGE_MS = 10_000
+
+/** A URL with its query parameters in a fixed order, for comparison. */
+function normalizeUrl(url: string): string {
+  const parsed = new URL(url, 'http://boot.invalid')
+  parsed.searchParams.sort()
+  return parsed.pathname + parsed.search
 }
 
 /** The boot request's response if one was sent and not yet taken. */
@@ -52,4 +66,28 @@ export async function takeBootRequest(
   delete requests[name]
   const response = await pending
   return response.status ? response : null
+}
+
+/**
+ * The response index.html fetched for this GET, if it fetched one and nothing
+ * has taken it. Once the boot refresh returns, index.html fetches the first
+ * data of the page it loads (the overview's panels, the keys table) with that
+ * access token, so the data arrives while the bundle downloads. Only a
+ * successful response is used; otherwise the caller sends its own request.
+ */
+export async function takeBootData(url: string): Promise<BootResponse | null> {
+  if (typeof window === 'undefined') return null
+  const data = window.__bootRequests?.data
+  if (!data) return null
+  if (performance.now() > BOOT_DATA_MAX_AGE_MS) {
+    delete window.__bootRequests?.data
+    return null
+  }
+  const key = normalizeUrl(url)
+  const match = Object.keys(data).find((sent) => normalizeUrl(sent) === key)
+  if (!match) return null
+  const pending = data[match]
+  delete data[match]
+  const response = await pending
+  return response.status === 200 ? response : null
 }

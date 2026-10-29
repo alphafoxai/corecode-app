@@ -16,27 +16,36 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-// The pages most visits land on, by route id. Their first render needs only the
-// core part of the locale: scripts/i18n-locale-split-loader.mjs puts in it every
-// key that code reachable from these routes (with their layouts, and main.tsx)
-// names, and every key no console source names. Other pages wait for the rest
-// (src/i18n/config.ts). The loader reads this list as text: keep it a plain
-// array of string literals.
-export const CORE_ROUTE_IDS = [
+// The pages most visits land on, by route id, and the parts of the locale they
+// render from. scripts/i18n-locale-split-loader.mjs puts in the boot part every
+// key that code reachable from the boot routes (with their layouts, and
+// main.tsx) names, and in the core part the keys the core routes' code names
+// and every key no console source names. Other pages also wait for the rest
+// (src/i18n/config.ts). The loader reads these lists as text: keep them plain
+// arrays of string literals.
+export const BOOT_ROUTE_IDS = [
   '__root__',
   '/(auth)/sign-in',
-  '/_authenticated/dashboard/',
-  '/_authenticated/dashboard/$section',
-  '/_authenticated/keys/',
   '/(errors)/401',
   '/(errors)/403',
   '/(errors)/404',
   '/(errors)/500',
   '/(errors)/503',
+]
+
+export const CORE_ROUTE_IDS = [
+  '/_authenticated/dashboard/',
+  '/_authenticated/dashboard/$section',
+  '/_authenticated/keys/',
   '/_authenticated/errors/$error',
 ]
 
-/** Whether a page whose deepest route has this id renders from the core locale. */
-export function isCoreRoute(routeId: string | undefined): boolean {
-  return routeId !== undefined && CORE_ROUTE_IDS.includes(routeId)
+/** A locale part beyond the boot part, which i18next loads first. */
+export type LocalePart = 'core' | 'rest'
+
+/** The parts a page whose deepest route has this id needs before it renders. */
+export function localePartsFor(routeId: string | undefined): LocalePart[] {
+  if (routeId !== undefined && BOOT_ROUTE_IDS.includes(routeId)) return []
+  if (routeId !== undefined && CORE_ROUTE_IDS.includes(routeId)) return ['core']
+  return ['core', 'rest']
 }

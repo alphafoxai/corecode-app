@@ -27,7 +27,8 @@ import {
 export const Route = createFileRoute(
   '/_authenticated/system-settings/auth/$section'
 )({
-  beforeLoad: ({ params }) => {
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params }) => {
     const validSections = AUTH_SECTION_IDS as unknown as string[]
     if (!validSections.includes(params.section)) {
       throw redirect({

@@ -16,18 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-// Rspack loader for `locales/<lng>.json?core` and `?rest`. The console renders
-// only once its locale has loaded, and the whole locale (8,000 keys, 146 KB
-// brotli for zhCN) was the largest file a first visit waited for. The pages
-// most visits land on (src/i18n/core-routes.ts) can render far fewer keys.
+// Rspack loader for `locales/<lng>.json?boot`, `?core` and `?rest`. The console
+// renders only once its locale has loaded, and the whole locale (8,000 keys,
+// 146 KB brotli for zhCN) was the largest file a first visit waited for. The
+// pages most visits land on (src/i18n/core-routes.ts) can render far fewer keys.
 //
-// `?core` keeps every key that a module reachable from those routes names as a
-// string literal, and every key that no console source names: the server sends
-// English messages for the console to translate, and a key built at run time
-// matches no literal. `?rest` keeps the others, which only other pages name;
-// those pages render once it has loaded (src/i18n/config.ts). Reachability
-// follows static and dynamic imports, so a dialog a core page opens later is
-// covered too. Outside production builds `?core` is the whole locale.
+// `?boot` keeps every key that a module reachable from the boot routes (the
+// sign-in and error pages, with main.tsx) names as a string literal. `?core`
+// keeps the keys that modules reachable from the core routes (the overview and
+// keys pages) name, and every key that no console source names: the server
+// sends English messages for the console to translate, and a key built at run
+// time matches no literal. `?rest` keeps the others, which only other pages
+// name. A boot page renders from `?boot`, a core page from `?boot` and `?core`,
+// and any other page waits for all three (src/i18n/config.ts). Reachability
+// follows static and dynamic imports, so a dialog a page opens later is covered
+// too. Outside production builds `?boot` is the whole locale.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -85,11 +88,12 @@ function routeFile(id) {
   return path.join(ROUTES, `${relative}.tsx`)
 }
 
-function coreRouteIds() {
+// A route id list from core-routes.ts, which the loader reads as text.
+function routeIds(name) {
   const text = fs.readFileSync(path.join(SRC, 'i18n', 'core-routes.ts'), 'utf8')
-  const list = text.match(/CORE_ROUTE_IDS = \[([\s\S]*?)\]/)
+  const list = text.match(new RegExp(`${name} = \\[([\\s\\S]*?)\\]`))
   if (!list) {
-    throw new Error('i18n-locale-split-loader: CORE_ROUTE_IDS not found')
+    throw new Error(`i18n-locale-split-loader: ${name} not found`)
   }
   return [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
 }
@@ -108,13 +112,13 @@ function literalsIn(files) {
   return names
 }
 
-// The modules the core routes can run: main.tsx, each core route file and the
-// layout (`route.tsx`) of every directory above it, and everything they import.
+// The modules some routes can run: main.tsx, each route file and the layout
+// (`route.tsx`) of every directory above it, and everything they import.
 // routeTree.gen.ts imports every route, so the walk does not enter it.
-function coreModules() {
+function routeModules(ids) {
   const seen = new Set()
   const queue = [path.join(SRC, 'main.tsx')]
-  for (const id of coreRouteIds()) {
+  for (const id of ids) {
     const file = routeFile(id)
     if (!fs.existsSync(file)) {
       throw new Error(`i18n-locale-split-loader: no route file for ${id}`)
@@ -141,38 +145,41 @@ function coreModules() {
   return seen
 }
 
-/** The keys the core part keeps: named by core modules, or by no source at all. */
-function coreKeys(translation) {
-  const coreNames = literalsIn(coreModules())
+/** Each key's part: `boot`, `core` or `rest`. */
+function localeParts(translation) {
+  const bootNames = literalsIn(routeModules(routeIds('BOOT_ROUTE_IDS')))
+  const coreNames = literalsIn(routeModules(routeIds('CORE_ROUTE_IDS')))
   const allNames = literalsIn(sourceFiles(SRC))
-  return new Set(
-    Object.keys(translation).filter(
-      (key) => coreNames.has(key) || !allNames.has(key)
-    )
-  )
+  const parts = new Map()
+  for (const key of Object.keys(translation)) {
+    if (bootNames.has(key)) parts.set(key, 'boot')
+    else if (coreNames.has(key) || !allNames.has(key)) parts.set(key, 'core')
+    else parts.set(key, 'rest')
+  }
+  return parts
 }
 
-function splitLocale(locale, part, keys) {
+function splitLocale(locale, part, parts) {
   const translation = {}
   for (const [key, value] of Object.entries(locale.translation)) {
-    if (keys.has(key) === (part === 'core')) translation[key] = value
+    if (parts.get(key) === part) translation[key] = value
   }
   return { ...locale, translation }
 }
 
-let cachedKeys = null
+let cachedParts = null
 
 export default function i18nLocaleSplitLoader(source) {
-  const part = this.resourceQuery.includes('rest') ? 'rest' : 'core'
+  const part = this.resourceQuery.slice(1)
   const locale = JSON.parse(source)
   if (this.mode !== 'production') {
     return JSON.stringify(
-      part === 'core' ? locale : { ...locale, translation: {} }
+      part === 'boot' ? locale : { ...locale, translation: {} }
     )
   }
   // Every locale carries every key (locales.test.ts), so one partition, taken
   // from the first locale built, serves them all.
-  cachedKeys ??= coreKeys(locale.translation)
-  return JSON.stringify(splitLocale(locale, part, cachedKeys))
+  cachedParts ??= localeParts(locale.translation)
+  return JSON.stringify(splitLocale(locale, part, cachedParts))
 }
-export { coreKeys, splitLocale }
+export { localeParts, splitLocale }

@@ -1,10 +1,13 @@
 type Locale = { translation: Record<string, string> }
+type LocalePart = 'boot' | 'core' | 'rest'
 
-export function coreKeys(translation: Record<string, string>): Set<string>
+export function localeParts(
+  translation: Record<string, string>
+): Map<string, LocalePart>
 export function splitLocale<T extends Locale>(
   locale: T,
-  part: 'core' | 'rest',
-  keys: Set<string>
+  part: LocalePart,
+  parts: Map<string, LocalePart>
 ): T
 export default function i18nLocaleSplitLoader(
   this: { resourceQuery: string; mode: string },

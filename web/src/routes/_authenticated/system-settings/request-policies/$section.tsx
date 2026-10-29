@@ -24,7 +24,8 @@ import { POLICY_SECTION_IDS } from '@/features/system-settings/request-policies/
 export const Route = createFileRoute(
   '/_authenticated/system-settings/request-policies/$section'
 )({
-  beforeLoad: ({ params }) => {
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params }) => {
     if (!(POLICY_SECTION_IDS as readonly string[]).includes(params.section)) {
       throw redirect({
         to: '/system-settings/request-policies/$section',

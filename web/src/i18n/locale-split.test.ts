@@ -19,42 +19,49 @@ For commercial licensing, please contact support@quantumnous.com
 import { describe, expect, test } from 'vitest'
 
 import {
-  coreKeys,
+  localeParts,
   splitLocale,
 } from '../../scripts/i18n-locale-split-loader.mjs'
 import zh from './locales/zh.json'
 
-const keys = coreKeys(zh.translation)
+const parts = localeParts(zh.translation)
 
-describe('the locale split for the core pages', () => {
+describe('the locale split for the boot and core pages', () => {
   test('puts every key in exactly one part', () => {
-    const core = splitLocale(zh, 'core', keys).translation
-    const rest = splitLocale(zh, 'rest', keys).translation
-    expect({ ...core, ...rest }).toEqual(zh.translation)
-    expect(Object.keys(core).filter((key) => key in rest)).toEqual([])
-    expect(Object.keys(rest).length).toBeGreaterThan(0)
-  })
-
-  test('keeps keys the core pages name, through aliases and lazy imports', () => {
-    // The sign-in form (routes/(auth)/sign-in.tsx -> @/features/auth/sign-in).
-    expect(keys.has('Sign-in code sent, please check your inbox')).toBe(true)
-    // The key drawer the keys page mounts.
-    expect(keys.has('Successfully created {{count}} API Key(s)')).toBe(true)
-    // A chart the dashboard loads with lazy(() => import(...)).
-    expect(keys.has('Show cache hit rate for')).toBe(true)
-  })
-
-  test('leaves out keys only other pages name', () => {
-    // The channels page's high-risk retry dialog.
-    expect(keys.has('I confirm enabling high-risk retry')).toBe(false)
-  })
-
-  test('keeps keys no console source names, which the server may send', () => {
-    const named = 'Successfully created {{count}} API Key(s)'
-    const unnamed = 'A message only the server sends'
-    const locale = { translation: { [named]: '已创建', [unnamed]: '仅服务端' } }
-    expect([...coreKeys(locale.translation)].sort()).toEqual(
-      [named, unnamed].sort()
+    const split = (['boot', 'core', 'rest'] as const).map(
+      (part) => splitLocale(zh, part, parts).translation
     )
+    expect(Object.assign({}, ...split)).toEqual(zh.translation)
+    expect(split.reduce((n, part) => n + Object.keys(part).length, 0)).toBe(
+      Object.keys(zh.translation).length
+    )
+    for (const part of split) {
+      expect(Object.keys(part).length).toBeGreaterThan(0)
+    }
+  })
+
+  test('boot keeps the keys the sign-in page names, through aliases', () => {
+    // The sign-in form (routes/(auth)/sign-in.tsx -> @/features/auth/sign-in).
+    expect(parts.get('Sign-in code sent, please check your inbox')).toBe('boot')
+  })
+
+  test('core keeps the keys the overview and keys pages name, through lazy imports', () => {
+    // The key drawer the keys page mounts.
+    expect(parts.get('Successfully created {{count}} API Key(s)')).toBe('core')
+    // A chart the dashboard loads with lazy(() => import(...)).
+    expect(parts.get('Show cache hit rate for')).toBe('core')
+  })
+
+  test('leaves keys only other pages name in rest', () => {
+    // The channels page's high-risk retry dialog.
+    expect(parts.get('I confirm enabling high-risk retry')).toBe('rest')
+  })
+
+  test('puts keys no console source names, which the server may send, in core', () => {
+    const unnamed = 'A message only the server sends'
+    const signIn = 'Sign-in code sent, please check your inbox'
+    const split = localeParts({ [unnamed]: '仅服务端', [signIn]: '已发送' })
+    expect(split.get(unnamed)).toBe('core')
+    expect(split.get(signIn)).toBe('boot')
   })
 })

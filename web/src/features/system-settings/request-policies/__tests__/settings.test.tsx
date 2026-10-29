@@ -48,7 +48,8 @@ import {
   type RequestPolicySettings,
 } from '../defaults'
 
-type PolicyBeforeLoad = (context: { params: { section: string } }) => void
+// The routes check the section in a loader, which shares the page's lazy chunk.
+type PolicyLoader = (context: { params: { section: string } }) => void
 
 let queryClient: QueryClient
 let settings: RequestPolicySettings
@@ -72,7 +73,7 @@ async function renderPolicies(path: string) {
   const policyRoute = createRoute({
     getParentRoute: () => authenticated,
     path: '/system-settings/request-policies/$section',
-    beforeLoad: PoliciesRoute.options.beforeLoad as PolicyBeforeLoad,
+    loader: PoliciesRoute.options.loader as PolicyLoader,
     component: RequestPolicies,
   })
   const routes = [
@@ -85,17 +86,17 @@ async function renderPolicies(path: string) {
     createRoute({
       getParentRoute: () => authenticated,
       path: '/system-settings/models/$section',
-      beforeLoad: ModelsRoute.options.beforeLoad as PolicyBeforeLoad,
+      loader: ModelsRoute.options.loader as PolicyLoader,
     }),
     createRoute({
       getParentRoute: () => authenticated,
       path: '/system-settings/security/$section',
-      beforeLoad: SecurityRoute.options.beforeLoad as PolicyBeforeLoad,
+      loader: SecurityRoute.options.loader as PolicyLoader,
     }),
     createRoute({
       getParentRoute: () => authenticated,
       path: '/system-settings/operations/$section',
-      beforeLoad: OperationsRoute.options.beforeLoad as PolicyBeforeLoad,
+      loader: OperationsRoute.options.loader as PolicyLoader,
     }),
   ]
   const router = createRouter({

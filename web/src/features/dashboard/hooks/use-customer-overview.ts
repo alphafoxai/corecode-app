@@ -24,7 +24,7 @@ import { perfMetricsSummaryQueryOptions } from '@/features/performance-metrics/a
 import { getUserLogs } from '@/features/usage-logs/api'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
 import { requireServerSuccess } from '@/lib/server-error-message'
-import { getStartOfDay } from '@/lib/time'
+import { getEndOfDay, getStartOfDay } from '@/lib/time'
 
 import { getUserQuotaDates } from '../api'
 import { bucketDailySpend, summarizeRecentLogs } from '../lib/customer-overview'
@@ -35,9 +35,14 @@ export const OVERVIEW_RECENT_LOGS = 100
 
 const LOG_TYPE_CONSUME = 2
 
-/** The daily-spend window: OVERVIEW_TREND_DAYS local days up to now. */
+/**
+ * The daily-spend window: OVERVIEW_TREND_DAYS local days, ending with today.
+ * Ending it at the end of the day rather than now returns the same rows (none
+ * is dated after now) and keeps the URL the same all day, so index.html can
+ * fetch it before the bundle has loaded (lib/boot-requests.ts).
+ */
 function dailySpendRange() {
-  const end = Math.floor(Date.now() / 1000)
+  const end = Math.floor(getEndOfDay().getTime() / 1000)
   const start = getStartOfDay()
   start.setDate(start.getDate() - (OVERVIEW_TREND_DAYS - 1))
   return { start: Math.floor(start.getTime() / 1000), end }
