@@ -296,7 +296,14 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 			(!claudeInfo.Done && fallback.CompletionTokens > claudeInfo.Usage.CompletionTokens) {
 			claudeInfo.Usage.CompletionTokens = fallback.CompletionTokens
 		}
-		if missingInputUsage {
+		// A client that left before message_start received nothing, and an agent
+		// session's prompt is almost all cache reads upstream. Bill its estimate at
+		// the cache-read rate, the lowest input rate, as a floor.
+		clientLeftBeforeUsage := missingInputUsage && info.StreamStatus != nil &&
+			info.StreamStatus.EndReason == relaycommon.StreamEndReasonClientGone
+		if clientLeftBeforeUsage {
+			claudeInfo.Usage.PromptTokensDetails.CachedTokens = fallback.PromptTokens
+		} else if missingInputUsage {
 			claudeInfo.Usage.PromptTokens = fallback.PromptTokens
 		}
 		claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
