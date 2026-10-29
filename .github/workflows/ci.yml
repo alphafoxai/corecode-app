@@ -111,6 +111,13 @@ jobs:
           bun install --frozen-lockfile
           DISABLE_ESLINT_PLUGIN='true' bun run build
 
+      # What a cold visit downloads before each core page renders, against
+      # web/first-load-budget.json: an import that pulls a page into the entry
+      # passes review and the build but fails here.
+      - name: Check the core pages' first-load size
+        working-directory: web
+        run: bun run first-load:check
+
   # Releases from main only. corecode-infra builds the commit while check and web
   # run, refuses a commit that is not on main, and deploys once both pass, so
   # this job starts with them rather than after them. The token is scoped to
