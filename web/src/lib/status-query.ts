@@ -19,7 +19,9 @@ For commercial licensing, please contact support@quantumnous.com
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 
 import { getStatus } from '@/lib/api'
+import { takeBootRequest } from '@/lib/boot-requests'
 import { DEFAULT_SYSTEM_NAME, DEFAULT_LOGO } from '@/lib/constants'
+import { requireServerSuccess } from '@/lib/server-error-message'
 import {
   useSystemConfigStore,
   type CurrencyConfig,
@@ -132,7 +134,13 @@ function writeCachedStatus(status: StatusData | null): void {
  * and writing the localStorage snapshot — so consumers never repeat either one.
  */
 async function fetchStatus(): Promise<StatusData | null> {
-  const status = (await getStatus()) as StatusData | null
+  // The page load's first read takes the request index.html already sent.
+  const boot = await takeBootRequest('status')
+  const status = (
+    boot && boot.status < 300
+      ? requireServerSuccess(boot.data as { data?: unknown })?.data
+      : await getStatus()
+  ) as StatusData | null
 
   if (status) {
     try {

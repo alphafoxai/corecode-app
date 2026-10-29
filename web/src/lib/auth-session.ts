@@ -21,6 +21,7 @@ import axios from 'axios'
 import { t } from 'i18next'
 
 import { publishAuthSessionEvent } from '@/lib/auth-session-sync'
+import { takeBootRequest } from '@/lib/boot-requests'
 import { hasSessionHint } from '@/lib/session-hint'
 import {
   useAuthStore,
@@ -276,6 +277,12 @@ export function createRefreshRunner(
 async function requestRefresh(
   expectedSID?: string
 ): Promise<AuthRefreshHTTPResponse> {
+  // index.html sends the page load's first refresh when the app would; its
+  // answer is the server's verdict on the Refresh Cookie, as below.
+  if (!expectedSID) {
+    const boot = await takeBootRequest('refresh')
+    if (boot) return { status: boot.status, data: boot.data }
+  }
   try {
     const response = await authClient.post(
       '/api/user/auth/refresh',

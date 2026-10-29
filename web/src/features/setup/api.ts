@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
+import { takeBootRequest } from '@/lib/boot-requests'
 
 import type { SetupFormValues, SetupResponse } from './types'
 
@@ -30,12 +31,15 @@ export async function getSetupStatus(): Promise<SetupResponse> {
   return res.data
 }
 
-// The page load's first setup check. main.tsx starts it before the locale
-// loads, so the root guard does not queue it behind that download.
+// The page load's first setup check. index.html sends it before the bundle
+// loads, and main.tsx takes it before the locale loads, so the root guard does
+// not queue it behind either download.
 let pendingSetupStatus: Promise<SetupResponse> | null = null
 
 export function prefetchSetupStatus(): void {
-  pendingSetupStatus = getSetupStatus()
+  pendingSetupStatus = takeBootRequest('setup').then((boot) =>
+    boot && boot.status < 300 ? (boot.data as SetupResponse) : getSetupStatus()
+  )
   // The root guard handles a failure when it takes the result.
   pendingSetupStatus.catch(() => undefined)
 }

@@ -36,6 +36,49 @@
         document.documentElement.classList.add(theme)
       })()
     </script>
+    <!-- Send the page load's first API requests while the bundle downloads,
+         instead of after it has run: the status, the setup check and, when
+         the app would send it anyway, the auth refresh (a session hint
+         cookie, or the sign-in page, which checks for a usable Refresh
+         Cookie). src/lib/boot-requests.ts hands each response to the code
+         that would otherwise make the request. Keep the conditions in sync
+         with bootstrapAuthentication and the sign-in route. -->
+    <script>
+      ;(function () {
+        function send(url, init) {
+          var options = { cache: 'no-store', credentials: 'same-origin' }
+          for (var key in init) options[key] = init[key]
+          return fetch(url, options).then(
+            function (response) {
+              return response.json().then(
+                function (data) {
+                  return { status: response.status, data: data }
+                },
+                function () {
+                  return { status: response.status }
+                }
+              )
+            },
+            function () {
+              return { status: 0 }
+            }
+          )
+        }
+        try {
+          var path = location.pathname
+          var boot = (window.__bootRequests = { status: send('/api/status') })
+          if (path.indexOf('/setup') !== 0) {
+            boot.setup = send('/api/setup?t=' + Date.now())
+          }
+          if (
+            /(^|; *)new_api_has_session=/.test(document.cookie) ||
+            path === '/sign-in'
+          ) {
+            boot.refresh = send('/api/user/auth/refresh', { method: 'POST' })
+          }
+        } catch (e) {}
+      })()
+    </script>
     <!--umami-->
     <!--Google Analytics-->
   </head>
