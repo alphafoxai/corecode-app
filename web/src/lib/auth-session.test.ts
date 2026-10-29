@@ -345,10 +345,6 @@ describe('authentication session coordination', () => {
   })
 
   test('a boot refresh the server rejected signs the visitor out like any other', async () => {
-    useAuthStore.getState().auth.setBundle({
-      ...bundle,
-      access_expires_at: 1,
-    })
     window.__bootRequests = {
       refresh: Promise.resolve({
         status: 401,
@@ -357,6 +353,7 @@ describe('authentication session coordination', () => {
     }
 
     expect(await refreshAuthentication()).toEqual({ kind: 'anonymous' })
+    expect(window.__bootRequests.refresh).toBeUndefined()
     expect(useAuthStore.getState().auth.user).toBe(null)
     expect(useAuthStore.getState().auth.bootstrapState).toBe('complete')
   })
