@@ -82,6 +82,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  delete window.__bootRequests
   cleanup()
   queryClients.splice(0).forEach((client) => client.clear())
   apiClient.get = originalGet
@@ -262,4 +263,40 @@ describe('module guard status freshness', () => {
       })
     }
   )
+})
+
+describe('the status request index.html sends', () => {
+  test("answers the page load's first read, and later reads go to the network", async () => {
+    stubStatusEndpoint('network')
+    window.__bootRequests = {
+      status: Promise.resolve({
+        status: 200,
+        data: { success: true, data: { system_name: 'boot' } },
+      }),
+    }
+    const queryClient = createQueryClient()
+
+    expect(
+      (await queryClient.fetchQuery(statusQueryOptions))?.system_name
+    ).toBe('boot')
+    expect(statusRequests).toEqual([])
+    expect(useSystemConfigStore.getState().config.systemName).toBe('boot')
+
+    await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY })
+    expect(
+      (await queryClient.fetchQuery(statusQueryOptions))?.system_name
+    ).toBe('network')
+    expect(statusRequests).toEqual(['/api/status'])
+  })
+
+  test('falls back to its own request when the boot request failed', async () => {
+    stubStatusEndpoint('network')
+    window.__bootRequests = { status: Promise.resolve({ status: 0 }) }
+    const queryClient = createQueryClient()
+
+    expect(
+      (await queryClient.fetchQuery(statusQueryOptions))?.system_name
+    ).toBe('network')
+    expect(statusRequests).toEqual(['/api/status'])
+  })
 })

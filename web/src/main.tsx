@@ -37,7 +37,8 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import { DASHBOARD_DEFAULT_SECTION } from './features/dashboard/section-registry'
-import { i18nReady } from './i18n/config'
+import { i18nReady, loadRestLocale } from './i18n/config'
+import { isCoreRoute } from './i18n/core-routes'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 
@@ -115,11 +116,9 @@ if (!rootElement) {
     /* empty */
   }
 })()
-// The router fetches a route's code only once it mounts, and mounting waits
-// for the locale below. Fetch the code of the routes this URL renders now, in
-// parallel with the locale. Guards and redirects still run when the router
-// loads; this only loads modules, so a redirect elsewhere wastes the bytes.
-function preloadCurrentRouteCode() {
+// The routes this URL renders, or null when a protected route will redirect
+// to sign-in because there is no session hint.
+function matchCurrentRoutes() {
   const href = resolveLegacyRoute(window.location.href) ?? window.location.href
   let { pathname } = new URL(href, window.location.origin)
   // The home page and the legacy /console lead here; it redirects to a section.
@@ -127,14 +126,28 @@ function preloadCurrentRouteCode() {
     pathname = `/dashboard/${DASHBOARD_DEFAULT_SECTION}`
   }
   const { matchedRoutes } = router.getMatchedRoutes(pathname)
-  // Without a session hint, a protected route redirects to sign-in.
   if (matchedRoutes.some((route) => route.id === '/_authenticated')) {
-    if (!hasSessionHint()) return
+    if (!hasSessionHint()) return null
   }
-  for (const route of matchedRoutes) {
+  return matchedRoutes
+}
+
+const currentRoutes = matchCurrentRoutes()
+
+// The router fetches a route's code only once it mounts, and mounting waits
+// for the locale below. Fetch the code of the routes this URL renders now, in
+// parallel with the locale. Guards and redirects still run when the router
+// loads; this only loads modules, so a redirect elsewhere wastes the bytes.
+function preloadCurrentRouteCode() {
+  for (const route of currentRoutes ?? []) {
     void router.loadRouteChunk(route)?.catch(() => undefined)
   }
 }
+
+// A core page renders from the core part of the locale and takes the rest
+// once the browser is idle; any other page needs the rest to render.
+const renderNeedsRestLocale =
+  currentRoutes !== null && !isCoreRoute(currentRoutes.at(-1)?.id)
 
 if (!rootElement.innerHTML) {
   // index.html preloads the locale, and i18next requests it from a zero-delay
@@ -142,20 +155,27 @@ if (!rootElement.innerHTML) {
   // first on the connection.
   setTimeout(preloadCurrentRouteCode, 0)
   // Render after the locale loads so the first paint is already translated.
-  void i18nReady.then(() => {
-    const root = ReactDOM.createRoot(rootElement)
-    root.render(
-      <StrictMode>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <FontProvider>
-              <DirectionProvider>
-                <RouterProvider router={router} />
-              </DirectionProvider>
-            </FontProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-      </StrictMode>
-    )
-  })
+  void i18nReady
+    .then(() => (renderNeedsRestLocale ? loadRestLocale() : undefined))
+    .then(() => {
+      const root = ReactDOM.createRoot(rootElement)
+      root.render(
+        <StrictMode>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <FontProvider>
+                <DirectionProvider>
+                  <RouterProvider router={router} />
+                </DirectionProvider>
+              </FontProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </StrictMode>
+      )
+      if (!renderNeedsRestLocale) {
+        const idle =
+          window.requestIdleCallback ?? ((run) => window.setTimeout(run, 1))
+        idle(() => void loadRestLocale())
+      }
+    })
 }

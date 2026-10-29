@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { Dashboard } from '@/features/dashboard'
+import { prefetchCustomerOverview } from '@/features/dashboard/hooks/use-customer-overview'
 import {
   DASHBOARD_SECTION_IDS,
   DASHBOARD_DEFAULT_SECTION,
@@ -32,6 +33,15 @@ export const Route = createFileRoute('/_authenticated/dashboard/$section')({
         to: '/dashboard/$section',
         params: { section: DASHBOARD_DEFAULT_SECTION },
       })
+    }
+  },
+  // The loader shares the component's lazy chunk: the requests it starts need
+  // the overview's query code, which the component loads anyway, and the
+  // entry bundle stays as small as before.
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loader: ({ params, context }) => {
+    if (params.section === 'overview') {
+      prefetchCustomerOverview(context.queryClient)
     }
   },
   component: Dashboard,

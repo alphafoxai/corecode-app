@@ -31,11 +31,9 @@ import { getAffiliateOverview } from './api'
 import { AffiliateList } from './components/affiliate-list'
 import { AffiliateSettings } from './components/affiliate-settings'
 import { AffiliateWithdrawals } from './components/affiliate-withdrawals'
+import { AFFILIATE_TABS, type AffiliateTab } from './constants'
 
 const route = getRouteApi('/_authenticated/affiliates/')
-
-export const AFFILIATE_TABS = ['affiliates', 'withdrawals', 'settings'] as const
-export type AffiliateTab = (typeof AFFILIATE_TABS)[number]
 
 /**
  * The root-only invitation program page: who invites and how well, the

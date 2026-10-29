@@ -98,3 +98,6 @@ export const SUCCESS_MESSAGES = {
   API_KEY_ENABLED: 'API Key enabled successfully',
   API_KEY_DISABLED: 'API Key disabled successfully',
 } as const
+
+/** Rows per page of the keys table until the visitor picks a size. */
+export const API_KEYS_DEFAULT_PAGE_SIZE = 20

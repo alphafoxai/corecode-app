@@ -50,6 +50,7 @@ import {
   useSystemConfigStore,
 } from '@/stores/system-config-store'
 
+import { prefetchApiKeys } from '../../api-keys-query'
 import { apiKeySchema, type ApiKey } from '../../types'
 import { ApiKeyQuotaCell } from '../api-key-quota-cell'
 import { useApiKeysColumns } from '../api-keys-columns'
@@ -303,7 +304,14 @@ function KeysPage() {
   )
 }
 
-async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
+async function renderKeysPage(
+  status = 1,
+  overrides: Partial<ApiKey> = {},
+  {
+    prefetch = false,
+    client: reused,
+  }: { prefetch?: boolean; client?: QueryClient } = {}
+) {
   let currentKey = { ...key, status, ...overrides }
   vi.mocked(api.get).mockImplementation(async (url) => {
     if (url.startsWith('/api/token/')) {
@@ -321,11 +329,14 @@ async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
     currentKey = { ...currentKey, status: update.status }
     return { data: { success: true, data: currentKey } }
   })
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
+  const client =
+    reused ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
   client.setQueryData(['status'], {})
   clients.push(client)
+  if (prefetch) prefetchApiKeys(client, {})
   const root = createRootRoute()
   const auth = createRoute({ getParentRoute: () => root, id: '_authenticated' })
   const keysRoute = createRoute({
@@ -346,7 +357,7 @@ async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
     </I18nextProvider>
   )
   await screen.findByText(currentKey.name)
-  return { post, put }
+  return { post, put, client }
 }
 
 it('combines creation and last use while keeping expiry, models and IP restrictions separate', async () => {
@@ -524,4 +535,27 @@ it('keeps mobile quota readable and opens complete model and IP restrictions by 
   details = await screen.findByRole('dialog')
   expect(within(details).getByText('192.0.2.1')).toBeVisible()
   expect(within(details).getByText('2001:db8::1')).toBeVisible()
+})
+
+const listRequests = () =>
+  vi.mocked(api.get).mock.calls.filter(([url]) => url.startsWith('/api/token/'))
+
+it('reads the request the keys route started instead of repeating it', async () => {
+  await renderKeysPage(1, {}, { prefetch: true })
+
+  expect(listRequests()).toHaveLength(1)
+})
+
+it('reads the list again on the next visit after a change', async () => {
+  const { client } = await renderKeysPage(1)
+  const user = userEvent.setup()
+  act(() => screen.getByRole('button', { name: 'Disable' }).focus())
+  await user.keyboard('{Enter}')
+  await screen.findByText('Disabled')
+  expect(listRequests()).toHaveLength(2)
+
+  cleanup()
+  vi.mocked(api.get).mockClear()
+  await renderKeysPage(2, {}, { client })
+  await waitFor(() => expect(listRequests()).toHaveLength(1))
 })

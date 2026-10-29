@@ -26,6 +26,7 @@ import {
   clearAuthenticatedClientState,
   createRefreshRunner,
   isAuthBundle,
+  refreshAuthentication,
   type AuthRefreshRuntime,
 } from './auth-session'
 
@@ -52,6 +53,7 @@ const bundle: AuthBundle = {
 
 afterEach(() => {
   useAuthStore.getState().auth.reset('idle')
+  delete window.__bootRequests
 })
 
 describe('authentication session coordination', () => {
@@ -322,5 +324,37 @@ describe('authentication session coordination', () => {
     expect(queryClient.getQueryData(['account', bundle.user.id])).toBe(
       undefined
     )
+  })
+
+  test('the first refresh takes the response of the one index.html sent', async () => {
+    let boot = 0
+    window.__bootRequests = {
+      refresh: Promise.resolve().then(() => {
+        boot += 1
+        return { status: 200, data: { success: true, data: bundle } }
+      }),
+    }
+
+    expect(await refreshAuthentication()).toEqual({
+      kind: 'authenticated',
+      bundle,
+    })
+    expect(boot).toBe(1)
+    expect(useAuthStore.getState().auth.accessToken).toBe(bundle.access_token)
+    expect(window.__bootRequests.refresh).toBeUndefined()
+  })
+
+  test('a boot refresh the server rejected signs the visitor out like any other', async () => {
+    window.__bootRequests = {
+      refresh: Promise.resolve({
+        status: 401,
+        data: { success: false, code: 'AUTH_REFRESH_INVALID' },
+      }),
+    }
+
+    expect(await refreshAuthentication()).toEqual({ kind: 'anonymous' })
+    expect(window.__bootRequests.refresh).toBeUndefined()
+    expect(useAuthStore.getState().auth.user).toBe(null)
+    expect(useAuthStore.getState().auth.bootstrapState).toBe('complete')
   })
 })

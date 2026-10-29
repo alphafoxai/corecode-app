@@ -24,6 +24,17 @@ declare module '*.json?overrides' {
   export default locale
 }
 
+// A locale's core or rest part; see scripts/i18n-locale-split-loader.mjs.
+declare module '*.json?core' {
+  const locale: { translation: Record<string, string> }
+  export default locale
+}
+
+declare module '*.json?rest' {
+  const locale: { translation: Record<string, string> }
+  export default locale
+}
+
 declare module '@visactor/react-vchart' {
   export const VChart: React.ComponentType<Record<string, unknown>>
 }

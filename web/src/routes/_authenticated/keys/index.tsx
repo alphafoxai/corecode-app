@@ -20,6 +20,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 
 import { ApiKeys } from '@/features/keys'
+import { prefetchApiKeys } from '@/features/keys/api-keys-query'
 import { API_KEY_STATUS_OPTIONS } from '@/features/keys/constants'
 
 const apiKeySearchSchema = z.object({
@@ -35,5 +36,15 @@ const apiKeySearchSchema = z.object({
 
 export const Route = createFileRoute('/_authenticated/keys/')({
   validateSearch: apiKeySearchSchema,
+  // The loader shares the component's lazy chunk, as the dashboard's does, so
+  // its query code stays out of the entry bundle.
+  codeSplitGroupings: [['loader', 'component'], ['errorComponent']],
+  loaderDeps: ({ search }) => ({
+    page: search.page,
+    pageSize: search.pageSize,
+    filter: search.filter,
+    token: search.token,
+  }),
+  loader: ({ deps, context }) => prefetchApiKeys(context.queryClient, deps),
   component: ApiKeys,
 })
