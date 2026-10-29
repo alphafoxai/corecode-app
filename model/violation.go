@@ -237,11 +237,12 @@ const RiskGateCategoryPrefix = "gate:"
 // GetRecentRefusedExcerpts returns the kept messages of upstream refusals
 // since the given time, newest first, at most limit of them. Violations the
 // risk gate recorded itself are left out: they are its own verdicts, not
-// refusals.
+// refusals. So are refusals of exempt administrators, whose probes would
+// otherwise block each other.
 func GetRecentRefusedExcerpts(since int64, limit int) ([]string, error) {
 	var excerpts []string
 	err := DB.Model(&ViolationRecord{}).
-		Where("created_at > ? AND excerpt <> '' AND (category IS NULL OR category NOT LIKE ?)", since, RiskGateCategoryPrefix+"%").
+		Where("created_at > ? AND excerpt <> '' AND mode <> ? AND (category IS NULL OR category NOT LIKE ?)", since, ViolationModeExempt, RiskGateCategoryPrefix+"%").
 		Order("id desc").Limit(limit).Pluck("excerpt", &excerpts).Error
 	return excerpts, err
 }

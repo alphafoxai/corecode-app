@@ -168,8 +168,17 @@ func RecordUpstreamRefusal(c *gin.Context, info *relaycommon.RelayInfo) {
 			common.SysError(common.LogText("violation guard: failed to record a refusal for user %d: %s", record.UserId, err.Error()))
 			return
 		}
-		rememberRefusedMessage(record.Excerpt)
+		if user, err := model.GetUserCache(record.UserId); err == nil && !violationExempt(user.Role) {
+			rememberRefusedMessage(record.Excerpt)
+		}
 	})
+}
+
+// violationExempt reports whether refusals of a user with this role are
+// recorded as exempt: administrators are never struck, and their refusals do
+// not feed the risk gate's similarity check.
+func violationExempt(role int) bool {
+	return role >= common.RoleAdminUser
 }
 
 // applyViolationStrike records one refusal. A refusal starts a new strike
@@ -190,7 +199,7 @@ func applyViolationStrike(setting operation_setting.ViolationGuardSetting, recor
 	windowStart := max(now-int64(setting.StrikeWindowDays)*86400, state.ForgivenAt)
 	record.CreatedAt = now
 	record.Mode = setting.Mode
-	if user.Role >= common.RoleAdminUser {
+	if violationExempt(user.Role) {
 		record.Mode = model.ViolationModeExempt
 	}
 
