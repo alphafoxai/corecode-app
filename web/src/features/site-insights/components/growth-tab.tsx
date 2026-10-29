@@ -212,6 +212,14 @@ export function ActivityTab(props: {
     (top, day) => (!top || day.quota_usd > top.quota_usd ? day : top),
     undefined
   )
+  const engine = data?.engine_cost
+  const engineReady = !!engine?.configured && !engine.error
+  const engineByDay = new Map(
+    (engine?.daily ?? []).map((day) => [day.day, day])
+  )
+  const engineHelp = t(
+    'What the Claude requests in the range cost at Anthropic’s official prices, as corecode-engine priced each one. Consumption is what new-api charged for every model at its own ratios.'
+  )
 
   return (
     <div className='grid gap-4'>
@@ -254,6 +262,25 @@ export function ActivityTab(props: {
               previous: previous?.requests,
               better: 'up',
             },
+          },
+          {
+            label: t('Claude official cost'),
+            value: engineReady ? fmt.usd(engine.cost_usd) : '-',
+            hint: engineReady
+              ? t('{{count}} requests in corecode-engine', {
+                  count: fmt.num(engine.requests),
+                })
+              : t('corecode-engine unavailable'),
+            help: engineHelp,
+            delta: engineReady
+              ? {
+                  current: engine.cost_usd,
+                  previous: previous?.engine_cost?.error
+                    ? undefined
+                    : previous?.engine_cost?.cost_usd,
+                  better: 'up',
+                }
+              : undefined,
           },
           {
             label: t('Per active user'),
@@ -318,6 +345,59 @@ export function ActivityTab(props: {
           />
         </Panel>
       </div>
+      <Panel
+        title={t('Daily Claude cost at official prices')}
+        help={engineHelp}
+        description={
+          engineReady && engine.cost_usd > 0
+            ? t(
+                'Charged {{charged}} against {{official}} at official prices.',
+                {
+                  charged: fmt.usd(data?.quota_usd ?? 0),
+                  official: fmt.usd(engine.cost_usd),
+                }
+              )
+            : undefined
+        }
+      >
+        {engine && !engine.configured && (
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              'Set EngineControlURL and EngineControlKey to read official-price cost from corecode-engine.'
+            )}
+          </p>
+        )}
+        {engine?.error && (
+          <p className='text-destructive text-sm'>{engine.error}</p>
+        )}
+        {(!engine || engineReady) && (
+          <BarSeries
+            ariaLabel={t('Daily Claude cost at official prices')}
+            series={[
+              {
+                label: t('Official cost'),
+                format: fmt.usd,
+                compact: fmt.usdCompact,
+              },
+            ]}
+            points={daily.map((day) => {
+              const official = engineByDay.get(day.day)
+              return {
+                key: day.day,
+                title: fmt.day(day.day),
+                values: [official?.cost_usd ?? 0],
+                extra: [
+                  { label: t('Charged'), value: fmt.usd(day.quota_usd) },
+                  {
+                    label: t('Claude requests'),
+                    value: fmt.num(official?.requests ?? 0),
+                  },
+                ],
+              }
+            })}
+          />
+        )}
+      </Panel>
       <Panel
         title={t('Retention by sign-up day')}
         help={t(
