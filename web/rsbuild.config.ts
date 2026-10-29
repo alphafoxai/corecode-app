@@ -33,6 +33,114 @@ function pluginPreloadLocale(): RsbuildPlugin {
   }
 }
 
+// A route's code is requested only once the entry has downloaded and run and
+// the router has matched the URL: a round trip after the entry on every cold
+// visit. This inline script matches the URL against the route files' paths and
+// preloads that route's chunks, with its layouts', beside the entry. A protected
+// route without the session hint cookie preloads the sign-in page it redirects
+// to. A miss costs nothing: main.tsx still loads the route's code.
+function pluginPreloadRoute(): RsbuildPlugin {
+  return {
+    name: 'preload-route',
+    setup(api) {
+      api.modifyHTMLTags((tags, { compilation, assetPrefix }) => {
+        const routesDir = path.join(__dirname, 'src', 'routes') + path.sep
+        // Route file, relative and without extension -> its lazy chunks.
+        const chunks = new Map<string, Set<string>>()
+        for (const group of compilation.chunkGroups) {
+          for (const origin of group.origins) {
+            const resource = origin.module?.resource
+            if (!resource?.startsWith(routesDir)) continue
+            if (!origin.request?.includes('tsr-split')) continue
+            const file = resource.slice(routesDir.length).replace(/\.tsx?$/, '')
+            const files = chunks.get(file) ?? new Set<string>()
+            for (const name of group.getFiles()) {
+              if (name.endsWith('.js')) files.add(name)
+            }
+            chunks.set(file, files)
+          }
+        }
+        if (!chunks.has('(auth)/sign-in')) return tags
+
+        // A leaf's chunks plus those of every layout (`route.tsx`) above it.
+        const withLayouts = (leaf: string) => {
+          const files = new Set(chunks.get(leaf))
+          const dirs = leaf.split('/').slice(0, -1)
+          for (let i = 1; i <= dirs.length; i++) {
+            for (const name of chunks.get(
+              [...dirs.slice(0, i), 'route'].join('/')
+            ) ?? []) {
+              files.add(name)
+            }
+          }
+          return files
+        }
+        // File-route conventions: (group) and _layout segments add nothing to
+        // the path, index is the directory itself, $param is one segment.
+        const pattern = (segments: string[]) => {
+          const parts = segments
+            .filter((s) => !/^\(.*\)$/.test(s) && !s.startsWith('_'))
+            .map((s) =>
+              s.startsWith('$')
+                ? '[^/]+'
+                : s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            )
+          return `/${parts.join('/')}`
+        }
+        const routes: {
+          pattern: string
+          params: number
+          protected: boolean
+          files: Set<string>
+        }[] = []
+        for (const leaf of chunks.keys()) {
+          const segments = leaf.split('/')
+          const last = segments.at(-1)
+          if (last === 'route') continue
+          const add = (pathSegments: string[]) =>
+            routes.push({
+              pattern: pattern(pathSegments),
+              params: pathSegments.filter((s) => s.startsWith('$')).length,
+              protected: segments[0] === '_authenticated',
+              files: withLayouts(leaf),
+            })
+          add(last === 'index' ? segments.slice(0, -1) : segments)
+          // An index route with no component of its own only redirects to one of
+          // its sections, as /dashboard does; give it the section's chunks.
+          const dir = segments.slice(0, -1).join('/')
+          if (last?.startsWith('$') && !chunks.has(`${dir}/index`)) {
+            add(segments.slice(0, -1))
+          }
+        }
+        // Static paths before parameterised ones, as the router ranks them.
+        routes.sort(
+          (a, b) => a.params - b.params || b.pattern.length - a.pattern.length
+        )
+
+        const prefix = 'static/js/async/'
+        const names: string[] = []
+        const index = (name: string) => {
+          const short = name.startsWith(prefix)
+            ? name.slice(prefix.length, -3)
+            : name
+          let i = names.indexOf(short)
+          if (i < 0) i = names.push(short) - 1
+          return i
+        }
+        const table = routes.map((r) => [
+          r.pattern,
+          r.protected ? 1 : 0,
+          [...r.files].map(index),
+        ])
+        const signIn = [...withLayouts('(auth)/sign-in')].map(index)
+        const script = `(function(){var f=${JSON.stringify(names)},r=${JSON.stringify(table)},s=${JSON.stringify(signIn)};var p=location.pathname.replace(/[/]+$/,'')||'/';var h=/(^|; *)new_api_has_session=/.test(document.cookie);for(var i=0;i<r.length;i++){if(!new RegExp('^'+r[i][0]+'$').test(p))continue;var l=r[i][1]&&!h?s:r[i][2];for(var j=0;j<l.length;j++){var n=f[l[j]],e=document.createElement('link');e.rel='preload';e.as='script';e.href=${JSON.stringify(assetPrefix)}+(n.indexOf('/')<0?${JSON.stringify(prefix)}+n+'.js':n);document.head.appendChild(e)}break}})()`
+        tags.headTags.unshift({ tag: 'script', children: script })
+        return tags
+      })
+    },
+  }
+}
+
 export default defineConfig(({ envMode }) => {
   const env = loadEnv({ mode: envMode, prefixes: ['VITE_'] })
   const serverUrl =
@@ -53,6 +161,7 @@ export default defineConfig(({ envMode }) => {
       pluginReact(),
       pluginTailwindcss({ optimize: false }),
       pluginPreloadLocale(),
+      pluginPreloadRoute(),
     ],
     // Rsbuild 2: replaces deprecated `performance.chunkSplit` (RSPack 2 aligned).
     // No forced vendor groups: a group with `chunks: 'all'` and `enforce` pulls
