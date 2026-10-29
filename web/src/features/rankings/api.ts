@@ -26,9 +26,16 @@ type RankingsResponse = {
   data: RankingsSnapshot
 }
 
+/**
+ * `tzOffset` is the viewer's offset east of UTC in minutes. The server starts
+ * each day bucket at the viewer's midnight and labels the axis in that zone.
+ */
 export async function getRankings(
-  period: RankingPeriod
+  period: RankingPeriod,
+  tzOffset: number
 ): Promise<RankingsResponse> {
-  const res = await api.get('/api/rankings', { params: { period } })
+  const res = await api.get('/api/rankings', {
+    params: { period, tz_offset: tzOffset },
+  })
   return res.data
 }
