@@ -297,6 +297,9 @@ func similarRefusal(text string) float64 {
 			// A new slice: readers iterate the old one outside the lock.
 			fingerprints := make([]riskgate.Fingerprint, 0, len(excerpts))
 			for _, excerpt := range excerpts {
+				if riskgate.ClientTemplate(excerpt) {
+					continue
+				}
 				if refused := riskgate.NewFingerprint(excerpt); refused != nil {
 					fingerprints = append(fingerprints, refused)
 				}
@@ -330,8 +333,12 @@ func similarRefusal(text string) float64 {
 	return best
 }
 
-// rememberRefusedMessage adds a newly refused message to the similarity set.
+// rememberRefusedMessage adds a newly refused message to the similarity set,
+// unless it is a client template.
 func rememberRefusedMessage(excerpt string) {
+	if riskgate.ClientTemplate(excerpt) {
+		return
+	}
 	fingerprint := riskgate.NewFingerprint(excerpt)
 	if fingerprint == nil {
 		return

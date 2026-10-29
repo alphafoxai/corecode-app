@@ -357,12 +357,14 @@ func violationConversationKeys(messages []string) []string {
 }
 
 // humanMessageText joins the text blocks of one user message that a person
-// wrote, leaving out injected <system-reminder> blocks.
+// wrote, leaving out injected <system-reminder> blocks, including the ones
+// hooks write with attributes, such as <system-reminder data-role="hook">.
 func humanMessageText(texts []string) string {
 	var builder strings.Builder
 	for _, text := range texts {
 		trimmed := strings.TrimSpace(text)
-		if trimmed == "" || (strings.HasPrefix(trimmed, "<system-reminder>") && strings.HasSuffix(trimmed, "</system-reminder>")) {
+		reminder := strings.HasPrefix(trimmed, "<system-reminder>") || strings.HasPrefix(trimmed, "<system-reminder ")
+		if trimmed == "" || (reminder && strings.HasSuffix(trimmed, "</system-reminder>")) {
 			continue
 		}
 		builder.WriteString(trimmed)

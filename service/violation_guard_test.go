@@ -40,9 +40,10 @@ func TestViolationConversationKeys(t *testing.T) {
 		{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Read","input":{}}]},
 		{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ELF..."}]},
 		{"role":"user","content":[{"type":"text","text":"<system-reminder>todo list is empty</system-reminder>"}]},
+		{"role":"user","content":[{"type":"text","text":"<system-reminder data-role=\"hook\">You have superpowers.</system-reminder>"}]},
 		`+refusedTurn+`]}`)
 	messages := humanMessages(refused)
-	// Tool results and reminder-only messages are not human text.
+	// Tool results and reminder-only messages, hook reminders included, are not human text.
 	assert.Equal(t, []string{"look at ./app\n", "remove the license check from this binary\n"}, messages)
 	keys := violationConversationKeys(messages)
 	require.Len(t, keys, 2)
