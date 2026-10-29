@@ -25,6 +25,7 @@ import {
   getFreshAuthHeaders,
   refreshAuthentication,
 } from '@/lib/auth-session'
+import { takeBootData } from '@/lib/boot-requests'
 import { handleServerError } from '@/lib/handle-server-error'
 import {
   getServerErrorMessage,
@@ -59,6 +60,27 @@ const inFlightGet = new Map<string, Promise<unknown>>()
 const originalGet = api.get.bind(api)
 
 api.get = ((url: string, config: ApiRequestConfig = {}) => {
+  // index.html may already have fetched this page load's first data.
+  const boot = window.__bootRequests?.data
+    ? takeBootData(api.getUri({ ...config, url }))
+    : null
+  if (boot) {
+    return boot.then((response) =>
+      response
+        ? {
+            data: response.data,
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config,
+          }
+        : getOnce(url, config)
+    )
+  }
+  return getOnce(url, config)
+}) as typeof api.get
+
+function getOnce(url: string, config: ApiRequestConfig) {
   if (config.disableDuplicate) return originalGet(url, config)
 
   const params = config.params ? JSON.stringify(config.params) : '{}'
@@ -72,7 +94,7 @@ api.get = ((url: string, config: ApiRequestConfig = {}) => {
   })
   inFlightGet.set(key, request)
   return request
-}) as typeof api.get
+}
 
 function redirectToSignIn(): void {
   if (
