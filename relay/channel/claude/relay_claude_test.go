@@ -278,6 +278,41 @@ func TestFormatClaudeResponseInfo_ContentBlockDelta(t *testing.T) {
 	}
 }
 
+// A client that leaves before message_start is billed its prompt estimate as
+// cache reads, not as uncached input; any other break keeps uncached input.
+func TestClaudeStreamClientGoneBeforeUsageBillsCacheReadFloor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tc := range []struct {
+		name                  string
+		endReason             relaycommon.StreamEndReason
+		wantInput, wantCached int
+	}{
+		{name: "client gone", endReason: relaycommon.StreamEndReasonClientGone, wantCached: 1200},
+		{name: "upstream eof", endReason: relaycommon.StreamEndReasonEOF, wantInput: 1200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+			info := &relaycommon.RelayInfo{
+				RelayFormat:  types.RelayFormatClaude,
+				ChannelMeta:  &relaycommon.ChannelMeta{UpstreamModelName: "claude-opus-4-8"},
+				StreamStatus: relaycommon.NewStreamStatus(),
+			}
+			info.SetEstimatePromptTokens(1200)
+			info.StreamStatus.SetEndReason(tc.endReason, nil)
+			state := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+
+			HandleStreamFinalResponse(c, info, state)
+
+			canonical, ok := state.Usage.BillingUsage.CanonicalUsage()
+			require.True(t, ok)
+			assert.Equal(t, tc.wantInput, canonical.PromptTokens)
+			assert.Equal(t, tc.wantCached, canonical.PromptTokensDetails.CachedTokens)
+			assert.Zero(t, canonical.CompletionTokens)
+		})
+	}
+}
+
 // A stream cut off during an agent tool call must still estimate the call's
 // output tokens when the final usage never arrives.
 func TestClaudeStreamFallbackCountsInterruptedToolUse(t *testing.T) {
