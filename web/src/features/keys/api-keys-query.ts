@@ -73,7 +73,8 @@ export function apiKeysQueryOptions(query: ApiKeysQuery) {
     },
     // Fresh for a moment, so the table does not ask again for a page the
     // route's loader (or a hover preload) has just read. A change refetches
-    // through refreshTrigger.
+    // through refreshTrigger and marks every cached page stale
+    // (ApiKeysProvider's triggerRefresh).
     staleTime: 10_000,
   })
 }

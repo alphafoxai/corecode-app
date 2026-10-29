@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useQueryClient } from '@tanstack/react-query'
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -69,9 +70,17 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
     copiedTimerRef.current = setTimeout(() => setCopiedKeyId(null), 2000)
   }, [])
 
+  // refreshTrigger refetches the page on screen. The pages cached before the
+  // change stay fresh for a moment (apiKeysQueryOptions), and refreshTrigger
+  // starts again from 0 when the keys page mounts again, so mark them stale.
+  const queryClient = useQueryClient()
   const triggerRefresh = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ['keys'],
+      refetchType: 'none',
+    })
     setRefreshTrigger((prev) => prev + 1)
-  }, [])
+  }, [queryClient])
 
   const resolveRealKey = useCallback(
     async (id: number): Promise<string | null> => {

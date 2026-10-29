@@ -60,8 +60,9 @@ A browser waterfall at those conditions showed three costs:
   page (`prefetchApiKeys`). The panels and the table use the same query options and pick
   those requests up. Both loaders share the component's lazy chunk
   (`codeSplitGroupings`), so they add nothing to the entry. The key list stays fresh for
-  ten seconds so the table does not ask again for a page the loader has just read; a
-  change still refetches through `refreshTrigger`.
+  ten seconds so the table does not ask again for a page the loader has just read. A
+  change refetches through `refreshTrigger` and marks every cached page stale, since
+  `refreshTrigger` starts again from 0 when the keys page mounts again.
 - **Load the key drawer's date picker lazily**, fetched once the keys page is idle, as the
   dashboard's model filter already does.
 
