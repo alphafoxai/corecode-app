@@ -23,7 +23,12 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
-import { accountPrice, PRICE_MONTH_DAYS, useInsightsFormat } from '../lib'
+import {
+  accountPrice,
+  PRICE_MONTH_DAYS,
+  useChargeFormat,
+  useInsightsFormat,
+} from '../lib'
 import type { FinanceInsights } from '../types'
 import { BarSeries, Panel, SimpleTable } from './shared'
 
@@ -42,10 +47,13 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
   const data = props.data
+  const charge = useChargeFormat(data)
   const engine = data?.engine_cost
   const engineReady = !!engine?.configured && !engine.error
-  // Both sides cover only the days the engine reported.
-  const charged = data?.matched_claude_usd ?? 0
+  // Both sides cover only the days the engine reported. new-api's charge is
+  // in yuan; every figure and ratio below uses it in dollars.
+  const chargedYuan = data?.matched_claude_usd ?? 0
+  const charged = charge.toUSD(chargedYuan)
   const official = engineReady ? (data?.matched_official_usd ?? 0) : 0
   const multiple = official > 0 ? charged / official : 0
 
@@ -92,9 +100,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
   )
 
   let chargedHint: string | undefined
-  if (data && Math.abs((data.claude_usd ?? 0) - charged) >= 0.01) {
+  if (data && Math.abs((data.claude_usd ?? 0) - chargedYuan) >= 0.01) {
     chargedHint = t('{{total}} over the whole range', {
-      total: fmt.usd(data.claude_usd ?? 0),
+      total: charge.usd(charge.toUSD(data.claude_usd ?? 0)),
     })
   }
   let coverage: string | undefined
@@ -110,7 +118,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
       <Panel
         title={t('Claude: usage, official cost and account cost')}
         help={t(
-          'new-api charge is what new-api deducted for Claude models at its own ratios. Official cost is what gpt-load (corecode-engine) priced the same requests at Anthropic’s official prices. Both cover the days gpt-load reported, and gifted and paid balance count alike. Account cost is what the pool’s accounts cost a month, spread over 30 days: a 24-hour range costs a thirtieth of a month.'
+          'new-api charge is what new-api deducted for Claude models at its own ratios. new-api counts it in dollars, but customers pay ¥1 for each, so it is in yuan; it is shown and compared in dollars at the site’s USD exchange rate, with the yuan beside it. Official cost is what gpt-load (corecode-engine) priced the same requests at Anthropic’s official prices. Both cover the days gpt-load reported, and gifted and paid balance count alike. Account cost is what the pool’s accounts cost a month, spread over 30 days: a 24-hour range costs a thirtieth of a month.'
         )}
         description={coverage}
       >
@@ -129,7 +137,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             dot={CHARGE}
             label={t('new-api Claude charge')}
-            value={fmt.usd(charged)}
+            value={
+              <ChargeValue usd={fmt.usd(charged)} yuan={fmt.cny(chargedYuan)} />
+            }
             hint={chargedHint}
           />
           <Figure
@@ -172,7 +182,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             hint={
               multiple > 0
                 ? t('Each $1 at official prices is charged {{amount}}.', {
-                    amount: fmt.usd(multiple),
+                    amount: charge.usd(multiple),
                   })
                 : undefined
             }
@@ -205,7 +215,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               chargedPerCost > 0
                 ? t(
                     'Each $1 of account cost brings {{amount}} of new-api charge.',
-                    { amount: fmt.usd(chargedPerCost) }
+                    { amount: charge.usd(chargedPerCost) }
                   )
                 : undefined
             }
@@ -220,14 +230,14 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               series={[
                 {
                   label: t('new-api Claude charge'),
-                  format: fmt.usd,
+                  format: charge.usd,
                   compact: fmt.usdCompact,
                 },
                 { label: t('gpt-load official cost'), format: fmt.usd },
               ]}
               points={(data?.daily ?? []).map((day) => {
                 const reported = engineByDay.get(day.day)
-                const dayCharged = day.claude_usd ?? 0
+                const dayCharged = charge.toUSD(day.claude_usd ?? 0)
                 const dayOfficial = reported?.cost_usd ?? 0
                 return {
                   key: day.day,
@@ -427,7 +437,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
                 label: t('new-api value per week'),
                 align: 'right',
                 render: (row) =>
-                  multiple > 0 ? fmt.usd(row.week_usd * multiple) : '-',
+                  multiple > 0 ? charge.usd(row.week_usd * multiple) : '-',
               },
               {
                 key: 'charged-month',
@@ -435,7 +445,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
                 align: 'right',
                 render: (row) =>
                   multiple > 0
-                    ? fmt.usd(((row.week_usd * 30) / 7) * multiple)
+                    ? charge.usd(((row.week_usd * 30) / 7) * multiple)
                     : '-',
               },
               {
@@ -455,6 +465,18 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
         </Panel>
       </div>
     </>
+  )
+}
+
+/** A dollar figure with the yuan new-api counted beside it, smaller. */
+export function ChargeValue(props: { usd: string; yuan: string }) {
+  return (
+    <span className='flex flex-wrap items-baseline gap-x-1.5'>
+      <span>{props.usd}</span>
+      <span className='text-muted-foreground text-sm font-normal'>
+        ({props.yuan})
+      </span>
+    </span>
   )
 }
 

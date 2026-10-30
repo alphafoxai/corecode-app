@@ -25,6 +25,8 @@ import {
 } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { useSystemConfigStore } from '@/stores/system-config-store'
+
 import type { EngineDailyCost, FinanceInsights } from '../../types'
 import { FinanceTab } from '../finance-tab'
 
@@ -183,7 +185,7 @@ describe('Claude at official prices on the funds view', () => {
     render(<FinanceTab data={finance(engine)} />)
     expect(screen.getByText('2.00×')).toBeInTheDocument()
     expect(
-      screen.getByText('Each $1 at official prices is charged $2.00.')
+      screen.getByText('Each $1 at official prices is charged $2.00 (¥2).')
     ).toBeInTheDocument()
   })
 
@@ -195,8 +197,8 @@ describe('Claude at official prices on the funds view', () => {
       'Prodefault_claude_ai',
       '2 / 3',
       '$250.00 ($240–$260)',
-      '$500.00',
-      '$2,142.86',
+      '$500.00 (¥500)',
+      '$2,142.86 (¥2,142.86)',
       '107.14×',
     ])
   })
@@ -390,7 +392,9 @@ describe('usage by vendor on the funds view', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Codex/ }))
     expect(await screen.findByText('Codex: new-api usage')).toBeInTheDocument()
     expect(figure('Requests')).toBe('Requests42')
-    expect(figure('Charge per request')).toBe('Charge per request$0.71')
+    expect(figure('Charge per request')).toBe(
+      'Charge per request$0.7143(¥0.7143)'
+    )
     expect(figure('Share of all new-api charge')).toBe(
       'Share of all new-api charge12.8%'
     )
@@ -398,7 +402,13 @@ describe('usage by vendor on the funds view', () => {
     const cells = within(screen.getByRole('row', { name: /gpt-6-sol/ }))
       .getAllByRole('cell')
       .map((cell) => cell.textContent)
-    expect(cells).toEqual(['gpt-6-sol', '12', '$2.00', '$24.00', '80%'])
+    expect(cells).toEqual([
+      'gpt-6-sol',
+      '12',
+      '$2.00 (¥2)',
+      '$24.00 (¥24)',
+      '80%',
+    ])
     const bars = screen
       .getByRole('list', { name: 'Daily Codex charge' })
       .querySelectorAll('[tabindex="0"]')
@@ -420,5 +430,74 @@ describe('usage by vendor on the funds view', () => {
     cleanup()
     render(<FinanceTab data={vendors()} />)
     expect(screen.queryByRole('tab', { name: /Other models/ })).toBeNull()
+  })
+})
+
+describe('new-api’s charge in dollars', () => {
+  // Customers pay ¥1 for each new-api dollar: at 6.8 yuan to the dollar,
+  // the $200 new-api counted for Claude is ¥200, or $29.41.
+  const yuan = (rate?: number) => ({
+    ...priced(7, 7),
+    usd_exchange_rate: rate,
+  })
+
+  it('shows the charge in dollars with the yuan beside it', () => {
+    render(<FinanceTab data={yuan(6.8)} />)
+    expect(figure('new-api Claude charge')).toBe(
+      'new-api Claude charge$29.41(¥200)'
+    )
+  })
+
+  it('compares the dollars with the official cost and the account cost', () => {
+    render(<FinanceTab data={yuan(6.8)} />)
+    // $29.41 against $100 official, and against $43.17 of accounts.
+    expect(figure('new-api ÷ official')).toMatch(/0\.29×/)
+    expect(figure('Official ÷ account cost')).toMatch(/2\.32×/)
+    expect(figure('new-api ÷ account cost')).toMatch(/0\.68×/)
+    const bars = screen
+      .getByRole('list', {
+        name: 'Daily Claude usage: new-api against gpt-load',
+      })
+      .querySelectorAll('[tabindex="0"]')
+    expect(bars[1].getAttribute('aria-label')).toMatch(
+      /new-api Claude charge \$17\.65 \(¥120\).*new-api ÷ official 0\.29×/
+    )
+  })
+
+  it('converts each vendor’s charge the same way', () => {
+    const data = { ...vendors(), usd_exchange_rate: 6.8 }
+    render(<FinanceTab data={data} />)
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Claude$29',
+      'Codex$4',
+      'Grok$1',
+      'Gemini$0',
+    ])
+    fireEvent.click(screen.getByRole('tab', { name: /Codex/ }))
+    expect(figure('new-api charge')).toBe('new-api charge$4.41(¥30)')
+    // ¥30 over 42 requests is ¥0.7143, or $0.105.
+    expect(figure('Charge per request')).toBe(
+      'Charge per request$0.105(¥0.7143)'
+    )
+  })
+
+  it('uses the site’s rate until the server sends one', () => {
+    const before = useSystemConfigStore.getState().config.currency
+    useSystemConfigStore.setState((state) => ({
+      config: {
+        ...state.config,
+        currency: { ...before, usdExchangeRate: 6.8 },
+      },
+    }))
+    try {
+      render(<FinanceTab data={yuan(undefined)} />)
+      expect(figure('new-api Claude charge')).toBe(
+        'new-api Claude charge$29.41(¥200)'
+      )
+    } finally {
+      useSystemConfigStore.setState((state) => ({
+        config: { ...state.config, currency: before },
+      }))
+    }
   })
 })

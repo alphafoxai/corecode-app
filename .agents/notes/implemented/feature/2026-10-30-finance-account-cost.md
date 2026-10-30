@@ -84,3 +84,26 @@ a measured weekly capacity, so it could not count every account either.
   tests only.
 - `finance-tab.test.tsx` also covers the tab totals, a vendor tab's figures, chart
   and model rows, and the Other tab appearing only when charged for.
+
+## Addendum: new-api's charge is in yuan
+
+new-api prices its quota in dollars, but customers pay ¥1 for each quota dollar (the
+`Price` option is 1). What new-api charged is therefore yuan, while the engine's
+official cost and the account prices are dollars, so the first release compared yuan
+with dollars: it showed a 1.96× multiple where the dollars give 0.29×.
+
+- The finance response adds `usd_exchange_rate`, the site's `USDExchangeRate` (6.8 at
+  release). The console divides every new-api charge on the vendor tabs by it and shows
+  `$x (¥y)`, the yuan being what new-api counted. Every ratio uses the dollars.
+- Until the server sends the rate, the console uses the one `/api/status` already
+  gives, so a console released first does not compare yuan with dollars.
+- A charge per request below a dollar shows four places; two rounded most to $0.00.
+- The cards above the vendor tabs (customer consumption at list price, earned per $1
+  consumed, balances owed) still read new-api's quota dollars as dollars. They are
+  unchanged here.
+
+`finance-tab.test.tsx` covers the converted charge, the three ratios and the daily
+readout at 6.8, a vendor tab's charge and charge per request, and the fallback to the
+status's rate. Checked against production through a read-only GET proxy with the
+fallback rate: Claude $1,487.75 (¥10,116.70) over 7 days, multiple 0.29×, new-api ÷
+account cost 13.01×; the Claude chart answered hover at 40 of 40 positions.
