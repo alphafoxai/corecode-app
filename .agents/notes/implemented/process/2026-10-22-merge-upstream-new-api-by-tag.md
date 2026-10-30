@@ -29,6 +29,11 @@ commits (N1–N5 and the theme) above upstream `633b4c5b1`, which is
   `https://github.com/QuantumNous/new-api.git` as the `upstream` remote and run
   `git merge <tag>` on a `chore/sync-upstream-<tag>` branch. A tag is a version
   upstream itself shipped, and the merge commit names it.
+- **Upstream `main` is merged when a fix should not wait for a tag.** The merge
+  commit names the upstream commit it ends at, and the next tag merge takes the
+  rest. `019611f52` took 29 commits through `34003e9c2`; the 2026-10-30 sync took
+  10 through `a2defd2a8` for a security advisory fix to
+  `relaykit/relayconvert/kitutil/mask.go`.
 - **A sync pull request lands as a merge commit, never squashed or rebased.**
   A squash keeps the tree but drops the upstream parent, so the next sync falls
   back to the last recorded base and conflicts again on everything in between.
