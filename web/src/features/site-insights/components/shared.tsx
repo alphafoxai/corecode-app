@@ -17,11 +17,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { ChevronLeft, ChevronRight, CircleHelp } from 'lucide-react'
-import { useState, type PointerEvent, type ReactNode } from 'react'
+import {
+  useState,
+  type PointerEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -58,7 +68,7 @@ export function Panel(props: {
         <div className='min-w-0'>
           <h3 className='flex items-center gap-1.5 text-sm font-semibold'>
             {props.title}
-            {props.help && <HelpIcon help={props.help} />}
+            {props.help && <HelpIcon help={props.help} title={props.title} />}
           </h3>
           {props.description != null && (
             <p className='text-muted-foreground mt-0.5 text-xs'>
@@ -73,28 +83,57 @@ export function Panel(props: {
   )
 }
 
-/** A question-mark icon that explains a definition on hover or focus. */
-export function HelpIcon(props: { help: string }) {
+/**
+ * A definition that opens on hover and on a click or tap. A click keeps it
+ * open until the reader clicks elsewhere or presses Escape, so a long one can
+ * be read, and a touch screen, which cannot hover, reaches it too.
+ */
+function HelpPopover(props: {
+  trigger: ReactElement
+  children: ReactNode
+  title?: ReactNode
+  help: string
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        delay={HELP_DELAY}
+        closeDelay={HELP_CLOSE_DELAY}
+        render={props.trigger}
+      >
+        {props.children}
+      </PopoverTrigger>
+      <PopoverContent
+        side='top'
+        className='w-auto max-w-xs gap-1 p-3 text-xs leading-relaxed font-normal'
+      >
+        {props.title != null && (
+          <p className='text-foreground font-medium'>{props.title}</p>
+        )}
+        <p className='text-muted-foreground'>{props.help}</p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** A question-mark icon that explains how a panel's figures are counted. */
+export function HelpIcon(props: { help: string; title?: ReactNode }) {
   const { t } = useTranslation()
   return (
-    <TooltipProvider delay={HELP_DELAY}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              tabIndex={0}
-              aria-label={t('How this is counted')}
-              className='text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex cursor-help rounded-full outline-none focus-visible:ring-2'
-            />
-          }
-        >
-          <CircleHelp className='size-3.5' />
-        </TooltipTrigger>
-        <TooltipContent className='max-w-xs leading-relaxed font-normal'>
-          {props.help}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <HelpPopover
+      help={props.help}
+      title={props.title}
+      trigger={
+        <button
+          type='button'
+          aria-label={t('How this is counted')}
+          className='text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 data-popup-open:text-foreground inline-flex cursor-help rounded-full outline-none focus-visible:ring-2'
+        />
+      }
+    >
+      <CircleHelp className='size-3.5' aria-hidden />
+    </HelpPopover>
   )
 }
 
@@ -192,31 +231,33 @@ export function Meter(props: {
   )
 }
 
-/** A label with a dotted underline that explains itself on hover or focus. */
+/**
+ * A label with a dotted underline that explains itself on hover, or on a
+ * click or tap.
+ */
 export function HelpLabel(props: { label: ReactNode; help?: string }) {
   if (!props.help) return props.label
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            tabIndex={0}
-            className='decoration-muted-foreground/50 focus-visible:ring-ring/50 cursor-help underline decoration-dotted underline-offset-4 outline-none focus-visible:rounded-sm focus-visible:ring-2'
-          />
-        }
-      >
-        {props.label}
-      </TooltipTrigger>
-      <TooltipContent className='max-w-xs leading-relaxed'>
-        {props.help}
-      </TooltipContent>
-    </Tooltip>
+    <HelpPopover
+      help={props.help}
+      title={props.label}
+      trigger={
+        <button
+          type='button'
+          className='decoration-muted-foreground/50 hover:decoration-foreground data-popup-open:decoration-foreground focus-visible:ring-ring/50 cursor-help text-left underline decoration-dotted underline-offset-4 outline-none focus-visible:rounded-sm focus-visible:ring-2'
+        />
+      }
+    >
+      {props.label}
+    </HelpPopover>
   )
 }
 
 // Tooltips in cards and tables open quickly, so a reader scanning across
 // them is not left waiting on each one.
 const HELP_DELAY = 150
+// Long enough to move the pointer from a label onto its definition.
+const HELP_CLOSE_DELAY = 150
 
 /**
  * The change from the previous period: relative for counts and amounts,

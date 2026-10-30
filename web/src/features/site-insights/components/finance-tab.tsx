@@ -23,7 +23,7 @@ import { getPaymentMethodName } from '@/features/wallet/lib/billing'
 import { useInsightsFormat } from '../lib'
 import type { FinanceInsights } from '../types'
 import { FinanceSummary } from './finance-summary'
-import { BarSeries, Panel, SimpleTable, UserLabel } from './shared'
+import { BarSeries, HelpLabel, Panel, SimpleTable, UserLabel } from './shared'
 import { VendorTabs } from './vendor-usage'
 
 export function FinanceTab(props: {
@@ -98,6 +98,9 @@ export function FinanceTab(props: {
       <div className='grid gap-4 lg:grid-cols-3'>
         <Panel
           title={t('Wallet credit issued')}
+          help={t(
+            'Credit added to customers’ wallets in the range, in yuan, by where it came from. Only top-up credit was paid for.'
+          )}
           description={
             data && issued > 0
               ? t('{{total}} in all; manual adjustments are {{share}}.', {
@@ -109,17 +112,38 @@ export function FinanceTab(props: {
         >
           <dl className='grid gap-2 text-sm'>
             {[
-              [t('Top-up credit'), fmt.cny(data?.topup_credit_usd ?? 0)],
-              [t('Top-up bonus'), fmt.cny(data?.bonus_usd ?? 0)],
-              [t('Redemption codes'), fmt.cny(data?.redemption_usd ?? 0)],
-              [t('Referral commission'), fmt.cny(data?.commission_usd ?? 0)],
+              [
+                t('Top-up credit'),
+                fmt.cny(data?.topup_credit_usd ?? 0),
+                t('Credit customers paid for in a top-up, ¥1 for each.'),
+              ],
+              [
+                t('Top-up bonus'),
+                fmt.cny(data?.bonus_usd ?? 0),
+                t('Credit added on top of a top-up, unpaid.'),
+              ],
+              [
+                t('Redemption codes'),
+                fmt.cny(data?.redemption_usd ?? 0),
+                t('Credit from redeemed codes.'),
+              ],
+              [
+                t('Referral commission'),
+                fmt.cny(data?.commission_usd ?? 0),
+                t('Referral rewards moved into a wallet.'),
+              ],
               [
                 t('Manual adjustments (net)'),
                 fmt.cny(data?.adjustment_net_usd ?? 0),
+                t(
+                  'Balance an administrator added, less what one took away, from the audit log. Root’s own wallet included.'
+                ),
               ],
-            ].map(([label, value]) => (
+            ].map(([label, value, help]) => (
               <div key={label} className='flex justify-between gap-2'>
-                <dt className='text-muted-foreground'>{label}</dt>
+                <dt className='text-muted-foreground'>
+                  <HelpLabel label={label} help={help} />
+                </dt>
                 <dd className='tabular-nums'>{value}</dd>
               </div>
             ))}

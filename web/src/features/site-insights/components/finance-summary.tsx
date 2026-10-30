@@ -97,6 +97,9 @@ export function FinanceSummary(props: {
             <Stat
               loading={loading}
               label={t('Revenue')}
+              help={t(
+                'Money customers paid in the range, in yuan: wallet top-ups and plans, counted when paid. Credit given away brings in nothing.'
+              )}
               value={fmt.cny(data?.revenue ?? 0)}
               delta={{
                 current: data?.revenue ?? 0,

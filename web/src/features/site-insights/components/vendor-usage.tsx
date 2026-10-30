@@ -141,6 +141,9 @@ function VendorCharge(props: {
           loading={!props.data}
           dot='bg-primary'
           label={t('new-api charge')}
+          help={t(
+            'What new-api deducted for this vendor’s models, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.'
+          )}
           value={
             <ChargeValue usd={fmt.usd(charge.toUSD(usd))} yuan={fmt.cny(usd)} />
           }
@@ -153,6 +156,7 @@ function VendorCharge(props: {
         <Figure
           loading={!props.data}
           label={t('Charge per request')}
+          help={t('The charge divided by the requests.')}
           value={
             requests > 0 ? (
               <ChargeValue
@@ -167,6 +171,9 @@ function VendorCharge(props: {
         <Figure
           loading={!props.data}
           label={t('Share of all new-api charge')}
+          help={t(
+            'This vendor’s charge as a share of new-api’s charge for every model.'
+          )}
           value={allUSD > 0 ? fmt.pct(usd / allUSD) : '-'}
         />
       </div>
