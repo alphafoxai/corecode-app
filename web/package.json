@@ -10,6 +10,7 @@
     "typecheck": "bun check -b",
     "lint": "oxlint -c .oxlintrc.json .",
     "lint:fix": "oxlint -c .oxlintrc.json . --fix",
+    "lint:check": "node scripts/check-lint-baseline.mjs",
     "lint:plugins": "cd ../plugins && oxlint -c .oxlintrc.json .",
     "format:plugins": "cd ../plugins && oxfmt -c .oxfmtrc.json --write .",
     "format:plugins:check": "cd ../plugins && oxfmt -c .oxfmtrc.json --check .",

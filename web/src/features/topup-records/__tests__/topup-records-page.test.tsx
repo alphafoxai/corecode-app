@@ -99,7 +99,9 @@ function renderPage() {
 
 function lastParams(get: ReturnType<typeof renderPage>['get'], url: string) {
   const calls = get.mock.calls.filter((call) => call[0] === url)
-  return (calls.at(-1)?.[1] as { params: Record<string, unknown> }).params
+  const last = calls.at(-1)
+  if (!last) throw new Error(`no request to ${url}`)
+  return (last[1] as { params: Record<string, unknown> }).params
 }
 
 afterEach(() => {

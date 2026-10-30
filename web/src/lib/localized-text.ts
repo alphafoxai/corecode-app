@@ -70,8 +70,12 @@ export function resolveLocalizedOption(
   }
   if (!isPlainObject(parsed)) return value
   const entries = Object.values(parsed)
-  if (entries.length === 0 || entries.some((text) => typeof text !== 'string'))
+  if (
+    entries.length === 0 ||
+    entries.some((text) => typeof text !== 'string')
+  ) {
     return value
+  }
   return resolveLocalizedText(parsed as Record<string, string>, language)
 }
 

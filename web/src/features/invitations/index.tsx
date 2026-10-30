@@ -17,114 +17,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
 import { SectionPageLayout } from '@/components/layout'
 import { useAffiliate } from '@/features/wallet/hooks/use-affiliate'
-import { formatQuota, formatTimestampToDate } from '@/lib/format'
 
 import { getInvitees } from './api'
 import { InvitationOverview } from './components/invitation-overview'
 import { SecondLevelCard } from './components/second-level-card'
+import { useInviteeColumns } from './hooks/use-invitee-columns'
 import type { Invitee } from './types'
 
 const EMPTY: Invitee[] = []
 const NO_TOTALS = { used_quota: 0, commission_base: 0, commission: 0 }
-
-// An empty giftPlanTitle leaves out the gift column, as in the admin dialog.
-// Invitees receive the plan when they sign up, so the column only reports it.
-export function useInviteeColumns(giftPlanTitle: string): ColumnDef<Invitee>[] {
-  const { t } = useTranslation()
-  return useMemo(() => {
-    const columns: ColumnDef<Invitee>[] = [
-      {
-        accessorKey: 'name',
-        header: t('Invitee'),
-        size: 200,
-        cell: ({ row }) => (
-          <div className='min-w-0'>
-            <div className='truncate font-medium'>{row.original.name}</div>
-            {row.original.email && (
-              <div className='text-muted-foreground truncate text-xs'>
-                {row.original.email}
-              </div>
-            )}
-          </div>
-        ),
-        meta: { label: t('Invitee'), mobileTitle: true },
-      },
-      {
-        accessorKey: 'created_at',
-        header: t('Joined'),
-        size: 170,
-        cell: ({ row }) => (
-          <span className='font-mono tabular-nums'>
-            {formatTimestampToDate(row.original.created_at)}
-          </span>
-        ),
-        meta: { label: t('Joined') },
-      },
-      {
-        accessorKey: 'used_quota',
-        header: t('Total spend'),
-        size: 130,
-        cell: ({ row }) => (
-          <span className='tabular-nums'>
-            {formatQuota(row.original.used_quota)}
-          </span>
-        ),
-        meta: { label: t('Total spend') },
-      },
-      {
-        accessorKey: 'commission_base',
-        header: t('Paid spend'),
-        size: 150,
-        cell: ({ row }) => (
-          <span className='tabular-nums'>
-            {formatQuota(row.original.commission_base)}
-          </span>
-        ),
-        meta: { label: t('Paid spend') },
-      },
-      {
-        accessorKey: 'commission',
-        header: t('Commission earned'),
-        size: 130,
-        cell: ({ row }) => (
-          <span className='font-medium tabular-nums'>
-            {formatQuota(row.original.commission)}
-          </span>
-        ),
-        meta: { label: t('Commission earned') },
-      },
-    ]
-    if (giftPlanTitle) {
-      columns.push({
-        id: 'gift',
-        header: giftPlanTitle,
-        size: 130,
-        cell: ({ row }) => {
-          if (row.original.gift_plan === 'gifted') {
-            return <span className='text-muted-foreground'>{t('Gifted')}</span>
-          }
-          if (row.original.gift_plan === 'owned') {
-            return (
-              <span className='text-muted-foreground'>
-                {t('Already has it')}
-              </span>
-            )
-          }
-          return <span className='text-muted-foreground'>-</span>
-        },
-        meta: { label: giftPlanTitle },
-      })
-    }
-    return columns
-  }, [t, giftPlanTitle])
-}
 
 export function Invitations() {
   const { t } = useTranslation()
