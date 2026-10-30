@@ -16,6 +16,43 @@ import (
 // from the subscription pool.
 const ClaudeModelPrefix = "claude-"
 
+// Vendors the funds view splits new-api's charge by. A model is its
+// vendor's by name prefix; the site's vendor metadata leaves models out.
+const (
+	VendorClaude = "claude"
+	VendorCodex  = "codex"
+	VendorGrok   = "grok"
+	VendorGemini = "gemini"
+	VendorOther  = "other"
+)
+
+var vendorPrefixes = []struct{ prefix, vendor string }{
+	{ClaudeModelPrefix, VendorClaude},
+	{"gpt-", VendorCodex},
+	{"codex-", VendorCodex},
+	{"grok-", VendorGrok},
+	{"gemini-", VendorGemini},
+}
+
+// ModelVendor names the vendor a model is sold under, or VendorOther.
+func ModelVendor(model string) string {
+	for _, entry := range vendorPrefixes {
+		if strings.HasPrefix(model, entry.prefix) {
+			return entry.vendor
+		}
+	}
+	return VendorOther
+}
+
+// VendorModel is what new-api charged for one model over the range, root
+// included, as for Claude.
+type VendorModel struct {
+	Vendor   string  `json:"vendor"`
+	Model    string  `json:"model"`
+	USD      float64 `json:"usd"`
+	Requests int64   `json:"requests"`
+}
+
 // FinanceDay is one day of revenue, revenue earned and customers'
 // list-price consumption.
 type FinanceDay struct {
@@ -28,6 +65,8 @@ type FinanceDay struct {
 	// corecode-engine's official-price cost it is compared with covers
 	// root's requests too.
 	ClaudeUSD float64 `json:"claude_usd"`
+	// VendorUSD is the day's charge by vendor (ModelVendor), root included.
+	VendorUSD map[string]float64 `json:"vendor_usd"`
 }
 
 // BalanceUser is a wallet balance in USD.
@@ -75,6 +114,9 @@ type FinanceInsights struct {
 	GiftConsumptionUSD  float64            `json:"gift_consumption_usd"`
 	// ClaudeUSD is the range's Claude charge, root included (FinanceDay).
 	ClaudeUSD float64 `json:"claude_usd"`
+	// VendorModels is the range's charge by model, largest first; each
+	// vendor's charge is the sum of its models.
+	VendorModels []VendorModel `json:"vendor_models"`
 	// RevenuePerUSD is revenue divided by list-price consumption: what one
 	// dollar of consumption brought in over the range.
 	RevenuePerUSD                 float64 `json:"revenue_per_usd"`
@@ -109,7 +151,7 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	result := &FinanceInsights{}
 	days := make(map[int64]*FinanceDay)
 	for _, day := range r.days() {
-		days[day] = &FinanceDay{Day: day}
+		days[day] = &FinanceDay{Day: day, VendorUSD: map[string]float64{}}
 	}
 	type money struct {
 		total decimal.Decimal
@@ -193,15 +235,36 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 		return nil, err
 	}
 	var claude int64
+	models := make(map[string]*VendorModel)
 	for _, row := range quota {
-		if !strings.HasPrefix(row.ModelName, ClaudeModelPrefix) {
+		vendor := ModelVendor(row.ModelName)
+		model := models[row.ModelName]
+		if model == nil {
+			model = &VendorModel{Vendor: vendor, Model: row.ModelName}
+			models[row.ModelName] = model
+		}
+		model.USD += float64(row.Quota) / common.QuotaPerUnit
+		model.Requests += int64(row.Count)
+		day := days[r.DayStart(row.CreatedAt)]
+		if day != nil {
+			day.VendorUSD[vendor] += float64(row.Quota) / common.QuotaPerUnit
+		}
+		if vendor != VendorClaude {
 			continue
 		}
 		claude += int64(row.Quota)
-		if day := days[r.DayStart(row.CreatedAt)]; day != nil {
+		if day != nil {
 			day.ClaudeUSD += float64(row.Quota) / common.QuotaPerUnit
 		}
 	}
+	result.VendorModels = []VendorModel{}
+	for _, model := range models {
+		model.USD = roundTo(model.USD, 4)
+		result.VendorModels = append(result.VendorModels, *model)
+	}
+	slices.SortFunc(result.VendorModels, func(a, b VendorModel) int {
+		return cmp.Or(cmp.Compare(b.USD, a.USD), cmp.Compare(a.Model, b.Model))
+	})
 	subscriptions, err := recognizeSubscriptions(r, prices, days)
 	if err != nil {
 		return nil, err
@@ -219,6 +282,9 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 		day.Topup, day.Subscription, day.ConsumptionUSD = roundTo(day.Topup, 2), roundTo(day.Subscription, 2), roundTo(day.ConsumptionUSD, 4)
 		day.RecognizedRevenue = roundTo(day.RecognizedRevenue, 2)
 		day.ClaudeUSD = roundTo(day.ClaudeUSD, 4)
+		for vendor, usd := range day.VendorUSD {
+			day.VendorUSD[vendor] = roundTo(usd, 4)
+		}
 		result.Daily = append(result.Daily, *day)
 	}
 	slices.SortFunc(result.Daily, func(a, b FinanceDay) int { return cmp.Compare(a.Day, b.Day) })

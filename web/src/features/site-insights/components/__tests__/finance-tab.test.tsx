@@ -16,7 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { render, screen, within } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { EngineDailyCost, FinanceInsights } from '../../types'
@@ -175,10 +181,10 @@ const engine: EngineDailyCost = {
 describe('Claude at official prices on the funds view', () => {
   it('states the multiple of official prices new-api charges', () => {
     render(<FinanceTab data={finance(engine)} />)
-    expect(
-      screen.getByText('new-api charges 2.00× official prices for Claude.')
-    ).toBeInTheDocument()
     expect(screen.getByText('2.00×')).toBeInTheDocument()
+    expect(
+      screen.getByText('Each $1 at official prices is charged $2.00.')
+    ).toBeInTheDocument()
   })
 
   it('converts a plan’s weekly official value into new-api dollars', () => {
@@ -191,6 +197,7 @@ describe('Claude at official prices on the funds view', () => {
       '$250.00 ($240–$260)',
       '$500.00',
       '$2,142.86',
+      '107.14×',
     ])
   })
 
@@ -204,9 +211,13 @@ describe('Claude at official prices on the funds view', () => {
       />
     )
     expect(
-      screen.getAllByText('engine /usage/daily returned HTTP 503'),
-      'both the daily chart and the totals show it'
-    ).toHaveLength(2)
+      screen.getByText('engine /usage/daily returned HTTP 503')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('list', {
+        name: 'Daily Claude usage: new-api against gpt-load',
+      })
+    ).toBeNull()
     const row = screen.getByRole('row', { name: /default_claude_ai/ })
     expect(within(row).getAllByRole('cell')[3].textContent).toBe('-')
   })
@@ -219,11 +230,195 @@ describe('Claude at official prices on the funds view', () => {
     const bars = chart.querySelectorAll('[tabindex="0"]')
     expect(bars).toHaveLength(2)
     expect(bars[0].getAttribute('aria-label')).toMatch(
-      /new-api Claude charge \$80\.00.*gpt-load official cost \$0\.00.*Multiple \(new-api ÷ official\) -/
+      /new-api Claude charge \$80\.00.*gpt-load official cost \$0\.00.*new-api ÷ official -/
     )
     expect(bars[1].getAttribute('aria-label')).toMatch(
-      /new-api Claude charge \$120\.00.*gpt-load official cost \$60\.00.*Multiple \(new-api ÷ official\) 2\.00×.*Claude requests 9/
+      /new-api Claude charge \$120\.00.*gpt-load official cost \$60\.00.*new-api ÷ official 2\.00×.*Claude requests 9/
     )
     expect(bars[1].getAttribute('aria-label')).not.toMatch(/Total/)
+  })
+})
+
+const end = 1761580800
+
+/** The text of the figure card with this label. */
+const figure = (label: string) =>
+  screen
+    .getAllByText(label)
+    .map((node) => node.closest('[data-slot=card]'))
+    .find(Boolean)?.textContent
+
+function priced(days: number, coveredDays: number): FinanceInsights {
+  return {
+    ...finance(engine),
+    start_time: end - days * 86400,
+    end_time: end,
+    matched_since: end - coveredDays * 86400,
+    plan_accounts: [
+      { plan: 'Max', tier: 'default_claude_max_20x', accounts: 1, eligible: 1 },
+      // Gemini reports a Pro plan with no tier: not a Claude account.
+      { plan: 'Pro', tier: '', accounts: 2, eligible: 2 },
+      { plan: 'Pro', tier: 'default_claude_ai', accounts: 3, eligible: 2 },
+      { plan: 'Team', tier: 'team_tier_1', accounts: 1, eligible: 1 },
+    ],
+  }
+}
+
+describe('account cost on the funds view', () => {
+  it('spreads the monthly price of priced accounts over the range', () => {
+    render(<FinanceTab data={priced(1, 1)} />)
+    // Three Pro at $20 and one Team Tier 1 at $125: $185 a month.
+    expect(figure('Account cost in this range')).toBe(
+      'Account cost in this range$6.17$185 a month ÷ 30 × 1 days · 4 accounts'
+    )
+    expect(
+      screen.getByText('4 accounts cost $185.00 a month, $6.17 a day.')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('1 accounts have no known price and are not counted.')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '2 accounts of other vendors, or whose plan the engine has not read, are left out.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('lists each plan with its price and what it costs', () => {
+    render(<FinanceTab data={priced(7, 7)} />)
+    const cells = (name: RegExp) =>
+      within(screen.getAllByRole('row', { name })[0])
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent)
+    expect(cells(/team_tier_1/)).toEqual([
+      'Team Tier 1team_tier_1',
+      '1',
+      '1',
+      '$125',
+      '$125.00',
+      '$29.17',
+    ])
+    expect(cells(/default_claude_max_20x/)).toEqual([
+      'Maxdefault_claude_max_20x',
+      '1',
+      '1',
+      'No price',
+      '-',
+      '-',
+    ])
+  })
+
+  it('lists Claude’s plans only, priced first and dearest first', () => {
+    render(<FinanceTab data={priced(7, 7)} />)
+    const table = screen
+      .getByText('Price per month')
+      .closest('table') as HTMLElement
+    const plans = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell')[0].textContent)
+    expect(plans).toEqual([
+      'Team Tier 1team_tier_1',
+      'Prodefault_claude_ai',
+      'Maxdefault_claude_max_20x',
+    ])
+  })
+
+  it('sets the ratios against the cost of the days gpt-load reported', () => {
+    render(<FinanceTab data={priced(7, 2)} />)
+    expect(
+      screen.getByText(
+        'gpt-load reported 2 of 7 days; every ratio uses those days.'
+      )
+    ).toBeInTheDocument()
+    // Two days cost $12.33: $100 official is 8.11×, $200 charged 16.22×.
+    expect(figure('Official ÷ account cost')).toMatch(
+      /Official ÷ account cost8\.11×/
+    )
+    expect(figure('new-api ÷ account cost')).toMatch(
+      /new-api ÷ account cost16\.22×/
+    )
+    expect(figure('Account cost in this range')).toMatch(/\$43\.17/)
+  })
+
+  it('reads out each day’s account cost beside the two charges', () => {
+    render(<FinanceTab data={priced(7, 7)} />)
+    const chart = screen.getByRole('list', {
+      name: 'Daily Claude usage: new-api against gpt-load',
+    })
+    const bars = chart.querySelectorAll('[tabindex="0"]')
+    expect(bars[1].getAttribute('aria-label')).toMatch(
+      /Account cost per day \$6\.17.*Official ÷ account cost 9\.73×/
+    )
+  })
+
+  it('shows no cost before the server reports the pool’s accounts', () => {
+    render(<FinanceTab data={finance(engine)} />)
+    expect(screen.getByText('No accounts in the pool')).toBeInTheDocument()
+    const chart = screen.getByRole('list', {
+      name: 'Daily Claude usage: new-api against gpt-load',
+    })
+    expect(
+      chart.querySelector('[tabindex="0"]')?.getAttribute('aria-label')
+    ).not.toMatch(/Account cost per day/)
+  })
+})
+
+function vendors(): FinanceInsights {
+  const data = finance(engine)
+  data.daily[0].vendor_usd = { claude: 80, codex: 12 }
+  data.daily[1].vendor_usd = { claude: 120, codex: 18, grok: 5 }
+  data.vendor_models = [
+    { vendor: 'claude', model: 'claude-opus-5-5', usd: 200, requests: 40 },
+    { vendor: 'codex', model: 'gpt-6-sol', usd: 24, requests: 12 },
+    { vendor: 'codex', model: 'codex-auto-review', usd: 6, requests: 30 },
+    { vendor: 'grok', model: 'grok-4.7', usd: 5, requests: 2 },
+  ]
+  return data
+}
+
+describe('usage by vendor on the funds view', () => {
+  it('names each vendor with its charge and opens on Claude', () => {
+    render(<FinanceTab data={vendors()} />)
+    const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent)
+    expect(tabs).toEqual(['Claude$200', 'Codex$30', 'Grok$5', 'Gemini$0'])
+    expect(screen.getByText('Account cost in this range')).toBeInTheDocument()
+  })
+
+  it('shows only new-api’s charge for a vendor without account cost', async () => {
+    render(<FinanceTab data={vendors()} />)
+    fireEvent.click(screen.getByRole('tab', { name: /Codex/ }))
+    expect(await screen.findByText('Codex: new-api usage')).toBeInTheDocument()
+    expect(figure('Requests')).toBe('Requests42')
+    expect(figure('Charge per request')).toBe('Charge per request$0.71')
+    expect(figure('Share of all new-api charge')).toBe(
+      'Share of all new-api charge12.8%'
+    )
+    expect(screen.queryByText('Account cost in this range')).toBeNull()
+    const cells = within(screen.getByRole('row', { name: /gpt-6-sol/ }))
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent)
+    expect(cells).toEqual(['gpt-6-sol', '12', '$2.00', '$24.00', '80%'])
+    const bars = screen
+      .getByRole('list', { name: 'Daily Codex charge' })
+      .querySelectorAll('[tabindex="0"]')
+    expect(bars[1].getAttribute('aria-label')).toMatch(
+      /new-api charge \$18\.00/
+    )
+  })
+
+  it('adds a tab for unrecognised models only when they were charged for', () => {
+    const data = vendors()
+    data.vendor_models = [
+      ...(data.vendor_models ?? []),
+      { vendor: 'other', model: 'opus', usd: 3, requests: 1 },
+    ]
+    render(<FinanceTab data={data} />)
+    expect(
+      screen.getByRole('tab', { name: /Other models/ })
+    ).toBeInTheDocument()
+    cleanup()
+    render(<FinanceTab data={vendors()} />)
+    expect(screen.queryByRole('tab', { name: /Other models/ })).toBeNull()
   })
 })

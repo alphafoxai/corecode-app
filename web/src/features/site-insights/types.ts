@@ -152,6 +152,8 @@ export type FinanceInsights = {
     consumption_usd: number
     recognized_revenue?: number
     claude_usd: number
+    /** The day's charge by vendor; absent before the server's release. */
+    vendor_usd?: Record<string, number>
   }[]
   /** Customers only; root's own requests are root_consumption_usd. */
   consumption_usd: number
@@ -192,6 +194,14 @@ export type FinanceInsights = {
   official_per_usd: number
   plans: EnginePlanValue[]
   plans_error?: string
+  /** Every pool account by plan; absent before the server's release. */
+  plan_accounts?: EnginePlanCount[]
+  /** new-api's charge by model, root included, largest first. */
+  vendor_models?: VendorModel[]
+  start_time?: number
+  end_time?: number
+  /** Where the days the engine reported begin within the range. */
+  matched_since?: number
   bonus_usd: number
   topup_credit_usd: number
 }
@@ -249,6 +259,22 @@ export type EnginePlanValue = {
   week_usd: number
   week_low_usd: number
   week_high_usd: number
+}
+
+/** What new-api charged for one model over the range. */
+export type VendorModel = {
+  vendor: string
+  model: string
+  usd: number
+  requests: number
+}
+
+/** How many pool accounts hold one plan and tier, whatever their status. */
+export type EnginePlanCount = {
+  plan: string
+  tier: string
+  accounts: number
+  eligible: number
 }
 
 /** Claude's cost at official prices, as corecode-engine recorded it. */

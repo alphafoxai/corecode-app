@@ -85,6 +85,43 @@ export function useSharedAddresses(insights: RiskInsights | undefined) {
     .filter((cluster) => cluster.users.length > 1)
 }
 
+/**
+ * What one Claude account costs a month, in USD, by the plan and tier the
+ * engine reports. Other plans, such as Gemini's Pro with no tier, have no
+ * price here and are not counted.
+ */
+const ACCOUNT_PRICES: {
+  plan: string
+  tier: string
+  label: string
+  monthlyUSD: number
+}[] = [
+  { plan: 'Pro', tier: 'default_claude_ai', label: 'Pro', monthlyUSD: 20 },
+  { plan: 'Pro', tier: 'default_claude_pro', label: 'Pro', monthlyUSD: 20 },
+  {
+    plan: 'Max',
+    tier: 'default_claude_max_5x',
+    label: 'Max 5x',
+    monthlyUSD: 100,
+  },
+  {
+    plan: 'Team',
+    tier: 'team_standard',
+    label: 'Team Standard',
+    monthlyUSD: 25,
+  },
+  { plan: 'Team', tier: 'team_tier_1', label: 'Team Tier 1', monthlyUSD: 125 },
+]
+
+/** Days a monthly account price covers. */
+export const PRICE_MONTH_DAYS = 30
+
+export function accountPrice(plan: string, tier: string) {
+  return ACCOUNT_PRICES.find(
+    (price) => price.plan === plan && price.tier === tier
+  )
+}
+
 export const INSIGHTS_PRESETS = [1, 7, 30, 90, 365] as const
 
 export function useInsightsFormat() {

@@ -57,6 +57,49 @@ func EnginePlanValues(accounts []EngineAccount) []EnginePlanValue {
 	return plans
 }
 
+// EnginePlanCount is how many of the pool's accounts hold one plan and tier,
+// whatever their status: an account costs its plan's price while it is listed.
+type EnginePlanCount struct {
+	Plan     string `json:"plan"`
+	Tier     string `json:"tier"`
+	Accounts int    `json:"accounts"`
+	Eligible int    `json:"eligible"`
+}
+
+// EnginePlanCounts counts the pool's accounts by plan and tier.
+func EnginePlanCounts(accounts []EngineAccount) []EnginePlanCount {
+	type key struct{ plan, tier string }
+	index := make(map[key]int)
+	counts := []EnginePlanCount{}
+	for _, account := range accounts {
+		group := key{account.Plan, account.Tier}
+		at, ok := index[group]
+		if !ok {
+			at = len(counts)
+			index[group] = at
+			counts = append(counts, EnginePlanCount{Plan: account.Plan, Tier: account.Tier})
+		}
+		counts[at].Accounts++
+		if account.Eligible {
+			counts[at].Eligible++
+		}
+	}
+	slices.SortFunc(counts, func(a, b EnginePlanCount) int {
+		return cmp.Or(cmp.Compare(a.Plan, b.Plan), cmp.Compare(a.Tier, b.Tier))
+	})
+	return counts
+}
+
+// MatchedSince is where the engine's reported days begin within [start, end):
+// the earliest reported day, not before start, or end when it reported none.
+func MatchedSince(start, end int64, cost EngineDailyCost) int64 {
+	since := end
+	for _, day := range cost.Daily {
+		since = min(since, day.Day)
+	}
+	return max(start, since)
+}
+
 // MatchClaudeCost sums the engine's official-price Claude cost and what
 // new-api charged for Claude over the days the engine reported, so a day the
 // engine no longer keeps does not count on one side only.
