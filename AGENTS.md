@@ -56,6 +56,10 @@ the deployment relies on.
   Batched quota writes are flushed on shutdown; keep it that way for any new buffer.
 - **Customers use `/v1/*`, `/docs/` and the console.** `corecode-infra`'s Caddyfile decides
   what else is reachable; this repository does not.
+- **Console lint is gated against upstream's baseline.** CI runs `bun run lint:check`,
+  which fails on any oxlint finding `web/lint-baseline.json` does not record. Fix new
+  findings; leave upstream files' existing ones, since edits there conflict on every
+  sync. After an upstream tag merge, run `bun run lint:check -- --update` and commit it.
 - **`web/src/styles/` carries the CoreCode theme.** Light and dark only; the theme drawer
   and presets were removed deliberately.
 

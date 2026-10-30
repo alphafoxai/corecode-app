@@ -1,0 +1,373 @@
+{
+  "scripts/sync-i18n.mjs": {
+    "eslint(curly)": 1,
+    "eslint(prefer-object-has-own)": 2,
+    "eslint(prefer-template)": 1,
+    "unicorn(prefer-string-starts-ends-with)": 3
+  },
+  "src/assets/brand-icons/icon-discord.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-docker.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-facebook.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-figma.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-github.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-gitlab.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-gmail.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-linuxdo.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-medium.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-notion.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-skype.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-slack.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-stripe.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-telegram.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-trello.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-wechat.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-whatsapp.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/brand-icons/icon-zoom.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/clerk-full-logo.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/clerk-logo.tsx": {
+    "react(self-closing-comp)": 1,
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-dir.tsx": {
+    "typescript(no-import-type-side-effects)": 2
+  },
+  "src/assets/custom/icon-layout-compact.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-layout-default.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-layout-full.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-sidebar-floating.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-sidebar-inset.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-sidebar-sidebar.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-theme-dark.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-theme-light.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/custom/icon-theme-system.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/assets/logo.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/ai-elements/actions.tsx": {
+    "react(self-closing-comp)": 1
+  },
+  "src/components/ai-elements/artifact.tsx": {
+    "react(self-closing-comp)": 1
+  },
+  "src/components/ai-elements/canvas.tsx": {
+    "react(jsx-boolean-value)": 1
+  },
+  "src/components/ai-elements/plan.tsx": {
+    "react(self-closing-comp)": 1
+  },
+  "src/components/ai-elements/prompt-input.tsx": {
+    "promise(catch-or-return)": 1,
+    "unicorn(prefer-add-event-listener)": 2,
+    "unicorn(prefer-at)": 1,
+    "unicorn(prefer-optional-catch-binding)": 1,
+    "unicorn(prefer-spread)": 5
+  },
+  "src/components/ai-elements/web-preview.tsx": {
+    "react(iframe-missing-sandbox)": 1,
+    "react(no-array-index-key)": 1
+  },
+  "src/components/confirm-dialog.tsx": {
+    "oxc(const-comparisons)": 1
+  },
+  "src/components/copy-button.tsx": {
+    "react(self-closing-comp)": 1,
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/data-table/core/column-header.tsx": {
+    "eslint(no-nested-ternary)": 1,
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/data-table/toolbar/faceted-filter.tsx": {
+    "eslint(no-nested-ternary)": 2,
+    "typescript(no-import-type-side-effects)": 1,
+    "unicorn(prefer-spread)": 1
+  },
+  "src/components/data-table/toolbar/view-options.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/layout/components/footer.tsx": {
+    "react(no-array-index-key)": 2,
+    "react(no-danger)": 1
+  },
+  "src/components/layout/components/nav-link-item.tsx": {
+    "react(no-array-index-key)": 1
+  },
+  "src/components/layout/components/public-navigation.tsx": {
+    "react(no-array-index-key)": 2
+  },
+  "src/components/layout/components/top-nav.tsx": {
+    "react(self-closing-comp)": 1,
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/layout/config/top-nav.config.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/components/layout/lib/url-utils.ts": {
+    "eslint(curly)": 1
+  },
+  "src/components/layout/types.ts": {
+    "typescript(no-import-type-side-effects)": 2
+  },
+  "src/components/long-text.tsx": {
+    "eslint(curly)": 1
+  },
+  "src/components/navigation-progress.tsx": {
+    "react(jsx-boolean-value)": 1
+  },
+  "src/components/page-transition.tsx": {
+    "react(jsx-no-useless-fragment)": 1
+  },
+  "src/components/risk-acknowledgement-dialog.tsx": {
+    "react(no-array-index-key)": 2,
+    "unicorn(prefer-spread)": 1
+  },
+  "src/components/skip-to-main.tsx": {
+    "react(jsx-curly-brace-presence)": 1
+  },
+  "src/components/tag-input.tsx": {
+    "unicorn(prefer-at)": 1
+  },
+  "src/components/turnstile.tsx": {
+    "unicorn(prefer-add-event-listener)": 1,
+    "unicorn(prefer-query-selector)": 1
+  },
+  "src/features/auth/lib/validation.ts": {
+    "eslint(prefer-template)": 1,
+    "unicorn(prefer-string-replace-all)": 2
+  },
+  "src/features/channels/components/data-table-bulk-actions.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/channels/lib/model-mapping-validation.ts": {
+    "unicorn(prefer-spread)": 5
+  },
+  "src/features/channels/lib/upstream-update-utils.ts": {
+    "unicorn(prefer-spread)": 1
+  },
+  "src/features/chat/lib/send-to-fluent.ts": {
+    "unicorn(prefer-query-selector)": 1
+  },
+  "src/features/dashboard/components/models/models-chart-preferences.tsx": {
+    "unicorn(no-useless-spread)": 4
+  },
+  "src/features/dashboard/components/models/models-filter-dialog.tsx": {
+    "eslint(curly)": 1,
+    "unicorn(no-useless-spread)": 1
+  },
+  "src/features/dashboard/components/ui/panel-wrapper.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/dashboard/lib/api-info.ts": {
+    "unicorn(prefer-optional-catch-binding)": 1
+  },
+  "src/features/dashboard/lib/stats.ts": {
+    "unicorn(prefer-number-properties)": 2
+  },
+  "src/features/dashboard/lib/text.ts": {
+    "eslint(prefer-template)": 1,
+    "unicorn(prefer-string-replace-all)": 2,
+    "unicorn(prefer-string-slice)": 1
+  },
+  "src/features/home/components/gateway-card.tsx": {
+    "react(no-array-index-key)": 1
+  },
+  "src/features/home/components/hero-terminal-demo.tsx": {
+    "react(button-has-type)": 1,
+    "react(no-array-index-key)": 11
+  },
+  "src/features/home/components/scrolling-icons.tsx": {
+    "react(no-array-index-key)": 2
+  },
+  "src/features/home/constants.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/keys/components/data-table-bulk-actions.tsx": {
+    "typescript(no-import-type-side-effects)": 2
+  },
+  "src/features/keys/constants.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/models/components/deployment-access-guard.tsx": {
+    "react(jsx-no-useless-fragment)": 1
+  },
+  "src/features/models/components/prefill-group-shared.ts": {
+    "eslint(no-nested-ternary)": 1,
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/models/lib/deployments-utils.ts": {
+    "eslint(no-nested-ternary)": 1,
+    "unicorn(prefer-number-properties)": 1
+  },
+  "src/features/pricing/components/model-details-api.tsx": {
+    "eslint(curly)": 1,
+    "unicorn(prefer-string-replace-all)": 5
+  },
+  "src/features/pricing/components/model-details-apps.tsx": {
+    "eslint(no-nested-ternary)": 4
+  },
+  "src/features/pricing/constants.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/pricing/lib/mock-stats.ts": {
+    "eslint(curly)": 1,
+    "eslint(no-nested-ternary)": 3,
+    "unicorn(prefer-spread)": 2
+  },
+  "src/features/profile/__tests__/settings.test.tsx": {
+    "unicorn(prefer-structured-clone)": 1
+  },
+  "src/features/rankings/index.tsx": {
+    "eslint(no-nested-ternary)": 1,
+    "unicorn(prefer-set-has)": 1
+  },
+  "src/features/rankings/lib/format.ts": {
+    "eslint(curly)": 4
+  },
+  "src/features/redemption-codes/components/redemptions-columns.tsx": {
+    "react(self-closing-comp)": 1
+  },
+  "src/features/redemption-codes/components/redemptions-provider.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/subscriptions/components/subscriptions-provider.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/subscriptions/constants.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/system-settings/content/dashboard-section.tsx": {
+    "unicorn(no-useless-spread)": 1
+  },
+  "src/features/system-settings/general/channel-affinity/constants.ts": {
+    "unicorn(prefer-structured-clone)": 1
+  },
+  "src/features/system-settings/general/pricing-section.tsx": {
+    "eslint(no-nested-ternary)": 1
+  },
+  "src/features/system-settings/integrations/amount-discount-dialog.tsx": {
+    "unicorn(prefer-number-properties)": 2
+  },
+  "src/features/system-settings/integrations/amount-discount-visual-editor.tsx": {
+    "unicorn(prefer-number-properties)": 2
+  },
+  "src/features/system-settings/integrations/amount-options-visual-editor.tsx": {
+    "unicorn(prefer-number-properties)": 4
+  },
+  "src/features/system-settings/integrations/utils.ts": {
+    "unicorn(prefer-at)": 1,
+    "unicorn(prefer-number-properties)": 3,
+    "unicorn(prefer-string-slice)": 1
+  },
+  "src/features/system-settings/models/utils.ts": {
+    "unicorn(prefer-at)": 1,
+    "unicorn(prefer-number-properties)": 3,
+    "unicorn(prefer-string-slice)": 1
+  },
+  "src/features/system-settings/request-limits/rate-limit-dialog.tsx": {
+    "unicorn(prefer-number-properties)": 2
+  },
+  "src/features/system-settings/request-limits/rate-limit-section.tsx": {
+    "unicorn(prefer-number-properties)": 3
+  },
+  "src/features/system-settings/utils/json-parser.ts": {
+    "unicorn(prefer-at)": 1,
+    "unicorn(prefer-number-properties)": 3,
+    "unicorn(prefer-string-slice)": 1
+  },
+  "src/features/usage-logs/components/columns/column-helpers.tsx": {
+    "react(self-closing-comp)": 1
+  },
+  "src/features/usage-logs/components/task-logs-filter-bar.tsx": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/users/components/data-table-bulk-actions.tsx": {
+    "react(jsx-no-useless-fragment)": 1,
+    "typescript(no-import-type-side-effects)": 2
+  },
+  "src/features/users/lib/user-actions.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/users/lib/user-form.ts": {
+    "typescript(no-import-type-side-effects)": 1
+  },
+  "src/features/wallet/components/creem-products-section.tsx": {
+    "react(no-array-index-key)": 1
+  },
+  "src/hooks/use-system-config.ts": {
+    "unicorn(prefer-add-event-listener)": 4
+  },
+  "src/hooks/use-table-url-state.ts": {
+    "typescript(no-non-null-assertion)": 1,
+    "unicorn(prefer-number-properties)": 1
+  },
+  "src/lib/http-status-code-rules.ts": {
+    "unicorn(prefer-at)": 1,
+    "unicorn(prefer-string-replace-all)": 2
+  },
+  "src/lib/utils.ts": {
+    "eslint(prefer-template)": 1,
+    "unicorn(prefer-string-replace-all)": 2
+  },
+  "src/routes/_authenticated/chat/$chatId.tsx": {
+    "react(iframe-missing-sandbox)": 1
+  },
+  "src/stores/system-config-store.ts": {
+    "unicorn(no-useless-fallback-in-spread)": 1
+  }
+}

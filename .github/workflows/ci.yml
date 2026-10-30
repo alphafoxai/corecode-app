@@ -111,6 +111,12 @@ jobs:
           bun install --frozen-lockfile
           DISABLE_ESLINT_PLUGIN='true' bun run build
 
+      # oxlint against web/lint-baseline.json: the upstream console does not
+      # lint clean, so this fails only on findings the baseline does not record.
+      - name: Check for new lint findings
+        working-directory: web
+        run: bun run lint:check
+
       # What a cold visit downloads before each core page renders, against
       # web/first-load-budget.json: an import that pulls a page into the entry
       # passes review and the build but fails here.

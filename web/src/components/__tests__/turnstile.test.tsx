@@ -23,13 +23,13 @@ import { Turnstile } from '../turnstile'
 
 afterEach(() => {
   cleanup()
-  document.getElementById('cf-turnstile')?.remove()
+  document.querySelector('#cf-turnstile')?.remove()
   delete window.turnstile
 })
 
 it('loads the script once and renders when it arrives', () => {
   const { container } = render(<Turnstile siteKey='site' onVerify={vi.fn()} />)
-  const script = document.getElementById('cf-turnstile')
+  const script = document.querySelector('#cf-turnstile')
   expect(script).toHaveAttribute(
     'src',
     'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
@@ -55,7 +55,7 @@ it('renders a widget that mounts while another widget is loading the script', ()
 
   const renderWidget = vi.fn()
   window.turnstile = { render: renderWidget }
-  document.getElementById('cf-turnstile')?.dispatchEvent(new Event('load'))
+  document.querySelector('#cf-turnstile')?.dispatchEvent(new Event('load'))
 
   expect(renderWidget).toHaveBeenCalledTimes(1)
   expect(renderWidget).toHaveBeenCalledWith(
