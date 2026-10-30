@@ -93,7 +93,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			require.NoError(t, DB.Create(&topUps).Error)
 			quotaRows := []QuotaData{
 				{UserID: alice.Id, Username: "alice", ModelName: "opus", CreatedAt: day1, Count: 2, Quota: int(2 * dollar), TokenUsed: 20, CacheReadTokens: 80},
-				{UserID: bob.Id, Username: "bob", ModelName: "sonnet", CreatedAt: day1, Count: 1, Quota: int(dollar), TokenUsed: 5},
+				{UserID: bob.Id, Username: "bob", ModelName: "claude-sonnet-5-5", CreatedAt: day1, Count: 1, Quota: int(dollar), TokenUsed: 5},
 				{UserID: alice.Id, Username: "alice", ModelName: "opus", CreatedAt: day1 + 86400, Count: 1, Quota: int(dollar), TokenUsed: 10},
 			}
 			require.NoError(t, DB.Create(&quotaRows).Error)
@@ -113,6 +113,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 70.0, finance.TopupCreditUSD)
 			assert.Equal(t, 5.0, finance.BonusUSD)
 			assert.Equal(t, 3.0, finance.ConsumptionUSD, "read from the logs, root left out")
+			assert.Equal(t, 1.0, finance.ClaudeUSD, "only the claude- model counts as Claude")
 			assert.Equal(t, 26.6333, finance.RevenuePerUSD)
 			assert.Equal(t, 30.0, finance.LiabilityUSD, "root's balance is not owed to a customer")
 			assert.Equal(t, -2.0, finance.DebtUSD)
@@ -121,7 +122,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 10.0, finance.Adjustments[0].DeltaUSD)
 			assert.Equal(t, 10.0, finance.AdjustmentNetUSD)
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, RecognizedRevenue: 1.65}, finance.Daily[0],
+			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, RecognizedRevenue: 1.65, ClaudeUSD: 1}, finance.Daily[0],
 				"alice's two dollars at 70 paid for 85 credited")
 
 			risk, err := GetRiskInsights(r)
@@ -242,9 +243,11 @@ func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
 				consume(guest, day1+86400+200, 4, plan(given.Id, 0)),
 			}
 			require.NoError(t, LOG_DB.Create(&logs).Error)
+			require.NoError(t, DB.Create(&QuotaData{UserID: root.Id, Username: "root", ModelName: "claude-opus-5-5", CreatedAt: day1, Count: 1, Quota: int(30 * dollar)}).Error)
 
 			finance, err := GetFinanceInsights(r)
 			require.NoError(t, err)
+			assert.Equal(t, 30.0, finance.ClaudeUSD, "the Claude charge keeps root, as the engine's cost does")
 			assert.Equal(t, 14.0, finance.Revenue, "a plan bought with balance brings in no money")
 			assert.Equal(t, 25.0, finance.ConsumptionUSD, "payer 15, buyer 6, guest 4")
 			assert.Equal(t, 30.0, finance.RootConsumptionUSD)
@@ -256,7 +259,7 @@ func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
 			assert.Equal(t, 0.56, finance.RevenuePerUSD)
 			assert.Equal(t, 40.0, finance.LiabilityPaidValue, "the payer's $50 at 0.8")
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8, ClaudeUSD: 30}, finance.Daily[0])
 			assert.Equal(t, FinanceDay{Day: day1 + 86400, ConsumptionUSD: 9, RecognizedRevenue: 6.8}, finance.Daily[1])
 		})
 	}

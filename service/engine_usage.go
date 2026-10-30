@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 )
 
 // EngineClaudeModelPrefix limits the engine's official-price cost to Claude
 // models; the engine can carry other providers' groups too.
-const EngineClaudeModelPrefix = "claude-"
+const EngineClaudeModelPrefix = model.ClaudeModelPrefix
 
 // EngineCostDay is one local day of Claude usage the engine priced at the
 // official rates, before any new-api ratio.

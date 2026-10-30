@@ -12,6 +12,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// ClaudeModelPrefix names the Claude models, which corecode-engine serves
+// from the subscription pool.
+const ClaudeModelPrefix = "claude-"
+
 // FinanceDay is one day of revenue, revenue earned and customers'
 // list-price consumption.
 type FinanceDay struct {
@@ -20,6 +24,10 @@ type FinanceDay struct {
 	Subscription      float64 `json:"subscription"`
 	ConsumptionUSD    float64 `json:"consumption_usd"`
 	RecognizedRevenue float64 `json:"recognized_revenue"`
+	// ClaudeUSD is what new-api charged for Claude models, root included:
+	// corecode-engine's official-price cost it is compared with covers
+	// root's requests too.
+	ClaudeUSD float64 `json:"claude_usd"`
 }
 
 // BalanceUser is a wallet balance in USD.
@@ -65,6 +73,8 @@ type FinanceInsights struct {
 	ConsumptionUSD      float64            `json:"consumption_usd"`
 	RootConsumptionUSD  float64            `json:"root_consumption_usd"`
 	GiftConsumptionUSD  float64            `json:"gift_consumption_usd"`
+	// ClaudeUSD is the range's Claude charge, root included (FinanceDay).
+	ClaudeUSD float64 `json:"claude_usd"`
 	// RevenuePerUSD is revenue divided by list-price consumption: what one
 	// dollar of consumption brought in over the range.
 	RevenuePerUSD                 float64 `json:"revenue_per_usd"`
@@ -178,6 +188,20 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 			}
 		}
 	}
+	quota, err := readInsightQuota(r.Start, r.End)
+	if err != nil {
+		return nil, err
+	}
+	var claude int64
+	for _, row := range quota {
+		if !strings.HasPrefix(row.ModelName, ClaudeModelPrefix) {
+			continue
+		}
+		claude += int64(row.Quota)
+		if day := days[r.DayStart(row.CreatedAt)]; day != nil {
+			day.ClaudeUSD += float64(row.Quota) / common.QuotaPerUnit
+		}
+	}
 	subscriptions, err := recognizeSubscriptions(r, prices, days)
 	if err != nil {
 		return nil, err
@@ -185,6 +209,7 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	result.ConsumptionUSD = quotaUSD(consumed)
 	result.RootConsumptionUSD = quotaUSD(root)
 	result.GiftConsumptionUSD = roundTo(gift/common.QuotaPerUnit, 4)
+	result.ClaudeUSD = quotaUSD(claude)
 	result.RevenuePerUSD = ratio(result.Revenue, result.ConsumptionUSD)
 	result.RecognizedWalletRevenue = roundTo(wallet, 2)
 	result.RecognizedSubscriptionRevenue = roundTo(subscriptions, 2)
@@ -193,6 +218,7 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	for _, day := range days {
 		day.Topup, day.Subscription, day.ConsumptionUSD = roundTo(day.Topup, 2), roundTo(day.Subscription, 2), roundTo(day.ConsumptionUSD, 4)
 		day.RecognizedRevenue = roundTo(day.RecognizedRevenue, 2)
+		day.ClaudeUSD = roundTo(day.ClaudeUSD, 4)
 		result.Daily = append(result.Daily, *day)
 	}
 	slices.SortFunc(result.Daily, func(a, b FinanceDay) int { return cmp.Compare(a.Day, b.Day) })

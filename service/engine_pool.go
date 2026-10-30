@@ -50,6 +50,11 @@ type EngineAccount struct {
 	FiveHourRemainingUSD *float64 `json:"five_hour_remaining_usd"`
 	SevenDayRemainingUSD *float64 `json:"seven_day_remaining_usd"`
 	BurnUSDPerHour       *float64 `json:"burn_usd_per_hour"`
+	// SevenDayCapacityUSD is what a full week of the account serves at
+	// official prices, as the engine calibrated it from the account's own
+	// requests; Source is measured, recent, peer or unknown.
+	SevenDayCapacityUSD    *float64 `json:"seven_day_capacity_usd"`
+	SevenDayCapacitySource string   `json:"seven_day_capacity_source"`
 }
 
 // EngineGroup is one engine group with its accounts counted by status.
@@ -185,6 +190,8 @@ type engineEstimate struct {
 		} `json:"five_hour"`
 		SevenDay struct {
 			RemainingUSD *float64 `json:"remaining_usd"`
+			CapacityUSD  *float64 `json:"capacity_usd"`
+			Source       string   `json:"source"`
 		} `json:"seven_day"`
 		BurnUSDPerHour *float64 `json:"burn_usd_per_hour"`
 	} `json:"accounts"`
@@ -418,6 +425,8 @@ func readEnginePool(base, key string) EnginePool {
 			pool.Accounts[i].FiveHourRemainingUSD = row.FiveHour.RemainingUSD
 			pool.Accounts[i].SevenDayRemainingUSD = row.SevenDay.RemainingUSD
 			pool.Accounts[i].BurnUSDPerHour = row.BurnUSDPerHour
+			pool.Accounts[i].SevenDayCapacityUSD = row.SevenDay.CapacityUSD
+			pool.Accounts[i].SevenDayCapacitySource = row.SevenDay.Source
 		}
 	}
 	return pool

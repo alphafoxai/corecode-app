@@ -61,6 +61,11 @@ days ¥0.38. Read-only queries found three causes:
 
 ## Consequences
 
+- `claude_usd` (from the official-value change merged beside this one) still
+  reads `quota_data` with root included, because corecode-engine's
+  official-price cost covers root's requests too. It is compared only with
+  that cost, never with the customer-only consumption; the panel's help says
+  so.
 - After release, every stored hour is recomputed: the rollup task stores 200
   hours per 10 minutes, and a view computes a missing hour on demand, so the
   first finance or capacity open may be slower for a few ticks.
