@@ -246,6 +246,7 @@ type paidOrder struct {
 	UserId        int
 	Money         float64
 	Amount        int64
+	BonusQuota    int64
 	PaymentMethod string
 	TradeNo       string
 	CreateTime    int64
@@ -253,7 +254,7 @@ type paidOrder struct {
 }
 
 func readPaidOrders(start, end int64) ([]paidOrder, error) {
-	query := DB.Model(&TopUp{}).Select("user_id, money, amount, payment_method, trade_no, create_time").
+	query := DB.Model(&TopUp{}).Select("user_id, money, amount, bonus_quota, payment_method, trade_no, create_time").
 		Where("status = ? AND (payment_provider IS NULL OR payment_provider <> ?)", common.TopUpStatusSuccess, PaymentProviderBalance)
 	if start > 0 {
 		query = query.Where("create_time >= ?", start)

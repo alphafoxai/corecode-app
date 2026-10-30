@@ -27,7 +27,7 @@ import (
 // can still be unlogged: a log is read up to insightHourLookahead after the
 // hour ends, so a request that runs longer than that is left out.
 const (
-	insightHourVersion    = 1
+	insightHourVersion    = 2
 	insightHourLookahead  = 2 * 3600
 	insightHourSettle     = 10 * 60
 	insightHourMaxLogRows = 200_000
@@ -46,14 +46,20 @@ type InsightHour struct {
 	CreatedAt int64  `json:"created_at"`
 }
 
-// InsightUserHour is one user's requests and peak concurrency in an hour.
-// Root is left out: the capacity view counts customers.
+// InsightUserHour is one user's requests, peak concurrency and consumption in
+// an hour. Root is left out: the capacity and finance views count customers.
+// Quota is what the user's requests cost at list price; WalletQuota is the
+// part the wallet paid, and GiftQuota the part covered by plans an
+// administrator or an inviter gave. The rest came from bought plans.
 type InsightUserHour struct {
-	HourStart int64 `gorm:"primaryKey;autoIncrement:false"`
-	UserId    int   `gorm:"primaryKey;autoIncrement:false"`
-	Requests  int64 `gorm:"not null;default:0"`
-	Peak      int   `gorm:"not null;default:0"`
-	PeakAt    int64 `gorm:"not null;default:0"`
+	HourStart   int64 `gorm:"primaryKey;autoIncrement:false"`
+	UserId      int   `gorm:"primaryKey;autoIncrement:false"`
+	Requests    int64 `gorm:"not null;default:0"`
+	Peak        int   `gorm:"not null;default:0"`
+	PeakAt      int64 `gorm:"not null;default:0"`
+	Quota       int64 `gorm:"not null;default:0"`
+	WalletQuota int64 `gorm:"not null;default:0"`
+	GiftQuota   int64 `gorm:"not null;default:0"`
 }
 
 // InsightModelHour is one model's quality figures in an hour, root included.
@@ -87,7 +93,9 @@ type insightSummary struct {
 	StatusCodes       map[string]int64 `json:"status_codes,omitempty"`
 	ErrorReasons      map[string]int64 `json:"error_reasons,omitempty"`
 	Clients           map[string]int64 `json:"clients,omitempty"`
-	Truncated         bool             `json:"truncated,omitempty"`
+	// RootQuota is what root's own requests cost at list price.
+	RootQuota int64 `json:"root_quota,omitempty"`
+	Truncated bool  `json:"truncated,omitempty"`
 }
 
 // insightHour is one hour in memory: its summary, users and models.
@@ -189,20 +197,33 @@ func mergeCounts(into map[string]int64, from map[string]int64) {
 	}
 }
 
-func rootUserIDs() (map[int]bool, error) {
-	var ids []int
-	if err := DB.Model(&User{}).Unscoped().Where("role >= ?", common.RoleRootUser).Pluck("id", &ids).Error; err != nil {
-		return nil, err
+// insightHourScope is what an hour's aggregation needs besides the logs: who
+// root is, and which plans were given away rather than bought.
+type insightHourScope struct {
+	roots map[int]bool
+	gifts map[int]bool
+}
+
+func loadInsightHourScope() (insightHourScope, error) {
+	var roots, gifts []int
+	if err := DB.Model(&User{}).Unscoped().Where("role >= ?", common.RoleRootUser).Pluck("id", &roots).Error; err != nil {
+		return insightHourScope{}, err
 	}
-	roots := make(map[int]bool, len(ids))
-	for _, id := range ids {
-		roots[id] = true
+	if err := DB.Model(&UserSubscription{}).Where("source IN ?", []string{"admin", SubscriptionSourceAffiliateGift}).Pluck("id", &gifts).Error; err != nil {
+		return insightHourScope{}, err
 	}
-	return roots, nil
+	scope := insightHourScope{roots: make(map[int]bool, len(roots)), gifts: make(map[int]bool, len(gifts))}
+	for _, id := range roots {
+		scope.roots[id] = true
+	}
+	for _, id := range gifts {
+		scope.gifts[id] = true
+	}
+	return scope, nil
 }
 
 // computeInsightHour aggregates the logs of the hour starting at start.
-func computeInsightHour(start int64, roots map[int]bool) (*insightHour, error) {
+func computeInsightHour(start int64, scope insightHourScope) (*insightHour, error) {
 	end := start + 3600
 	var logs []insightLog
 	err := LOG_DB.Model(&Log{}).
@@ -233,7 +254,7 @@ func computeInsightHour(start int64, roots map[int]bool) (*insightHour, error) {
 	for _, log := range logs {
 		began := log.CreatedAt - int64(max(log.UseTime, 0))
 		finished := max(log.CreatedAt, began+1)
-		customer := !roots[log.UserId]
+		customer := !scope.roots[log.UserId]
 		if customer {
 			events = append(events, concurrencyEvent{began, 1, log.UserId}, concurrencyEvent{finished, -1, log.UserId})
 		}
@@ -275,6 +296,11 @@ func computeInsightHour(start int64, roots map[int]bool) (*insightHour, error) {
 			continue
 		}
 		other := parseLogOther(log.Other)
+		if customer {
+			hour.users[log.UserId].addConsumption(log.Quota, other, scope.gifts)
+		} else {
+			summary.RootQuota += int64(log.Quota)
+		}
 		client := other.AdminInfo.Client
 		if client == "" {
 			client = "unknown"
@@ -354,6 +380,29 @@ func computeInsightHour(start int64, roots map[int]bool) (*insightHour, error) {
 		open()
 	}
 	return hour, nil
+}
+
+// addConsumption adds a consumed request to the user's hour, split by what
+// paid for it. A request is billed to one source, and when that source runs
+// short the other covers the rest (billing_overflow_quota). A log without a
+// source predates the field and was billed to the wallet. A plan that covers
+// a wallet-first request's overflow is not named in the log, so that part
+// counts as bought.
+func (u *InsightUserHour) addConsumption(quota int, other logOtherFields, gifts map[int]bool) {
+	total := int64(quota)
+	overflow := min(max(other.BillingOverflowQuota, 0), max(total, 0))
+	wallet := total - overflow
+	if other.BillingSource == "subscription" {
+		wallet = 0
+		if other.BillingOverflowSource == "wallet" {
+			wallet = overflow
+		}
+		if gifts[other.SubscriptionId] {
+			u.GiftQuota += total - wallet
+		}
+	}
+	u.Quota += total
+	u.WalletQuota += wallet
 }
 
 func (h *insightHour) save() error {
@@ -446,11 +495,11 @@ func recentOpenInsightHour(start int64) (*insightHour, error) {
 	openInsightHours.mu.Unlock()
 	key := strconv.FormatInt(start, 10)
 	compute := func() (any, error) {
-		roots, err := rootUserIDs()
+		scope, err := loadInsightHourScope()
 		if err != nil {
 			return nil, err
 		}
-		hour, err := computeInsightHour(start, roots)
+		hour, err := computeInsightHour(start, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -529,7 +578,7 @@ func loadInsightHours(r InsightsRange) ([]*insightHour, error) {
 	if err != nil {
 		return nil, err
 	}
-	var roots map[int]bool
+	var scope *insightHourScope
 	result := make([]*insightHour, 0, (r.End-first)/3600+1)
 	for start := first; start < r.End; start += 3600 {
 		hour := hours[start]
@@ -546,12 +595,14 @@ func loadInsightHours(r InsightsRange) ([]*insightHour, error) {
 				result = append(result, hour)
 				continue
 			}
-			if roots == nil {
-				if roots, err = rootUserIDs(); err != nil {
+			if scope == nil {
+				loaded, err := loadInsightHourScope()
+				if err != nil {
 					return nil, err
 				}
+				scope = &loaded
 			}
-			if hour, err = computeInsightHour(start, roots); err != nil {
+			if hour, err = computeInsightHour(start, *scope); err != nil {
 				return nil, err
 			}
 			if err := hour.save(); err != nil {
@@ -588,7 +639,7 @@ func FillInsightHours(days int64, limit int) (int, error) {
 	for _, start := range have {
 		stored[start] = true
 	}
-	roots, err := rootUserIDs()
+	scope, err := loadInsightHourScope()
 	if err != nil {
 		return 0, err
 	}
@@ -597,7 +648,7 @@ func FillInsightHours(days int64, limit int) (int, error) {
 		if stored[start] {
 			continue
 		}
-		hour, err := computeInsightHour(start, roots)
+		hour, err := computeInsightHour(start, scope)
 		if err != nil {
 			return filled, err
 		}

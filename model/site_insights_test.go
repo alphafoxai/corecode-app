@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -111,8 +112,8 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.EqualValues(t, 2, finance.PayingUsers)
 			assert.Equal(t, 70.0, finance.TopupCreditUSD)
 			assert.Equal(t, 5.0, finance.BonusUSD)
-			assert.Equal(t, 4.0, finance.ConsumptionUSD)
-			assert.Equal(t, 19.975, finance.RevenuePerUSD)
+			assert.Equal(t, 3.0, finance.ConsumptionUSD, "read from the logs, root left out")
+			assert.Equal(t, 26.6333, finance.RevenuePerUSD)
 			assert.Equal(t, 30.0, finance.LiabilityUSD, "root's balance is not owed to a customer")
 			assert.Equal(t, -2.0, finance.DebtUSD)
 			require.Len(t, finance.Adjustments, 1)
@@ -120,7 +121,8 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 10.0, finance.Adjustments[0].DeltaUSD)
 			assert.Equal(t, 10.0, finance.AdjustmentNetUSD)
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, RecognizedRevenue: 1.65}, finance.Daily[0],
+				"alice's two dollars at 70 paid for 85 credited")
 
 			risk, err := GetRiskInsights(r)
 			require.NoError(t, err)
@@ -174,6 +176,88 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, "opus", business.Models[0].Model)
 			assert.Equal(t, 0.75, business.Models[0].Share)
 			assert.Equal(t, 59.93, business.Models[0].RevenueEstimate)
+		})
+	}
+}
+
+// The finance view earns a plan's price over the days it runs and a wallet's
+// money as it is spent, and leaves root's requests and given credit unpaid.
+func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			useInsightsTestDB(t, dialect)
+			const day1 = int64(1759248000)
+			const week = 7 * 86400
+			dollar := int64(common.QuotaPerUnit)
+			r := InsightsRange{Start: day1, End: day1 + 2*86400, Offset: 8 * 3600}
+
+			payer := registerAffiliateTestUser(t, "payer", "")
+			buyer := registerAffiliateTestUser(t, "buyer", "")
+			guest := registerAffiliateTestUser(t, "guest", "")
+			root := &User{Username: "root", DisplayName: "root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}
+			require.NoError(t, root.Insert(0))
+			for id, quota := range map[int]int64{payer.Id: 50 * dollar, buyer.Id: 0, guest.Id: 0, root.Id: 1000 * dollar} {
+				require.NoError(t, DB.Model(&User{}).Where("id = ?", id).Update("quota", quota).Error)
+			}
+
+			// The payer paid 80 for $80 before the range and was given $20 more,
+			// so each wallet dollar carries 0.8. They also bought a $7 plan with
+			// balance. The buyer paid 14 in the range for a week's plan; the
+			// guest's plan was an inviter's gift.
+			require.NoError(t, DB.Create(&TopUp{UserId: payer.Id, Amount: 80, Money: 80, PaymentMethod: "alipay", Status: common.TopUpStatusSuccess, TradeNo: "W1", CreateTime: day1 - 86400}).Error)
+			require.NoError(t, LOG_DB.Create(&AuditLog{
+				EventId: "gift", UserId: root.Id, Username: "root", CreatedAt: day1 - 3600, Action: "user.quota_add", Success: true, Category: AuditCategoryOperation,
+				Other: AuditOther{Op: &AuditOperation{Action: "user.quota_add", Params: AuditFields{"target_user_id": payer.Id, "from": 80 * dollar, "to": 100 * dollar}}},
+			}).Error)
+			orders := []SubscriptionOrder{
+				{UserId: buyer.Id, PlanId: 1, Money: 14, TradeNo: "S1", PaymentMethod: "alipay", Status: common.TopUpStatusSuccess, CreateTime: day1, CompleteTime: day1},
+				{UserId: payer.Id, PlanId: 2, Money: 7, TradeNo: "S2", PaymentMethod: PaymentMethodBalance, PaymentProvider: PaymentProviderBalance, Status: common.TopUpStatusSuccess,
+					CreateTime: day1, CompleteTime: day1, ProviderPayload: "charged_quota=" + strconv.FormatInt(7*dollar, 10)},
+			}
+			require.NoError(t, DB.Create(&orders).Error)
+			require.NoError(t, DB.Create(&TopUp{UserId: buyer.Id, Money: 14, PaymentMethod: "alipay", Status: common.TopUpStatusSuccess, TradeNo: "S1", CreateTime: day1}).Error)
+			bought := UserSubscription{UserId: buyer.Id, PlanId: 1, AmountTotal: 20 * dollar, StartTime: day1, EndTime: day1 + week, Status: "active", Source: "order"}
+			withBalance := UserSubscription{UserId: payer.Id, PlanId: 2, AmountTotal: 10 * dollar, StartTime: day1, EndTime: day1 + week, Status: "active", Source: PaymentMethodBalance}
+			given := UserSubscription{UserId: guest.Id, PlanId: 3, AmountTotal: 5 * dollar, StartTime: day1, EndTime: day1 + week, Status: "active", Source: SubscriptionSourceAffiliateGift}
+			for _, subscription := range []*UserSubscription{&bought, &withBalance, &given} {
+				require.NoError(t, DB.Create(subscription).Error)
+			}
+
+			plan := func(id int, overflow int64) string {
+				other := `{"billing_source":"subscription","subscription_id":` + strconv.Itoa(id)
+				if overflow > 0 {
+					other += `,"billing_overflow_source":"wallet","billing_overflow_quota":` + strconv.FormatInt(overflow, 10)
+				}
+				return other + "}"
+			}
+			consume := func(user *User, at int64, dollars int64, other string) Log {
+				return Log{UserId: user.Id, Username: user.Username, Type: LogTypeConsume, CreatedAt: at, ModelName: "opus", Quota: int(dollars * dollar), Other: other}
+			}
+			logs := []Log{
+				consume(payer, day1+100, 10, `{"billing_source":"wallet"}`),
+				consume(buyer, day1+200, 6, plan(bought.Id, dollar)),
+				consume(root, day1+300, 30, `{"billing_source":"wallet"}`),
+				// A log from before billing_source was recorded was billed to the wallet.
+				consume(payer, day1+86400+100, 5, `{}`),
+				consume(guest, day1+86400+200, 4, plan(given.Id, 0)),
+			}
+			require.NoError(t, LOG_DB.Create(&logs).Error)
+
+			finance, err := GetFinanceInsights(r)
+			require.NoError(t, err)
+			assert.Equal(t, 14.0, finance.Revenue, "a plan bought with balance brings in no money")
+			assert.Equal(t, 25.0, finance.ConsumptionUSD, "payer 15, buyer 6, guest 4")
+			assert.Equal(t, 30.0, finance.RootConsumptionUSD)
+			assert.Equal(t, 8.0, finance.GiftConsumptionUSD, "a fifth of the payer's 15, the buyer's unpaid wallet dollar, the guest's 4")
+			assert.Equal(t, 12.0, finance.RecognizedWalletRevenue, "the payer's 15 at 0.8")
+			assert.Equal(t, 5.6, finance.RecognizedSubscriptionRevenue, "two of seven days of 14, and of $7 balance at 0.8")
+			assert.Equal(t, 17.6, finance.RecognizedRevenue)
+			assert.Equal(t, 0.704, finance.RecognizedPerUSD)
+			assert.Equal(t, 0.56, finance.RevenuePerUSD)
+			assert.Equal(t, 40.0, finance.LiabilityPaidValue, "the payer's $50 at 0.8")
+			require.Len(t, finance.Daily, 2)
+			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1 + 86400, ConsumptionUSD: 9, RecognizedRevenue: 6.8}, finance.Daily[1])
 		})
 	}
 }
