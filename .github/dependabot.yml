@@ -1,6 +1,36 @@
+# This repository is a GitHub fork, and GitHub leaves Dependabot version updates off
+# on forks until a maintainer enables them in the repository's settings; until then
+# this file does nothing.
+#
+# Version updates only propose releases at least 7 days old, because a poisoned
+# release is usually caught and pulled within days; security updates ignore the
+# cooldown. Actions are pinned to commit SHAs, and Dependabot moves the SHA and its
+# version comment together. See corecode-infra
+# notes/workspace/implemented/process/2026-10-30-pin-actions-and-cool-down-dependency-updates.md
 version: 2
 updates:
   - package-ecosystem: "bun"
     directory: "/web"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  # relaykit and tokenkit are separate modules that the root replaces with local
+  # paths; Dependabot does not find them from the root.
+  - package-ecosystem: "gomod"
+    directories:
+      - "/"
+      - "/relaykit"
+      - "/tokenkit"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
