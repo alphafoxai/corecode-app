@@ -120,6 +120,10 @@ func Distribute() func(c *gin.Context) {
 				if selectErr.FilterKind == taskdto.FilterTaskPluginIdentity {
 					logTaskPluginChannelDecision(c, selectErr.Channel, modelRequest.Model, "channel_rejected", "identity_mismatch")
 				}
+				if selectErr.NoAvailableChannel && isClaudeMessagesRequest(c) && !model.IsModelListed(modelRequest.Model) {
+					abortWithClaudeModelNotFound(c, modelRequest.Model)
+					return
+				}
 				message := selectErr.Message
 				if selectErr.NoAvailableChannel {
 					message = noAvailableChannelMessage(c, usingGroup, modelRequest.Model)
@@ -137,6 +141,30 @@ func Distribute() func(c *gin.Context) {
 			service.RecordChannelAffinity(c, channel.Id)
 		}
 	}
+}
+
+// isClaudeMessagesRequest reports a request in Anthropic's Messages format,
+// which also takes Anthropic's error shape.
+func isClaudeMessagesRequest(c *gin.Context) bool {
+	_, pluginRoute := c.Get(jsplugin.ContextKeyPinnedPlugin)
+	return !pluginRoute && strings.HasPrefix(c.Request.URL.Path, "/v1/messages")
+}
+
+// abortWithClaudeModelNotFound answers a model no channel lists the way
+// Anthropic does: 404 not_found_error. Claude Code retries a 503 several times
+// before falling back from a model it asked for, such as auto mode's classifier
+// default; a 404 makes it fall back at once.
+func abortWithClaudeModelNotFound(c *gin.Context, modelName string) {
+	message := "model: " + modelName
+	c.JSON(http.StatusNotFound, gin.H{
+		"type": "error",
+		"error": gin.H{
+			"type":    "not_found_error",
+			"message": common.MessageWithRequestId(message, c.GetString(common.RequestIdKey)),
+		},
+	})
+	c.Abort()
+	logger.LogError(c.Request.Context(), common.LogText("user %d | model not listed: %s", c.GetInt("id"), modelName))
 }
 
 // noAvailableChannelMessage explains a 503 for a task-plugin-claimed model.
