@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -214,6 +215,31 @@ func GetRandomSatisfiedChannel(
 	}
 	// return null if no channel is not found
 	return nil, errors.New("channel not found")
+}
+
+// IsModelListed reports whether any channel, enabled or disabled, lists the
+// model under its exact or routing-normalized name. It tells a model this
+// deployment does not serve from one whose channels are all down.
+func IsModelListed(modelName string) bool {
+	names := []string{modelName}
+	if normalized := ratio_setting.RoutingMatchModelName(modelName); normalized != modelName {
+		names = append(names, normalized)
+	}
+	if !common.MemoryCacheEnabled {
+		var count int64
+		DB.Model(&Ability{}).Where("model IN ?", names).Count(&count)
+		return count > 0
+	}
+	channelSyncLock.RLock()
+	defer channelSyncLock.RUnlock()
+	for _, channel := range channelsIDM {
+		for _, listed := range channel.GetModels() {
+			if slices.Contains(names, listed) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func CacheGetChannel(id int) (*Channel, error) {
