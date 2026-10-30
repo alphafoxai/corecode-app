@@ -150,12 +150,21 @@ export type FinanceInsights = {
     topup: number
     subscription: number
     consumption_usd: number
+    recognized_revenue?: number
     claude_usd: number
   }[]
+  /** Customers only; root's own requests are root_consumption_usd. */
   consumption_usd: number
+  root_consumption_usd?: number
+  gift_consumption_usd?: number
   claude_usd: number
   revenue_per_usd: number
+  recognized_revenue?: number
+  recognized_wallet_revenue?: number
+  recognized_subscription_revenue?: number
+  recognized_per_usd?: number
   liability_usd: number
+  liability_paid_value?: number
   liability_users: number
   debt_usd: number
   debtors: BalanceUser[]

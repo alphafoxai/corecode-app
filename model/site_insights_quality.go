@@ -54,13 +54,17 @@ type QualityInsights struct {
 	Truncated    bool           `json:"truncated"`
 }
 
-// logOtherFields is the part of a log's other column the quality and
-// business views read.
+// logOtherFields is the part of a log's other column the quality, business
+// and finance views read.
 type logOtherFields struct {
-	Frt                 float64 `json:"frt"`
-	CacheTokens         int64   `json:"cache_tokens"`
-	CacheCreationTokens int64   `json:"cache_creation_tokens"`
-	StreamStatus        struct {
+	Frt                   float64 `json:"frt"`
+	BillingSource         string  `json:"billing_source"`
+	BillingOverflowSource string  `json:"billing_overflow_source"`
+	BillingOverflowQuota  int64   `json:"billing_overflow_quota"`
+	SubscriptionId        int     `json:"subscription_id"`
+	CacheTokens           int64   `json:"cache_tokens"`
+	CacheCreationTokens   int64   `json:"cache_creation_tokens"`
+	StreamStatus          struct {
 		EndReason string `json:"end_reason"`
 	} `json:"stream_status"`
 	AdminInfo struct {

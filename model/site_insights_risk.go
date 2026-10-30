@@ -183,7 +183,7 @@ func GetRiskInsights(r InsightsRange) (*RiskInsights, error) {
 		return nil, err
 	}
 	balances := &FinanceInsights{}
-	if err := fillBalances(balances); err != nil {
+	if err := fillBalances(balances, nil); err != nil {
 		return nil, err
 	}
 	result.Debtors = balances.Debtors

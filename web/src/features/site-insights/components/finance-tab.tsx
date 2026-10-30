@@ -47,6 +47,15 @@ export function FinanceTab(props: {
     data?.commission_usd ?? 0,
     data?.adjustment_net_usd ?? 0,
   ].reduce((sum, value) => sum + value, 0)
+  const paidUSD =
+    (data?.consumption_usd ?? 0) - (data?.gift_consumption_usd ?? 0)
+  const paidPerUSD = paidUSD > 0 ? (data?.recognized_revenue ?? 0) / paidUSD : 0
+  let balanceTone: 'danger' | 'warning' | 'default' = 'default'
+  if ((data?.debt_usd ?? 0) < DEBT_ALERT_USD) {
+    balanceTone = 'danger'
+  } else if ((data?.liability_usd ?? 0) > (data?.consumption_usd ?? 0)) {
+    balanceTone = 'warning'
+  }
   const engine = data?.engine_cost
   const engineReady = !!engine?.configured && !engine.error
   // Official-price dollars per new-api dollar charged for Claude.
@@ -87,48 +96,65 @@ export function FinanceTab(props: {
             ),
           },
           {
-            label: t('Consumption at list price'),
+            label: t('Revenue earned'),
+            value: fmt.cny(data?.recognized_revenue ?? 0),
+            delta: {
+              current: data?.recognized_revenue ?? 0,
+              previous: previous?.recognized_revenue,
+              better: 'up',
+            },
+            hint: t('Wallets {{wallet}} · plans {{plans}}', {
+              wallet: fmt.cny(data?.recognized_wallet_revenue ?? 0),
+              plans: fmt.cny(data?.recognized_subscription_revenue ?? 0),
+            }),
+            help: t(
+              'The part of all money paid that this range earned. A plan earns its price evenly over the days it runs; a wallet earns as it is spent, each dollar at what its owner paid per dollar credited, gifts included. Given credit earns nothing.'
+            ),
+          },
+          {
+            label: t('Customer consumption at list price'),
             value: fmt.usd(data?.consumption_usd ?? 0),
             delta: {
               current: data?.consumption_usd ?? 0,
               previous: previous?.consumption_usd,
               better: 'neutral',
             },
-            hint: t('USD at list price'),
+            hint: t('Gifted {{gift}} · root {{root}} left out', {
+              gift: fmt.usd(data?.gift_consumption_usd ?? 0),
+              root: fmt.usd(data?.root_consumption_usd ?? 0),
+            }),
+            help: t(
+              'Customers’ requests at list price, in USD. Root’s own requests are left out. Gifted is the part no payment covers: given plans and the unpaid share of each wallet.'
+            ),
           },
           {
-            label: t('Revenue per $1 consumed'),
-            value: fmt.cny(data?.revenue_per_usd ?? 0),
-            help: t(
-              'Revenue in CNY divided by consumption in USD at list price: what each list-price dollar used brought in.'
-            ),
+            label: t('Earned per $1 consumed'),
+            value: fmt.cny(data?.recognized_per_usd ?? 0),
             delta: {
-              current: data?.revenue_per_usd ?? 0,
-              previous: previous?.revenue_per_usd,
+              current: data?.recognized_per_usd ?? 0,
+              previous: previous?.recognized_per_usd,
               better: 'up',
             },
+            hint: t('Paid use {{paid}} · cash basis {{cash}}', {
+              paid: fmt.cny(paidPerUSD),
+              cash: fmt.cny(data?.revenue_per_usd ?? 0),
+            }),
+            help: t(
+              'Revenue earned divided by customer consumption: what each list-price dollar customers used earned. Paid use divides by consumption without the gifted part: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.'
+            ),
           },
           {
             label: t('Balances owed'),
             value: fmt.usd(data?.liability_usd ?? 0),
-            hint: t('{{count}} customers, now', {
+            hint: t('{{count}} customers · paid {{paid}} · debt {{debt}}', {
               count: data?.liability_users ?? 0,
+              paid: fmt.cny(data?.liability_paid_value ?? 0),
+              debt: fmt.usd(data?.debt_usd ?? 0),
             }),
             help: t(
-              'Credit customers hold and can still spend. Colored when it exceeds this range’s consumption.'
+              'Credit customers hold now and can still spend. Paid is what they paid for it at each wallet’s price; the rest was given. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.'
             ),
-            tone:
-              (data?.liability_usd ?? 0) > (data?.consumption_usd ?? 0)
-                ? 'warning'
-                : 'default',
-          },
-          {
-            label: t('Debt (negative balances)'),
-            value: fmt.usd(data?.debt_usd ?? 0),
-            hint: t('{{count}} customers', {
-              count: data?.debtors.length ?? 0,
-            }),
-            tone: (data?.debt_usd ?? 0) < DEBT_ALERT_USD ? 'danger' : 'default',
+            tone: balanceTone,
           },
         ]}
       />
@@ -144,7 +170,7 @@ export function FinanceTab(props: {
             : undefined
         }
         help={t(
-          'Revenue in the payment currency; consumption in USD at list price.'
+          'Revenue in the payment currency; consumption in USD at list price, customers only.'
         )}
       >
         <BarSeries
@@ -158,6 +184,10 @@ export function FinanceTab(props: {
             title: fmt.day(day.day),
             values: [day.topup, day.subscription],
             extra: [
+              {
+                label: t('Revenue earned'),
+                value: fmt.cny(day.recognized_revenue ?? 0),
+              },
               {
                 label: t('Consumed at list price'),
                 value: fmt.usd(day.consumption_usd),
@@ -229,7 +259,7 @@ export function FinanceTab(props: {
         <Panel
           title={t('Claude at official prices')}
           help={t(
-            'Charged is what new-api deducted for Claude models at its own ratios; official cost is what corecode-engine priced the same requests at Anthropic’s official prices. Both cover the days the engine reported. Gifted and paid balance count alike.'
+            'Charged is what new-api deducted for Claude models at its own ratios; official cost is what corecode-engine priced the same requests at Anthropic’s official prices. Both cover the days the engine reported. Gifted and paid balance count alike. Root’s own requests count on both sides, unlike the customer consumption above.'
           )}
           description={
             officialPerUSD > 0

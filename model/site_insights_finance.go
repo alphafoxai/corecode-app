@@ -3,6 +3,7 @@ package model
 import (
 	"cmp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -15,13 +16,17 @@ import (
 // from the subscription pool.
 const ClaudeModelPrefix = "claude-"
 
-// FinanceDay is one day of revenue and list-price consumption.
+// FinanceDay is one day of revenue, revenue earned and customers'
+// list-price consumption.
 type FinanceDay struct {
-	Day            int64   `json:"day"`
-	Topup          float64 `json:"topup"`
-	Subscription   float64 `json:"subscription"`
-	ConsumptionUSD float64 `json:"consumption_usd"`
-	// ClaudeUSD is the part of ConsumptionUSD charged for Claude models.
+	Day               int64   `json:"day"`
+	Topup             float64 `json:"topup"`
+	Subscription      float64 `json:"subscription"`
+	ConsumptionUSD    float64 `json:"consumption_usd"`
+	RecognizedRevenue float64 `json:"recognized_revenue"`
+	// ClaudeUSD is what new-api charged for Claude models, root included:
+	// corecode-engine's official-price cost it is compared with covers
+	// root's requests too.
 	ClaudeUSD float64 `json:"claude_usd"`
 }
 
@@ -49,6 +54,14 @@ type QuotaAdjustment struct {
 // FinanceInsights compares the money taken in a range with what customers
 // consumed at list price, and states the balances the site still owes.
 // Revenue is in the payment currency; consumption and balances are USD.
+//
+// Revenue is the money paid in the range. RecognizedRevenue is the part of
+// all money ever paid that the range earned: a plan earns its price evenly
+// over the time it runs, and the wallet earns as it is spent, each unit at
+// the price its owner paid on average for every unit the wallet was credited
+// (walletPrice). Consumption counts customers only; root's own requests are
+// RootConsumptionUSD. GiftConsumptionUSD is the part of consumption no
+// payment covers: given plans, and the unpaid share of each wallet.
 type FinanceInsights struct {
 	Revenue             float64            `json:"revenue"`
 	TopupRevenue        float64            `json:"topup_revenue"`
@@ -58,11 +71,23 @@ type FinanceInsights struct {
 	Methods             []TopUpMethodTotal `json:"methods"`
 	Daily               []FinanceDay       `json:"daily"`
 	ConsumptionUSD      float64            `json:"consumption_usd"`
-	ClaudeUSD           float64            `json:"claude_usd"`
+	RootConsumptionUSD  float64            `json:"root_consumption_usd"`
+	GiftConsumptionUSD  float64            `json:"gift_consumption_usd"`
+	// ClaudeUSD is the range's Claude charge, root included (FinanceDay).
+	ClaudeUSD float64 `json:"claude_usd"`
 	// RevenuePerUSD is revenue divided by list-price consumption: what one
 	// dollar of consumption brought in over the range.
-	RevenuePerUSD       float64           `json:"revenue_per_usd"`
-	LiabilityUSD        float64           `json:"liability_usd"`
+	RevenuePerUSD                 float64 `json:"revenue_per_usd"`
+	RecognizedRevenue             float64 `json:"recognized_revenue"`
+	RecognizedWalletRevenue       float64 `json:"recognized_wallet_revenue"`
+	RecognizedSubscriptionRevenue float64 `json:"recognized_subscription_revenue"`
+	// RecognizedPerUSD is recognized revenue divided by list-price
+	// consumption: what one dollar customers used earned.
+	RecognizedPerUSD float64 `json:"recognized_per_usd"`
+	LiabilityUSD     float64 `json:"liability_usd"`
+	// LiabilityPaidValue is what customers paid for the balances they hold,
+	// in the payment currency: the part of LiabilityUSD that is money owed.
+	LiabilityPaidValue  float64           `json:"liability_paid_value"`
 	LiabilityUsers      int64             `json:"liability_users"`
 	DebtUSD             float64           `json:"debt_usd"`
 	Debtors             []BalanceUser     `json:"debtors"`
@@ -138,35 +163,67 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	}
 	slices.SortFunc(result.Methods, func(a, b TopUpMethodTotal) int { return cmp.Compare(b.Money, a.Money) })
 
+	prices, err := readWalletPrices(r.End)
+	if err != nil {
+		return nil, err
+	}
+	hours, err := loadInsightHours(r)
+	if err != nil {
+		return nil, err
+	}
+	var consumed, root int64
+	var gift, wallet float64
+	for _, hour := range hours {
+		root += hour.summary.RootQuota
+		day := days[r.DayStart(hour.start)]
+		for _, user := range hour.users {
+			price := prices[user.UserId]
+			earned := float64(user.WalletQuota) * price.perQuota
+			consumed += user.Quota
+			wallet += earned
+			gift += float64(user.GiftQuota) + float64(user.WalletQuota)*(1-price.paidShare)
+			if day != nil {
+				day.ConsumptionUSD += float64(user.Quota) / common.QuotaPerUnit
+				day.RecognizedRevenue += earned
+			}
+		}
+	}
 	quota, err := readInsightQuota(r.Start, r.End)
 	if err != nil {
 		return nil, err
 	}
-	var consumed, claude int64
+	var claude int64
 	for _, row := range quota {
-		isClaude := strings.HasPrefix(row.ModelName, ClaudeModelPrefix)
-		consumed += int64(row.Quota)
-		if isClaude {
-			claude += int64(row.Quota)
+		if !strings.HasPrefix(row.ModelName, ClaudeModelPrefix) {
+			continue
 		}
+		claude += int64(row.Quota)
 		if day := days[r.DayStart(row.CreatedAt)]; day != nil {
-			day.ConsumptionUSD += float64(row.Quota) / common.QuotaPerUnit
-			if isClaude {
-				day.ClaudeUSD += float64(row.Quota) / common.QuotaPerUnit
-			}
+			day.ClaudeUSD += float64(row.Quota) / common.QuotaPerUnit
 		}
 	}
+	subscriptions, err := recognizeSubscriptions(r, prices, days)
+	if err != nil {
+		return nil, err
+	}
 	result.ConsumptionUSD = quotaUSD(consumed)
+	result.RootConsumptionUSD = quotaUSD(root)
+	result.GiftConsumptionUSD = roundTo(gift/common.QuotaPerUnit, 4)
 	result.ClaudeUSD = quotaUSD(claude)
 	result.RevenuePerUSD = ratio(result.Revenue, result.ConsumptionUSD)
+	result.RecognizedWalletRevenue = roundTo(wallet, 2)
+	result.RecognizedSubscriptionRevenue = roundTo(subscriptions, 2)
+	result.RecognizedRevenue = roundTo(wallet+subscriptions, 2)
+	result.RecognizedPerUSD = ratio(result.RecognizedRevenue, result.ConsumptionUSD)
 	for _, day := range days {
 		day.Topup, day.Subscription, day.ConsumptionUSD = roundTo(day.Topup, 2), roundTo(day.Subscription, 2), roundTo(day.ConsumptionUSD, 4)
+		day.RecognizedRevenue = roundTo(day.RecognizedRevenue, 2)
 		day.ClaudeUSD = roundTo(day.ClaudeUSD, 4)
 		result.Daily = append(result.Daily, *day)
 	}
 	slices.SortFunc(result.Daily, func(a, b FinanceDay) int { return cmp.Compare(a.Day, b.Day) })
 
-	if err := fillBalances(result); err != nil {
+	if err := fillBalances(result, prices); err != nil {
 		return nil, err
 	}
 	if err := fillQuotaAdjustments(r, result); err != nil {
@@ -186,9 +243,10 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	return result, nil
 }
 
-// fillBalances states the current balances of every customer. The root
-// account is left out: its balance is the operator's, not money owed.
-func fillBalances(result *FinanceInsights) error {
+// fillBalances states the current balances of every customer, and what was
+// paid for them at each wallet's price. The root account is left out: its
+// balance is the operator's, not money owed.
+func fillBalances(result *FinanceInsights, prices map[int]walletPrice) error {
 	customers := func() *gorm.DB { return DB.Model(&User{}).Where("role < ?", common.RoleRootUser) }
 	var totals struct {
 		Liability      int64
@@ -203,6 +261,18 @@ func fillBalances(result *FinanceInsights) error {
 	result.LiabilityUSD = quotaUSD(totals.Liability)
 	result.LiabilityUsers = totals.LiabilityUsers
 	result.DebtUSD = quotaUSD(totals.Debt)
+	var held []struct {
+		Id    int
+		Quota int64
+	}
+	if err := customers().Select("id, quota").Where("quota > 0").Find(&held).Error; err != nil {
+		return err
+	}
+	var paid float64
+	for _, row := range held {
+		paid += float64(row.Quota) * prices[row.Id].perQuota
+	}
+	result.LiabilityPaidValue = roundTo(paid, 2)
 
 	type balanceRow struct {
 		Id       int
@@ -228,6 +298,162 @@ func fillBalances(result *FinanceInsights) error {
 	result.TopBalances = toBalances(top)
 	result.Debtors = toBalances(debtors)
 	return nil
+}
+
+// walletPrice is what a customer paid for the credit in their wallet:
+// perQuota is the money paid for each unit of quota the wallet was ever
+// credited, and paidShare the share of those units that was paid for. Spent
+// quota is not traced to the credit it came from, so every unit a wallet
+// spends is taken to carry the wallet's average price. A wallet credited
+// only by gifts has a zero price.
+type walletPrice struct {
+	perQuota  float64
+	paidShare float64
+}
+
+// readWalletPrices returns the price of each paying customer's wallet over
+// the credits it received before end: paid top-ups with their bonus, manual
+// adjustments by an administrator, and redemption codes. A credit outside
+// these (a sign-up or invitation reward) is not counted, which leaves that
+// wallet's price a little high.
+func readWalletPrices(end int64) (map[int]walletPrice, error) {
+	orders, err := readPaidOrders(0, end)
+	if err != nil {
+		return nil, err
+	}
+	type credit struct {
+		money       float64
+		paid, given int64
+	}
+	credits := make(map[int]*credit)
+	creditOf := func(userID int) *credit {
+		entry := credits[userID]
+		if entry == nil {
+			entry = &credit{}
+			credits[userID] = entry
+		}
+		return entry
+	}
+	for _, order := range orders {
+		if order.Subscription {
+			continue
+		}
+		entry := creditOf(order.UserId)
+		entry.money += order.Money
+		entry.paid += order.Amount*int64(common.QuotaPerUnit) + order.BonusQuota
+	}
+	var logs []AuditLog
+	if err := LOG_DB.Model(&AuditLog{}).
+		Where("created_at < ? AND success = ? AND action IN ?", end, true,
+			[]string{"user.quota_add", "user.quota_subtract", "user.quota_override"}).
+		Find(&logs).Error; err != nil {
+		return nil, err
+	}
+	for _, log := range logs {
+		if log.Other.Op == nil {
+			continue
+		}
+		params := log.Other.Op.Params
+		target, ok := auditInt(params, "target_user_id")
+		before, hasBefore := auditInt(params, "from")
+		after, hasAfter := auditInt(params, "to")
+		if ok && hasBefore && hasAfter {
+			creditOf(int(target)).given += after - before
+		}
+	}
+	var redeemed []struct {
+		UsedUserId int
+		Quota      int64
+	}
+	if err := DB.Model(&Redemption{}).Unscoped().Select("used_user_id, quota").
+		Where("used_user_id > 0 AND redeemed_time > 0 AND redeemed_time < ?", end).Find(&redeemed).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range redeemed {
+		creditOf(row.UsedUserId).given += row.Quota
+	}
+	prices := make(map[int]walletPrice, len(credits))
+	for userID, entry := range credits {
+		if entry.money <= 0 || entry.paid <= 0 {
+			continue
+		}
+		// Taking credit away never raises the price above what was paid.
+		total := float64(max(entry.paid, entry.paid+entry.given))
+		prices[userID] = walletPrice{perQuota: entry.money / total, paidShare: float64(entry.paid) / total}
+	}
+	return prices, nil
+}
+
+// recognizeSubscriptions spreads each bought plan's price evenly over the
+// time it runs, adds the part falling in each day of the range to that day's
+// RecognizedRevenue, and returns the part falling in the range. A plan bought
+// with wallet balance is worth the balance it took at the wallet's price.
+// Orders do not name the plan they created, so the k-th successful order of
+// a user for a plan is matched with the k-th plan of that user, plan and
+// source.
+func recognizeSubscriptions(r InsightsRange, prices map[int]walletPrice, days map[int64]*FinanceDay) (float64, error) {
+	sources := []string{"order", PaymentMethodBalance}
+	var running []int
+	if err := DB.Model(&UserSubscription{}).Distinct("user_id").
+		Where("source IN ? AND start_time < ? AND end_time > ?", sources, r.End, r.Start).
+		Pluck("user_id", &running).Error; err != nil {
+		return 0, err
+	}
+	if len(running) == 0 {
+		return 0, nil
+	}
+	var subscriptions []UserSubscription
+	if err := DB.Select("id, user_id, plan_id, source, start_time, end_time").
+		Where("user_id IN ? AND source IN ?", running, sources).
+		Order("created_at, id").Find(&subscriptions).Error; err != nil {
+		return 0, err
+	}
+	var orders []SubscriptionOrder
+	if err := DB.Select("id, user_id, plan_id, money, payment_provider, provider_payload, complete_time").
+		Where("user_id IN ? AND status = ?", running, common.TopUpStatusSuccess).
+		Order("complete_time, id").Find(&orders).Error; err != nil {
+		return 0, err
+	}
+	type planKey struct {
+		userID, planID int
+		source         string
+	}
+	paid := make(map[planKey][]float64)
+	for _, order := range orders {
+		key := planKey{order.UserId, order.PlanId, "order"}
+		value := order.Money
+		if order.PaymentProvider == PaymentProviderBalance {
+			key.source = PaymentMethodBalance
+			charged, _ := strconv.ParseInt(strings.TrimPrefix(order.ProviderPayload, "charged_quota="), 10, 64)
+			value = float64(charged) * prices[order.UserId].perQuota
+		}
+		paid[key] = append(paid[key], value)
+	}
+	seen := make(map[planKey]int)
+	var total float64
+	for _, subscription := range subscriptions {
+		key := planKey{subscription.UserId, subscription.PlanId, subscription.Source}
+		index := seen[key]
+		seen[key]++
+		if index >= len(paid[key]) || subscription.EndTime <= subscription.StartTime {
+			continue
+		}
+		perSecond := paid[key][index] / float64(subscription.EndTime-subscription.StartTime)
+		from, to := max(subscription.StartTime, r.Start), min(subscription.EndTime, r.End)
+		if from >= to {
+			continue
+		}
+		total += perSecond * float64(to-from)
+		for at := from; at < to; {
+			dayStart := r.DayStart(at)
+			next := min(dayStart+86400, to)
+			if day := days[dayStart]; day != nil {
+				day.RecognizedRevenue += perSecond * float64(next-at)
+			}
+			at = next
+		}
+	}
+	return total, nil
 }
 
 func auditInt(fields AuditFields, key string) (int64, bool) {
