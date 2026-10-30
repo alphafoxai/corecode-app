@@ -110,3 +110,21 @@ reading them took work. On 2026-10-28, against production:
   overview listed debt, shared plan buyers, pool-full 429s, limit rejections,
   claude-haiku-5-5 at 7.4% failures, and alias emails, each matching the
   colored figure in its tab.
+
+## Addendum: definitions open on a click too
+
+The owner reported that the dotted labels showed nothing. Their definitions were
+tooltips: a tooltip opens on hover and focus only, closes on a click, and never opens
+on a touch screen, so clicking a label to read it closed what was there, and a tap did
+nothing. `HelpLabel` and `HelpIcon` now open a popover that also opens on hover (150 ms)
+and stays open after a click or tap until the reader clicks elsewhere or presses
+Escape. The trigger is a button, and the popover names the figure above its
+definition. Value readouts on charts and meters stay tooltips: they follow the pointer.
+
+The funds view's figures that had no definition gained one: revenue, Claude's six
+figures, the account tables' columns, the vendor figures, and each wallet credit row.
+
+`help-label.test.tsx` covers hover, click-and-leave, Escape, keyboard and a plain label.
+In a browser against production data, gliding the pointer opened all twelve checked
+definitions, a click held one open after the pointer left, and an emulated tap opened
+one on a 390 px screen.

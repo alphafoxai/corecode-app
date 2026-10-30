@@ -30,7 +30,7 @@ import {
   useInsightsFormat,
 } from '../lib'
 import type { FinanceInsights } from '../types'
-import { BarSeries, Panel, SimpleTable } from './shared'
+import { BarSeries, HelpLabel, Panel, SimpleTable } from './shared'
 
 // One color per amount, the same in the figures, the formulas and the chart.
 const CHARGE = 'bg-primary'
@@ -137,6 +137,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             dot={CHARGE}
             label={t('new-api Claude charge')}
+            help={t(
+              'What new-api deducted for Claude models at its own ratios, over the days gpt-load reported, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.'
+            )}
             value={
               <ChargeValue usd={fmt.usd(charged)} yuan={fmt.cny(chargedYuan)} />
             }
@@ -146,6 +149,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             dot={OFFICIAL}
             label={t('gpt-load official cost')}
+            help={t(
+              'What gpt-load (corecode-engine) priced the same Claude requests at, at Anthropic’s official prices, in dollars.'
+            )}
             value={engineReady ? fmt.usd(official) : '-'}
             hint={
               engineReady
@@ -159,6 +165,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             dot={COST}
             label={t('Account cost in this range')}
+            help={t(
+              'The monthly price of every Claude account in the pool, divided by 30 and multiplied by the range’s days.'
+            )}
             value={hasCost ? fmt.usd(rangeCost) : '-'}
             hint={
               hasCost
@@ -178,6 +187,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             formula={[CHARGE, OFFICIAL]}
             label={t('new-api ÷ official')}
+            help={t(
+              'new-api’s charge in dollars divided by the official cost: below 1× new-api sells Claude for less than Anthropic’s prices.'
+            )}
             value={ratio(multiple)}
             hint={
               multiple > 0
@@ -192,6 +204,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             formula={[OFFICIAL, COST]}
             label={t('Official ÷ account cost')}
+            help={t(
+              'The official cost divided by the account cost of the same days: how much official-price usage each dollar of accounts served. It reads how fully the accounts are used.'
+            )}
             value={ratio(officialPerCost)}
             hint={
               officialPerCost > 0
@@ -207,6 +222,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
             loading={!data}
             formula={[CHARGE, COST]}
             label={t('new-api ÷ account cost')}
+            help={t(
+              'new-api’s charge in dollars divided by the account cost of the same days. Below 1×, red, the charge does not cover what the accounts cost.'
+            )}
             value={ratio(chargedPerCost)}
             tone={
               chargedPerCost > 0 && chargedPerCost < 1 ? 'danger' : undefined
@@ -317,6 +335,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'accounts',
                 label: t('Accounts'),
+                hint: t(
+                  'Every account of this plan in the pool, whatever its status.'
+                ),
                 align: 'right',
                 render: (row) => row.accounts,
               },
@@ -330,6 +351,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'price',
                 label: t('Price per month'),
+                hint: t('What one account of this plan costs a month.'),
                 align: 'right',
                 render: (row) =>
                   row.price
@@ -339,6 +361,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'month',
                 label: t('Per month'),
+                hint: t('Price per month times the accounts.'),
                 align: 'right',
                 render: (row) =>
                   row.price
@@ -348,6 +371,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'range',
                 label: t('This range'),
+                hint: t(
+                  'The month’s cost divided by 30 and multiplied by the range’s days.'
+                ),
                 align: 'right',
                 render: (row) =>
                   row.price
@@ -417,12 +443,18 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'accounts',
                 label: t('Measured accounts'),
+                hint: t(
+                  'Accounts whose weekly capacity the engine calibrated from their own requests, out of all the plan’s accounts.'
+                ),
                 align: 'right',
                 render: (row) => `${row.measured} / ${row.accounts}`,
               },
               {
                 key: 'week',
                 label: t('Official value per week'),
+                hint: t(
+                  'What one account serves in a full week at official prices: the median of the measured accounts, the smallest and largest in brackets.'
+                ),
                 align: 'right',
                 render: (row) => {
                   const low = fmt.usdWhole(row.week_low_usd)
@@ -435,6 +467,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'charged-week',
                 label: t('new-api value per week'),
+                hint: t(
+                  'The official value per week times this range’s new-api ÷ official multiple: what that usage brings in on new-api.'
+                ),
                 align: 'right',
                 render: (row) =>
                   multiple > 0 ? charge.usd(row.week_usd * multiple) : '-',
@@ -442,6 +477,7 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'charged-month',
                 label: t('new-api value per month'),
+                hint: t('The new-api value per week times 30/7.'),
                 align: 'right',
                 render: (row) =>
                   multiple > 0
@@ -451,6 +487,9 @@ export function ClaudeEconomics(props: { data: FinanceInsights | undefined }) {
               {
                 key: 'payback',
                 label: t('Value ÷ price'),
+                hint: t(
+                  'The new-api value per month divided by the plan’s monthly price: how many times one account earns back its price.'
+                ),
                 align: 'right',
                 render: (row) => {
                   const price = accountPrice(row.plan, row.tier)
@@ -497,6 +536,8 @@ function PlanName(props: { name: string; tier: string }) {
  */
 export function Figure(props: {
   label: string
+  /** What the figure means, opened from its label. */
+  help?: string
   value: ReactNode
   hint?: ReactNode
   loading: boolean
@@ -527,7 +568,9 @@ export function Figure(props: {
             <span className={cn('size-2 rounded-full', props.formula[1])} />
           </span>
         )}
-        <span className='truncate'>{props.label}</span>
+        <span className='truncate'>
+          <HelpLabel label={props.label} help={props.help} />
+        </span>
       </div>
       <div
         className={cn(
