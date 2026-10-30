@@ -61,7 +61,7 @@ function earned(): FinanceInsights {
     liability_usd: 50,
     liability_paid_value: 40,
     liability_users: 1,
-    debt_usd: 0,
+    debt_usd: -0.5,
     debtors: [],
     top_balances: [],
     adjustments: [],
@@ -93,7 +93,7 @@ describe('revenue earned', () => {
       screen.getByText('Paid use ¥1.04 · cash basis ¥0.56')
     ).toBeInTheDocument()
     expect(
-      screen.getByText('1 customers · paid ¥40 · debt $0.00')
+      screen.getByText('1 customers · paid ¥40 · debt $0.50')
     ).toBeInTheDocument()
   })
 

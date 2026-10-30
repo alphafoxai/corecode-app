@@ -453,7 +453,10 @@ export function MetricGrid(props: { items: MetricItem[]; loading?: boolean }) {
               </dd>
             )}
             {item.hint != null && (
-              <dd className='text-muted-foreground truncate text-xs'>
+              <dd
+                className='text-muted-foreground line-clamp-2 text-xs'
+                title={typeof item.hint === 'string' ? item.hint : undefined}
+              >
                 {item.hint}
               </dd>
             )}
