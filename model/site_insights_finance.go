@@ -65,6 +65,9 @@ type FinanceDay struct {
 	// corecode-engine's official-price cost it is compared with covers
 	// root's requests too.
 	ClaudeUSD float64 `json:"claude_usd"`
+	// RootConsumptionUSD is root's own requests at list price: internal use,
+	// which ConsumptionUSD leaves out.
+	RootConsumptionUSD float64 `json:"root_consumption_usd"`
 	// VendorUSD is the day's charge by vendor (ModelVendor), root included.
 	VendorUSD map[string]float64 `json:"vendor_usd"`
 }
@@ -218,6 +221,9 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	for _, hour := range hours {
 		root += hour.summary.RootQuota
 		day := days[r.DayStart(hour.start)]
+		if day != nil {
+			day.RootConsumptionUSD += float64(hour.summary.RootQuota) / common.QuotaPerUnit
+		}
 		for _, user := range hour.users {
 			price := prices[user.UserId]
 			earned := float64(user.WalletQuota) * price.perQuota
@@ -282,6 +288,7 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 		day.Topup, day.Subscription, day.ConsumptionUSD = roundTo(day.Topup, 2), roundTo(day.Subscription, 2), roundTo(day.ConsumptionUSD, 4)
 		day.RecognizedRevenue = roundTo(day.RecognizedRevenue, 2)
 		day.ClaudeUSD = roundTo(day.ClaudeUSD, 4)
+		day.RootConsumptionUSD = roundTo(day.RootConsumptionUSD, 4)
 		for vendor, usd := range day.VendorUSD {
 			day.VendorUSD[vendor] = roundTo(usd, 4)
 		}

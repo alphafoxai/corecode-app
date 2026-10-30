@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "Tỷ trọng trong tổng phí new-api",
     "Daily {{vendor}} charge": "Phí {{vendor}} theo ngày",
     "No charge for this vendor in this range": "Không có phí cho nhà cung cấp này trong khoảng này",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} tài khoản của nhà cung cấp khác, hoặc chưa đọc được gói, không được tính."
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} tài khoản của nhà cung cấp khác, hoặc chưa đọc được gói, không được tính.",
+    "Cash": "Tiền thu",
+    "Money customers paid, in yuan.": "Tiền khách đã trả, bằng nhân dân tệ.",
+    "new-api credit": "Hạn mức new-api",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "Tính bằng nhân dân tệ: khách trả ¥1 cho mỗi đô la hạn mức. ≈ là đô la theo tỷ giá ¥{{rate}} một đô la, dùng để so với gpt-load.",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "Mọi yêu cầu new-api đã tính trong khoảng theo giá niêm yết, gồm cả sử dụng nội bộ của root. Phần trả phí do khách thanh toán; phần tặng là gói tặng và phần chưa trả của mỗi ví; root là sử dụng nội bộ, không ai trả.",
+    "Earned per ¥1 consumed": "Doanh thu ghi nhận trên ¥1 tiêu thụ",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "Doanh thu ghi nhận chia cho hạn mức đã tiêu thụ (gồm root): mỗi ¥1 hạn mức đã dùng mang lại bao nhiêu. Phần trả phí chỉ chia cho phần đã trả: giá khách thực trả. Cơ sở tiền mặt chia tiền nhận trong khoảng, dao động theo thời điểm khách trả.",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "Hạn mức khách đang giữ và còn dùng được, bằng nhân dân tệ. Đã trả là số họ trả theo giá của mỗi ví; phần còn lại được tặng. Số dư của root là nội bộ, không tính. Đỏ khi nợ vượt ngưỡng cảnh báo, hổ phách khi số dư lớn hơn tiêu thụ của khoảng.",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "Doanh thu là tiền đã nhận, bằng nhân dân tệ. Tiêu thụ là hạn mức new-api đã dùng theo giá niêm yết, bằng nhân dân tệ, gồm cả sử dụng nội bộ của root.",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "Phí new-api quy đổi sang đô la theo ¥{{rate}} một đô la để so với gpt-load; kèm nhân dân tệ bên cạnh.",
+    "Paid part": "Trả phí",
+    "Gifted part": "Được tặng",
+    "Root (internal)": "root (nội bộ)"
   }
 }

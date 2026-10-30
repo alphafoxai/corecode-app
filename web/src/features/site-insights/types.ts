@@ -152,6 +152,8 @@ export type FinanceInsights = {
     consumption_usd: number
     recognized_revenue?: number
     claude_usd: number
+    /** Root's own consumption; absent before the server's release. */
+    root_consumption_usd?: number
     /** The day's charge by vendor; absent before the server's release. */
     vendor_usd?: Record<string, number>
   }[]

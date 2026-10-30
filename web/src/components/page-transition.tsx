@@ -62,7 +62,9 @@ export function AnimatedOutlet() {
   // /dashboard/$section) then re-renders in place instead of remounting the
   // route component and discarding its state (such as the selected time range).
   const routeKey = useRouterState({
-    select: (s): string => s.matches.at(-1)?.routeId ?? s.location.pathname,
+    // bun check sometimes infers routeId as {}, depending on unrelated files;
+    // String keeps the key a string whatever it infers.
+    select: (s) => String(s.matches.at(-1)?.routeId ?? s.location.pathname),
   })
 
   if (shouldReduce) {

@@ -237,7 +237,7 @@ describe('overview signals', () => {
         },
       })
     )
-    const debt = await screen.findByText(/^1 customers owe .*25\.00$/)
+    const debt = await screen.findByText('1 customers owe ¥25')
     const rate = screen.getByText('Failure rate 3%')
     // Debt is a danger signal and the failure rate a warning, so debt leads.
     expect(

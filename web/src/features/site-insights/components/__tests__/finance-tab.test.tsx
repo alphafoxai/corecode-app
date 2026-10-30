@@ -88,20 +88,44 @@ function earned(): FinanceInsights {
   } as FinanceInsights
 }
 
-describe('revenue earned', () => {
-  it('leads the ratio with revenue earned and keeps the cash basis beside it', () => {
+describe('cash and credit at the head of the funds view', () => {
+  it('keeps cash in yuan and reads revenue earned beside it', () => {
     render(<FinanceTab data={earned()} />)
     expect(screen.getByText('¥17.6')).toBeInTheDocument()
     expect(screen.getByText('Wallets ¥12 · plans ¥5.6')).toBeInTheDocument()
+  })
+
+  it('counts root’s use in consumption, in yuan with its dollars', () => {
+    render(<FinanceTab data={{ ...earned(), usd_exchange_rate: 5 }} />)
+    // Customers 25 and root 30: ¥55, $11 at five yuan to the dollar.
+    const consumed = screen
+      .getByText('Consumed at list price')
+      .closest('dl') as HTMLElement
+    expect(within(consumed).getByText('¥55')).toBeInTheDocument()
+    expect(within(consumed).getByText('≈ $11.00')).toBeInTheDocument()
     expect(
-      screen.getByText('Gifted $8.00 · root $30.00 left out')
+      within(consumed)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent)
+    ).toEqual(['Paid part ¥17', 'Gifted part ¥8', 'Root (internal) ¥30'])
+  })
+
+  it('divides revenue earned by every yuan consumed, root’s included', () => {
+    render(<FinanceTab data={earned()} />)
+    // ¥17.6 earned over ¥55 consumed; paid use over the ¥17 paid part,
+    // cash basis the ¥14 paid in the range over ¥55.
+    expect(screen.getByText('¥0.32')).toBeInTheDocument()
+    expect(
+      screen.getByText('Paid use ¥1.04 · cash basis ¥0.2545')
     ).toBeInTheDocument()
-    expect(screen.getByText('¥0.704')).toBeInTheDocument()
+  })
+
+  it('states the balances owed in yuan', () => {
+    render(<FinanceTab data={earned()} />)
+    const owed = screen.getByText('Balances owed').closest('dl') as HTMLElement
+    expect(within(owed).getByText('¥50')).toBeInTheDocument()
     expect(
-      screen.getByText('Paid use ¥1.04 · cash basis ¥0.56')
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('1 customers · paid ¥40 · debt $0.50')
+      within(owed).getByText('1 customers · paid ¥40 · debt ¥0.5')
     ).toBeInTheDocument()
   })
 
@@ -111,7 +135,7 @@ describe('revenue earned', () => {
     const bars = chart.querySelectorAll('[tabindex="0"]')
     expect(bars).toHaveLength(2)
     expect(bars[0].getAttribute('aria-label')).toMatch(
-      /Revenue earned ¥10\.8,.*Consumed at list price \$16\.00/
+      /Revenue earned ¥10\.8,.*Consumed at list price ¥16/
     )
   })
 })
