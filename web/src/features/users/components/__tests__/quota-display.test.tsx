@@ -265,6 +265,7 @@ async function renderUsersList(emptyInvitation = false) {
             id: 2,
             username: 'long-user-name-for-table-layout',
             display_name: 'A display name',
+            email: 'long-user@example.com',
             role: 1,
             status: 1,
             quota: 1900,
