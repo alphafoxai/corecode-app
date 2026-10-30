@@ -24,6 +24,7 @@ import { useFeedbackReplyToast } from '@/features/feedback/hooks/use-feedback-un
 import { useReportPurchases } from '@/lib/analytics'
 import { getCookie } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { AppHeader } from './app-header'
 import { AppSidebar } from './app-sidebar'
@@ -32,13 +33,23 @@ type AuthenticatedLayoutProps = {
   children?: React.ReactNode
 }
 
-export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
-  const defaultOpen = getCookie('sidebar_state') !== 'false'
+// A child, not hooks in AuthenticatedLayout, so the feedback poll unmounts on
+// sign-out with the pages instead of running ahead of the early return.
+function SignedInEffects() {
   useReportPurchases()
   useFeedbackReplyToast()
+  return null
+}
+
+export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
+  const defaultOpen = getCookie('sidebar_state') !== 'false'
+  const signedIn = useAuthStore((s) => !!s.auth.user)
+  // Unmount pages on sign-out, otherwise their queries refetch and toast "Session expired!" / "invalid access token"
+  if (!signedIn) return null
 
   return (
     <LayoutProvider>
+      <SignedInEffects />
       <SidebarProvider defaultOpen={defaultOpen} className='flex-col'>
         <SkipToMain />
         <AppHeader />
