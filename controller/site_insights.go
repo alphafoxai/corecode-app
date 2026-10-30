@@ -161,8 +161,44 @@ func GetCapacityInsights(c *gin.Context) {
 	})
 }
 
+// FinanceResponse adds what Claude cost at official prices beside what
+// new-api charged for it, and what each plan's account serves in a week.
+type FinanceResponse struct {
+	*model.FinanceInsights
+	EngineCost service.EngineDailyCost `json:"engine_cost"`
+	// MatchedOfficialUSD and MatchedClaudeUSD cover the days the engine
+	// reported; OfficialPerUSD is their ratio, the official-price cost of one
+	// dollar new-api charged for Claude.
+	MatchedOfficialUSD float64                   `json:"matched_official_usd"`
+	MatchedClaudeUSD   float64                   `json:"matched_claude_usd"`
+	OfficialPerUSD     float64                   `json:"official_per_usd"`
+	Plans              []service.EnginePlanValue `json:"plans"`
+	PlansError         string                    `json:"plans_error,omitempty"`
+}
+
 func GetFinanceInsights(c *gin.Context) {
-	serveInsights(c, model.InsightsMaxDays, model.GetFinanceInsights)
+	serveInsights(c, model.InsightsMaxDays, func(r model.InsightsRange) (*FinanceResponse, error) {
+		engineDone := make(chan service.EngineDailyCost, 1)
+		go func() { engineDone <- service.FetchEngineDailyCost(r.Start, r.End, r.Offset) }()
+		// Calibrated capacities change slowly, so the last read of the pool
+		// serves, as on the capacity view.
+		poolDone := make(chan service.EnginePool, 1)
+		go func() { poolDone <- service.RecentEnginePool(2 * time.Minute) }()
+		insights, err := model.GetFinanceInsights(r)
+		if err != nil {
+			return nil, err
+		}
+		response := &FinanceResponse{FinanceInsights: insights, EngineCost: <-engineDone}
+		official, charged := service.MatchClaudeCost(insights.Daily, response.EngineCost)
+		response.MatchedOfficialUSD, response.MatchedClaudeUSD = official, charged
+		if charged > 0 {
+			response.OfficialPerUSD = official / charged
+		}
+		pool := <-poolDone
+		response.Plans = service.EnginePlanValues(pool.Accounts)
+		response.PlansError = cmp.Or(pool.Error, pool.EstimateError)
+		return response, nil
+	})
 }
 
 func GetRiskInsights(c *gin.Context) {
