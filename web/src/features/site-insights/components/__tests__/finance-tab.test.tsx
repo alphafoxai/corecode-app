@@ -30,7 +30,22 @@ function finance(engine: EngineDailyCost): FinanceInsights {
     orders: 0,
     paying_users: 0,
     methods: [],
-    daily: [],
+    daily: [
+      {
+        day: 1761408000,
+        topup: 0,
+        subscription: 0,
+        consumption_usd: 90,
+        claude_usd: 80,
+      },
+      {
+        day: 1761494400,
+        topup: 0,
+        subscription: 0,
+        consumption_usd: 130,
+        claude_usd: 120,
+      },
+    ],
     consumption_usd: 220,
     claude_usd: 200,
     revenue_per_usd: 0,
@@ -67,7 +82,8 @@ const engine: EngineDailyCost = {
   configured: true,
   cost_usd: 100,
   requests: 9,
-  daily: [],
+  // The engine leaves out a day with no Claude requests.
+  daily: [{ day: 1761494400, cost_usd: 60, requests: 9 }],
 }
 
 describe('Claude at official prices on the funds view', () => {
@@ -104,9 +120,26 @@ describe('Claude at official prices on the funds view', () => {
       />
     )
     expect(
-      screen.getByText('engine /usage/daily returned HTTP 503')
-    ).toBeInTheDocument()
+      screen.getAllByText('engine /usage/daily returned HTTP 503'),
+      'both the daily chart and the totals show it'
+    ).toHaveLength(2)
     const row = screen.getByRole('row', { name: /default_claude_ai/ })
     expect(within(row).getAllByRole('cell')[3].textContent).toBe('-')
+  })
+
+  it('compares each day’s new-api charge with gpt-load’s official cost', () => {
+    render(<FinanceTab data={finance(engine)} />)
+    const chart = screen.getByRole('list', {
+      name: 'Daily Claude usage: new-api against gpt-load',
+    })
+    const bars = chart.querySelectorAll('[tabindex="0"]')
+    expect(bars).toHaveLength(2)
+    expect(bars[0].getAttribute('aria-label')).toMatch(
+      /new-api Claude charge \$80\.00.*gpt-load official cost \$0\.00.*Official cost per \$1 charged -/
+    )
+    expect(bars[1].getAttribute('aria-label')).toMatch(
+      /new-api Claude charge \$120\.00.*gpt-load official cost \$60\.00.*Official cost per \$1 charged \$0\.50.*Claude requests 9/
+    )
+    expect(bars[1].getAttribute('aria-label')).not.toMatch(/Total/)
   })
 })
