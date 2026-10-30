@@ -122,8 +122,14 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 10.0, finance.Adjustments[0].DeltaUSD)
 			assert.Equal(t, 10.0, finance.AdjustmentNetUSD)
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, RecognizedRevenue: 1.65, ClaudeUSD: 1}, finance.Daily[0],
-				"alice's two dollars at 70 paid for 85 credited")
+			assert.Equal(t, FinanceDay{
+				Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, RecognizedRevenue: 1.65, ClaudeUSD: 1,
+				VendorUSD: map[string]float64{VendorOther: 2, VendorClaude: 1},
+			}, finance.Daily[0], "alice's two dollars at 70 paid for 85 credited")
+			assert.Equal(t, []VendorModel{
+				{Vendor: VendorOther, Model: "opus", USD: 3, Requests: 3},
+				{Vendor: VendorClaude, Model: "claude-sonnet-5-5", USD: 1, Requests: 1},
+			}, finance.VendorModels, "largest first")
 
 			risk, err := GetRiskInsights(r)
 			require.NoError(t, err)
@@ -243,7 +249,10 @@ func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
 				consume(guest, day1+86400+200, 4, plan(given.Id, 0)),
 			}
 			require.NoError(t, LOG_DB.Create(&logs).Error)
-			require.NoError(t, DB.Create(&QuotaData{UserID: root.Id, Username: "root", ModelName: "claude-opus-5-5", CreatedAt: day1, Count: 1, Quota: int(30 * dollar)}).Error)
+			require.NoError(t, DB.Create(&[]QuotaData{
+				{UserID: root.Id, Username: "root", ModelName: "claude-opus-5-5", CreatedAt: day1, Count: 1, Quota: int(30 * dollar)},
+				{UserID: root.Id, Username: "root", ModelName: "gpt-6-sol", CreatedAt: day1 + 86400, Count: 4, Quota: int(4 * dollar)},
+			}).Error)
 
 			finance, err := GetFinanceInsights(r)
 			require.NoError(t, err)
@@ -259,8 +268,13 @@ func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
 			assert.Equal(t, 0.56, finance.RevenuePerUSD)
 			assert.Equal(t, 40.0, finance.LiabilityPaidValue, "the payer's $50 at 0.8")
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8, ClaudeUSD: 30}, finance.Daily[0])
-			assert.Equal(t, FinanceDay{Day: day1 + 86400, ConsumptionUSD: 9, RecognizedRevenue: 6.8}, finance.Daily[1])
+			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8, ClaudeUSD: 30, VendorUSD: map[string]float64{VendorClaude: 30}}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1 + 86400, ConsumptionUSD: 9, RecognizedRevenue: 6.8, VendorUSD: map[string]float64{VendorCodex: 4}}, finance.Daily[1],
+				"the charge by vendor keeps root, as the Claude charge does")
+			assert.Equal(t, []VendorModel{
+				{Vendor: VendorClaude, Model: "claude-opus-5-5", USD: 30, Requests: 1},
+				{Vendor: VendorCodex, Model: "gpt-6-sol", USD: 4, Requests: 4},
+			}, finance.VendorModels, "largest first")
 		})
 	}
 }
@@ -394,4 +408,17 @@ func TestOpenInsightHoursAreReusedWithinTTL(t *testing.T) {
 	fresh, err := GetCapacityInsights(r)
 	require.NoError(t, err)
 	assert.EqualValues(t, 3, fresh.Requests, "an hour past the stale limit is read from the logs now")
+}
+
+func TestModelVendor(t *testing.T) {
+	for model, vendor := range map[string]string{
+		"claude-opus-5-5":       VendorClaude,
+		"gpt-6.1-sol":           VendorCodex,
+		"codex-auto-review":     VendorCodex,
+		"grok-4.7":              VendorGrok,
+		"gemini-3.8-flash-high": VendorGemini,
+		"opus":                  VendorOther,
+	} {
+		assert.Equal(t, vendor, ModelVendor(model), model)
+	}
 }

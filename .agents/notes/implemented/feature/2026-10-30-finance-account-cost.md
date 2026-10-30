@@ -1,0 +1,86 @@
+# Agent Note: Split the funds view by vendor and set Claude's account cost beside its usage
+
+Status: implemented
+
+## Problem
+
+The owner wants one place on the funds view that answers four things for the chosen
+range: what new-api charged for Claude, what gpt-load spent on the same requests at
+official prices, the ratio between them, and what the pool's accounts cost. An account
+costs a monthly price by plan (Pro $20, Max 5x $100, Team Standard $25, Team Tier 1
+$125), and a range costs that month spread over 30 days, so 24 hours is a thirtieth.
+
+The view had the charge, the official cost and their multiple, spread over a chart and
+a small totals panel, but no account cost. The finance response listed only plans with
+a measured weekly capacity, so it could not count every account either.
+
+## Decision
+
+- **The finance response adds `plan_accounts`**: every pool account counted by plan
+  and tier, whatever its status, with how many are eligible now. An account costs its
+  price while it is listed, so a suspended or budget-limited account still counts.
+- **It adds `start_time`, `end_time` and `matched_since`.** `matched_since` is where the
+  engine's reported days begin within the range. gpt-load keeps request logs for its own
+  retention, so on a 30-day range it may report a week. Both ratios against cost set the
+  charge and the official cost (already limited to reported days) against the cost of the
+  same span, and the panel says how many days that is.
+- **Prices live in the console** (`ACCOUNT_PRICES` in `site-insights/lib.ts`), keyed
+  by the exact plan and tier the engine reports. The pool also holds Gemini (`Pro` with
+  no tier), Codex (`Pro 20x`) and Grok accounts. A loose match on `Pro` priced the three
+  Gemini accounts as Claude Pro, which the production check caught, so a plan without an
+  exact entry is listed, greyed, and not counted.
+- **The funds view leads with one Claude panel**: three amounts (new-api charge,
+  official cost, account cost in the range) and three ratios (new-api ÷ official,
+  official ÷ account cost, new-api ÷ account cost). A colored dot ties each amount to
+  its ratios and to its chart series. The daily chart keeps the two charges as bars. A
+  day's account cost, about $16 beside bars of $1,500, would not read as a bar, so the
+  tooltip lists it with that day's official ÷ cost. Below come the account cost table
+  and the per-account value table, each full width. The value table gains a value ÷ price
+  column.
+- **The funds view splits new-api's charge by vendor, a tab each**: Claude, Codex,
+  Grok, Gemini, and Other only when an unrecognised model was charged for. The finance
+  response adds `vendor_usd` to each day and `vendor_models` (charge and requests per
+  model) to the range. A model is its vendor's by name prefix (`claude-`; `gpt-` and
+  `codex-`; `grok-`; `gemini-`): the site's vendor metadata leaves `claude-haiku-5-5`
+  and `codex-auto-review` without a vendor. Only Claude's tab counts account cost. The
+  owner does not count the other vendors' accounts yet, so their tabs show new-api's
+  charge, requests, charge per request, share, the daily charge and the models.
+- **Claude's account table lists only accounts with a rate-limit tier.** The engine
+  fills the tier from Claude's seat or rate-limit tier, so Codex, Gemini and Grok
+  accounts report none. A line under the table counts the accounts left out.
+
+## Alternatives considered
+
+- **Store prices as an option row.** Four fixed prices that only this view reads do
+  not justify a setting and its editor; a console release changes them without a
+  restart.
+- **Keep plans without a measured capacity in `plans`.** That would change what the
+  value table means; a separate count keeps both readings clear.
+- **Classify by new-api's vendor metadata.** It is set by hand per model and misses
+  two models sold now.
+- **Draw the daily account cost as a third bar.** Tried against production data: the
+  bar was a hairline.
+
+## Consequences
+
+- The account count is the pool now, not as it was over the range; the help text says so.
+- Until the server is released, the console gets no `plan_accounts` and shows no cost
+  ("No accounts in the pool"). The response only adds fields.
+- A new Claude plan needs a price entry before it counts.
+
+## Verification
+
+- `TestEnginePlanCounts` and `TestMatchedSince` cover the counting and the span.
+  `TestModelVendor` covers the prefixes; `TestSiteInsightsDatabaseMatrix` covers the
+  day's charge by vendor and the models, root included.
+- `finance-tab.test.tsx` covers the 24-hour cost, the plan rows and their order, the
+  unpriced Gemini Pro and Max 20x, the ratios over a partly reported range, the daily
+  readout, and the state before the server's release.
+- Checked against production data through a read-only proxy that computed the new
+  fields from the live pool: 9 Claude accounts at $490 a month, $114.33 for 7 days,
+  $16.33 for 24 hours. The Claude and Codex charts answered hover at 40 of 40
+  positions. Over 7 days the vendor tabs read Claude $10,049, Codex $405, Grok $14.6
+  and Gemini $0.03. Leaving tierless accounts out of Claude's table is covered by
+  tests only.
+- `finance-tab.test.tsx` also covers the tab totals, a vendor tab's figures, chart
+  and model rows, and the Other tab appearing only when charged for.

@@ -23,6 +23,7 @@ import { getPaymentMethodName } from '@/features/wallet/lib/billing'
 import { DEBT_ALERT_USD, useInsightsFormat } from '../lib'
 import type { FinanceInsights } from '../types'
 import { BarSeries, MetricGrid, Panel, SimpleTable, UserLabel } from './shared'
+import { VendorTabs } from './vendor-usage'
 
 export function FinanceTab(props: {
   data: FinanceInsights | undefined
@@ -56,17 +57,6 @@ export function FinanceTab(props: {
   } else if ((data?.liability_usd ?? 0) > (data?.consumption_usd ?? 0)) {
     balanceTone = 'warning'
   }
-  const engine = data?.engine_cost
-  const engineReady = !!engine?.configured && !engine.error
-  // new-api's Claude charge over its official-price cost: the multiple of
-  // official prices new-api sells Claude at, comparable with its own ratios.
-  const officialPerUSD = engineReady ? (data?.official_per_usd ?? 0) : 0
-  const multiple = officialPerUSD > 0 ? 1 / officialPerUSD : 0
-  const engineByDay = new Map(
-    (engine?.daily ?? []).map((day) => [day.day, day])
-  )
-  const toCharged = (official: number) =>
-    multiple > 0 ? fmt.usd(official * multiple) : '-'
 
   return (
     <div className='grid gap-4'>
@@ -161,6 +151,8 @@ export function FinanceTab(props: {
         ]}
       />
 
+      <VendorTabs data={data} />
+
       <Panel
         title={t('Daily revenue and consumption')}
         description={
@@ -198,173 +190,6 @@ export function FinanceTab(props: {
           }))}
         />
       </Panel>
-
-      <Panel
-        title={t('Daily Claude usage: new-api against gpt-load')}
-        help={t(
-          'Each day, what new-api charged for Claude models beside what gpt-load (corecode-engine) priced the same day’s Claude requests at official prices. The new-api charge divided by the official cost is the multiple, comparable with new-api’s own ratios.'
-        )}
-        description={
-          multiple > 0
-            ? t(
-                'Charged {{charged}} against {{official}} at official prices: a multiple of {{multiple}}.',
-                {
-                  charged: fmt.usd(data?.matched_claude_usd ?? 0),
-                  official: fmt.usd(data?.matched_official_usd ?? 0),
-                  multiple: fmt.multiple(multiple),
-                }
-              )
-            : undefined
-        }
-      >
-        {engine?.error ? (
-          <p className='text-destructive text-sm'>{engine.error}</p>
-        ) : (
-          <BarSeries
-            grouped
-            ariaLabel={t('Daily Claude usage: new-api against gpt-load')}
-            series={[
-              {
-                label: t('new-api Claude charge'),
-                format: fmt.usd,
-                compact: fmt.usdCompact,
-              },
-              { label: t('gpt-load official cost'), format: fmt.usd },
-            ]}
-            points={daily.map((day) => {
-              const official = engineByDay.get(day.day)
-              const charged = day.claude_usd ?? 0
-              return {
-                key: day.day,
-                title: fmt.day(day.day),
-                values: [charged, official?.cost_usd ?? 0],
-                extra: [
-                  {
-                    label: t('Multiple (new-api ÷ official)'),
-                    value:
-                      official && official.cost_usd > 0
-                        ? fmt.multiple(charged / official.cost_usd)
-                        : '-',
-                  },
-                  {
-                    label: t('Claude requests'),
-                    value: fmt.num(official?.requests ?? 0),
-                  },
-                ],
-              }
-            })}
-          />
-        )}
-      </Panel>
-
-      <div className='grid gap-4 lg:grid-cols-3'>
-        <Panel
-          title={t('Claude at official prices')}
-          help={t(
-            'Charged is what new-api deducted for Claude models at its own ratios; official cost is what corecode-engine priced the same requests at Anthropic’s official prices. Both cover the days the engine reported. Gifted and paid balance count alike. Root’s own requests count on both sides, unlike the customer consumption above.'
-          )}
-          description={
-            multiple > 0
-              ? t('new-api charges {{multiple}} official prices for Claude.', {
-                  multiple: fmt.multiple(multiple),
-                })
-              : undefined
-          }
-        >
-          {engine && !engine.configured && (
-            <p className='text-muted-foreground text-sm'>
-              {t(
-                'Set EngineControlURL and EngineControlKey to read official-price cost from corecode-engine.'
-              )}
-            </p>
-          )}
-          {engine?.error && (
-            <p className='text-destructive text-sm'>{engine.error}</p>
-          )}
-          {(!engine || engineReady) && (
-            <dl className='grid gap-2 text-sm'>
-              {[
-                [
-                  t('Charged for Claude'),
-                  fmt.usd(data?.matched_claude_usd ?? 0),
-                ],
-                [t('Official cost'), fmt.usd(data?.matched_official_usd ?? 0)],
-                [
-                  t('Multiple (new-api ÷ official)'),
-                  multiple > 0 ? fmt.multiple(multiple) : '-',
-                ],
-              ].map(([label, value]) => (
-                <div key={label} className='flex justify-between gap-2'>
-                  <dt className='text-muted-foreground'>{label}</dt>
-                  <dd className='tabular-nums'>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </Panel>
-        <Panel
-          className='lg:col-span-2'
-          title={t('What one account is worth')}
-          help={t(
-            'A full week of one account at official prices, as corecode-engine calibrated it from the account’s own requests: the median of the plan’s measured accounts, with the smallest and largest. The new-api columns multiply it by this range’s multiple; a month is 30/7 weeks.'
-          )}
-        >
-          {data?.plans_error && (
-            <p className='text-destructive mb-2 text-sm'>{data.plans_error}</p>
-          )}
-          <SimpleTable
-            rows={data?.plans}
-            rowKey={(row) => `${row.plan}/${row.tier}`}
-            empty={t('No account has a measured weekly capacity')}
-            columns={[
-              {
-                key: 'plan',
-                label: t('Plan'),
-                render: (row) => (
-                  <span>
-                    {row.plan || '-'}
-                    {row.tier && (
-                      <span className='text-muted-foreground ml-1 text-xs'>
-                        {row.tier}
-                      </span>
-                    )}
-                  </span>
-                ),
-              },
-              {
-                key: 'accounts',
-                label: t('Measured accounts'),
-                align: 'right',
-                render: (row) => `${row.measured} / ${row.accounts}`,
-              },
-              {
-                key: 'week',
-                label: t('Official value per week'),
-                align: 'right',
-                render: (row) => {
-                  const low = fmt.usdWhole(row.week_low_usd)
-                  const high = fmt.usdWhole(row.week_high_usd)
-                  return low === high
-                    ? fmt.usd(row.week_usd)
-                    : `${fmt.usd(row.week_usd)} (${low}–${high})`
-                },
-              },
-              {
-                key: 'charged-week',
-                label: t('new-api value per week'),
-                align: 'right',
-                render: (row) => toCharged(row.week_usd),
-              },
-              {
-                key: 'charged-month',
-                label: t('new-api value per month'),
-                align: 'right',
-                render: (row) => toCharged((row.week_usd * 30) / 7),
-              },
-            ]}
-          />
-        </Panel>
-      </div>
 
       <div className='grid gap-4 lg:grid-cols-3'>
         <Panel

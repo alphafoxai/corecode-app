@@ -174,6 +174,13 @@ type FinanceResponse struct {
 	OfficialPerUSD     float64                   `json:"official_per_usd"`
 	Plans              []service.EnginePlanValue `json:"plans"`
 	PlansError         string                    `json:"plans_error,omitempty"`
+	// PlanAccounts counts every pool account by plan, for what the pool costs.
+	PlanAccounts []service.EnginePlanCount `json:"plan_accounts"`
+	// StartTime and EndTime are the range; MatchedSince is where the days the
+	// engine reported begin, so a cost over time covers the same span.
+	StartTime    int64 `json:"start_time"`
+	EndTime      int64 `json:"end_time"`
+	MatchedSince int64 `json:"matched_since"`
 }
 
 func GetFinanceInsights(c *gin.Context) {
@@ -191,11 +198,14 @@ func GetFinanceInsights(c *gin.Context) {
 		response := &FinanceResponse{FinanceInsights: insights, EngineCost: <-engineDone}
 		official, charged := service.MatchClaudeCost(insights.Daily, response.EngineCost)
 		response.MatchedOfficialUSD, response.MatchedClaudeUSD = official, charged
+		response.StartTime, response.EndTime = r.Start, r.End
+		response.MatchedSince = service.MatchedSince(r.Start, r.End, response.EngineCost)
 		if charged > 0 {
 			response.OfficialPerUSD = official / charged
 		}
 		pool := <-poolDone
 		response.Plans = service.EnginePlanValues(pool.Accounts)
+		response.PlanAccounts = service.EnginePlanCounts(pool.Accounts)
 		response.PlansError = cmp.Or(pool.Error, pool.EstimateError)
 		return response, nil
 	})

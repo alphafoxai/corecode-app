@@ -41,3 +41,27 @@ func TestMatchClaudeCost(t *testing.T) {
 	assert.Zero(t, official)
 	assert.Zero(t, charged)
 }
+
+func TestEnginePlanCounts(t *testing.T) {
+	accounts := []EngineAccount{
+		{Plan: "Team", Tier: "team_tier_1", Eligible: true},
+		{Plan: "Pro", Tier: "default_claude_ai", Eligible: true},
+		{Plan: "Pro", Tier: "default_claude_ai", Status: "suspended"},
+		{Plan: "Team", Tier: "team_standard", Eligible: true},
+		{},
+	}
+	assert.Equal(t, []EnginePlanCount{
+		{Accounts: 1},
+		{Plan: "Pro", Tier: "default_claude_ai", Accounts: 2, Eligible: 1},
+		{Plan: "Team", Tier: "team_standard", Accounts: 1, Eligible: 1},
+		{Plan: "Team", Tier: "team_tier_1", Accounts: 1, Eligible: 1},
+	}, EnginePlanCounts(accounts), "every account counts, whatever its status or plan")
+	assert.Equal(t, []EnginePlanCount{}, EnginePlanCounts(nil))
+}
+
+func TestMatchedSince(t *testing.T) {
+	cost := EngineDailyCost{Configured: true, Daily: []EngineCostDay{{Day: 300}, {Day: 200}}}
+	assert.Equal(t, int64(200), MatchedSince(150, 400, cost))
+	assert.Equal(t, int64(250), MatchedSince(250, 400, cost), "a day that began before the range starts at the range")
+	assert.Equal(t, int64(400), MatchedSince(150, 400, EngineDailyCost{Configured: true}), "no reported day covers nothing")
+}
