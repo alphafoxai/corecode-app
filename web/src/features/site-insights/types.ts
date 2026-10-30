@@ -202,6 +202,8 @@ export type FinanceInsights = {
   end_time?: number
   /** Where the days the engine reported begin within the range. */
   matched_since?: number
+  /** Yuan per US dollar; new-api's charges are in yuan (useChargeFormat). */
+  usd_exchange_rate?: number
   bonus_usd: number
   topup_credit_usd: number
 }

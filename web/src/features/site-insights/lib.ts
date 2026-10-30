@@ -21,10 +21,11 @@ import { useTranslation } from 'react-i18next'
 import { formatPaymentMoney } from '@/features/wallet/lib'
 import { toIntlLocale } from '@/i18n/languages'
 import { useAuthStore } from '@/stores/auth-store'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import type { InsightsView } from './api'
 import type { Tone } from './components/shared'
-import type { RiskInsights } from './types'
+import type { FinanceInsights, RiskInsights } from './types'
 
 /** A tab of the page: one view, or the overview that reads several. */
 export type InsightsTab = 'overview' | InsightsView
@@ -122,6 +123,30 @@ export function accountPrice(plan: string, tier: string) {
   )
 }
 
+/**
+ * new-api prices its quota in dollars, but customers pay ¥1 for each quota
+ * dollar, so what it charged is in yuan. In dollars, the unit the engine's
+ * official cost and the account prices use, it is that over the site's USD
+ * exchange rate. The finance response carries the rate; the status's rate
+ * serves until the server sends it.
+ */
+export function useChargeFormat(data: FinanceInsights | undefined) {
+  const fmt = useInsightsFormat()
+  const statusRate = useSystemConfigStore(
+    (state) => state.config.currency.usdExchangeRate
+  )
+  const rate = data?.usd_exchange_rate || statusRate || 1
+  return {
+    rate,
+    /** A charge in yuan, in dollars. */
+    toUSD: (yuan: number) => yuan / rate,
+    /** A charge given in dollars, as $x (¥y). */
+    usd: (usd: number) => `${fmt.usd(usd)} (${fmt.cny(usd * rate)})`,
+    /** As usd, with four places below a dollar. */
+    usdFine: (usd: number) => `${fmt.usdFine(usd)} (${fmt.cny(usd * rate)})`,
+  }
+}
+
 export const INSIGHTS_PRESETS = [1, 7, 30, 90, 365] as const
 
 export function useInsightsFormat() {
@@ -132,6 +157,12 @@ export function useInsightsFormat() {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2,
+  })
+  // Below a dollar, such as a charge per request, four places.
+  const usdFineFormat = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 4,
   })
   const usdWholeFormat = new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -170,6 +201,10 @@ export function useInsightsFormat() {
   return {
     num: (value: number) => number.format(value),
     usd: (value: number) => usdFormat.format(value),
+    usdFine: (value: number) =>
+      Math.abs(value) >= 1
+        ? usdFormat.format(value)
+        : usdFineFormat.format(value),
     usdWhole: (value: number) => usdWholeFormat.format(Math.round(value)),
     cny: (value: number) => formatPaymentMoney(value),
     /** Short forms for chart axes and bar labels. */

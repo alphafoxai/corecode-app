@@ -21,9 +21,9 @@ import { useTranslation } from 'react-i18next'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { useInsightsFormat } from '../lib'
+import { useChargeFormat, useInsightsFormat } from '../lib'
 import type { FinanceInsights } from '../types'
-import { ClaudeEconomics, Figure } from './claude-economics'
+import { ChargeValue, ClaudeEconomics, Figure } from './claude-economics'
 import { BarSeries, Panel, SimpleTable } from './shared'
 
 /**
@@ -43,6 +43,7 @@ const OTHER = 'other'
 export function VendorTabs(props: { data: FinanceInsights | undefined }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
+  const charge = useChargeFormat(props.data)
   const [vendor, setVendor] = useState<string>('claude')
   const models = props.data?.vendor_models ?? []
   const totals = new Map<string, { usd: number; requests: number }>()
@@ -72,7 +73,7 @@ export function VendorTabs(props: { data: FinanceInsights | undefined }) {
               {tab.label}
               {props.data?.vendor_models && (
                 <span className='text-muted-foreground text-xs tabular-nums'>
-                  {fmt.usdWhole(totals.get(tab.key)?.usd ?? 0)}
+                  {fmt.usdWhole(charge.toUSD(totals.get(tab.key)?.usd ?? 0))}
                 </span>
               )}
             </TabsTrigger>
@@ -108,6 +109,7 @@ function VendorCharge(props: {
 }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
+  const charge = useChargeFormat(props.data)
   const all = props.data?.vendor_models ?? []
   const models = all.filter((model) => model.vendor === props.vendor)
   const usd = models.reduce((sum, model) => sum + model.usd, 0)
@@ -119,7 +121,7 @@ function VendorCharge(props: {
     <Panel
       title={t('{{vendor}}: new-api usage', { vendor: props.label })}
       help={t(
-        'What new-api deducted for this vendor’s models at its own ratios, root included, gifted and paid balance alike. A model belongs to a vendor by its name: claude-, gpt- and codex-, grok-, gemini-. No account cost is counted for this vendor yet.'
+        'What new-api deducted for this vendor’s models at its own ratios, root included, gifted and paid balance alike. Customers pay ¥1 for each new-api dollar, so it is shown in dollars at the site’s USD exchange rate, with the yuan beside it. A model belongs to a vendor by its name: claude-, gpt- and codex-, grok-, gemini-. No account cost is counted for this vendor yet.'
       )}
     >
       <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
@@ -127,7 +129,9 @@ function VendorCharge(props: {
           loading={!props.data}
           dot='bg-primary'
           label={t('new-api charge')}
-          value={fmt.usd(usd)}
+          value={
+            <ChargeValue usd={fmt.usd(charge.toUSD(usd))} yuan={fmt.cny(usd)} />
+          }
         />
         <Figure
           loading={!props.data}
@@ -137,7 +141,16 @@ function VendorCharge(props: {
         <Figure
           loading={!props.data}
           label={t('Charge per request')}
-          value={requests > 0 ? fmt.usd(usd / requests) : '-'}
+          value={
+            requests > 0 ? (
+              <ChargeValue
+                usd={fmt.usdFine(charge.toUSD(usd / requests))}
+                yuan={fmt.cny(usd / requests)}
+              />
+            ) : (
+              '-'
+            )
+          }
         />
         <Figure
           loading={!props.data}
@@ -151,14 +164,14 @@ function VendorCharge(props: {
           series={[
             {
               label: t('new-api charge'),
-              format: fmt.usd,
+              format: charge.usd,
               compact: fmt.usdCompact,
             },
           ]}
           points={daily.map((day) => ({
             key: day.day,
             title: fmt.day(day.day),
-            values: [day.vendor_usd?.[props.vendor] ?? 0],
+            values: [charge.toUSD(day.vendor_usd?.[props.vendor] ?? 0)],
           }))}
         />
       </div>
@@ -184,13 +197,15 @@ function VendorCharge(props: {
               label: t('Charge per request'),
               align: 'right',
               render: (row) =>
-                row.requests > 0 ? fmt.usd(row.usd / row.requests) : '-',
+                row.requests > 0
+                  ? charge.usdFine(charge.toUSD(row.usd / row.requests))
+                  : '-',
             },
             {
               key: 'usd',
               label: t('new-api charge'),
               align: 'right',
-              render: (row) => fmt.usd(row.usd),
+              render: (row) => charge.usd(charge.toUSD(row.usd)),
             },
             {
               key: 'share',

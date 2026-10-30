@@ -181,6 +181,10 @@ type FinanceResponse struct {
 	StartTime    int64 `json:"start_time"`
 	EndTime      int64 `json:"end_time"`
 	MatchedSince int64 `json:"matched_since"`
+	// USDExchangeRate is yuan per US dollar. Customers pay ¥1 for each
+	// quota dollar, so new-api's charge is in yuan; this converts it to the
+	// dollars the engine's cost and the account prices are in.
+	USDExchangeRate float64 `json:"usd_exchange_rate"`
 }
 
 func GetFinanceInsights(c *gin.Context) {
@@ -199,6 +203,7 @@ func GetFinanceInsights(c *gin.Context) {
 		official, charged := service.MatchClaudeCost(insights.Daily, response.EngineCost)
 		response.MatchedOfficialUSD, response.MatchedClaudeUSD = official, charged
 		response.StartTime, response.EndTime = r.Start, r.End
+		response.USDExchangeRate = operation_setting.USDExchangeRate
 		response.MatchedSince = service.MatchedSince(r.Start, r.End, response.EngineCost)
 		if charged > 0 {
 			response.OfficialPerUSD = official / charged
