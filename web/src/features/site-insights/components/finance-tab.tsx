@@ -58,13 +58,15 @@ export function FinanceTab(props: {
   }
   const engine = data?.engine_cost
   const engineReady = !!engine?.configured && !engine.error
-  // Official-price dollars per new-api dollar charged for Claude.
+  // new-api's Claude charge over its official-price cost: the multiple of
+  // official prices new-api sells Claude at, comparable with its own ratios.
   const officialPerUSD = engineReady ? (data?.official_per_usd ?? 0) : 0
+  const multiple = officialPerUSD > 0 ? 1 / officialPerUSD : 0
   const engineByDay = new Map(
     (engine?.daily ?? []).map((day) => [day.day, day])
   )
   const toCharged = (official: number) =>
-    officialPerUSD > 0 ? fmt.usd(official / officialPerUSD) : '-'
+    multiple > 0 ? fmt.usd(official * multiple) : '-'
 
   return (
     <div className='grid gap-4'>
@@ -200,16 +202,16 @@ export function FinanceTab(props: {
       <Panel
         title={t('Daily Claude usage: new-api against gpt-load')}
         help={t(
-          'Each day, what new-api charged for Claude models beside what gpt-load (corecode-engine) priced the same day’s Claude requests at official prices. Their ratio is the official cost of each $1 charged.'
+          'Each day, what new-api charged for Claude models beside what gpt-load (corecode-engine) priced the same day’s Claude requests at official prices. The new-api charge divided by the official cost is the multiple, comparable with new-api’s own ratios.'
         )}
         description={
-          officialPerUSD > 0
+          multiple > 0
             ? t(
-                'Charged {{charged}} against {{official}} at official prices: each $1 charged uses {{ratio}}.',
+                'Charged {{charged}} against {{official}} at official prices: a multiple of {{multiple}}.',
                 {
                   charged: fmt.usd(data?.matched_claude_usd ?? 0),
                   official: fmt.usd(data?.matched_official_usd ?? 0),
-                  ratio: fmt.usd(officialPerUSD),
+                  multiple: fmt.multiple(multiple),
                 }
               )
             : undefined
@@ -238,10 +240,10 @@ export function FinanceTab(props: {
                 values: [charged, official?.cost_usd ?? 0],
                 extra: [
                   {
-                    label: t('Official cost per $1 charged'),
+                    label: t('Multiple (new-api ÷ official)'),
                     value:
-                      official && charged > 0
-                        ? fmt.usd(official.cost_usd / charged)
+                      official && official.cost_usd > 0
+                        ? fmt.multiple(charged / official.cost_usd)
                         : '-',
                   },
                   {
@@ -262,11 +264,10 @@ export function FinanceTab(props: {
             'Charged is what new-api deducted for Claude models at its own ratios; official cost is what corecode-engine priced the same requests at Anthropic’s official prices. Both cover the days the engine reported. Gifted and paid balance count alike. Root’s own requests count on both sides, unlike the customer consumption above.'
           )}
           description={
-            officialPerUSD > 0
-              ? t(
-                  'Each $1 new-api charges for Claude uses {{official}} at official prices.',
-                  { official: fmt.usd(officialPerUSD) }
-                )
+            multiple > 0
+              ? t('new-api charges {{multiple}} official prices for Claude.', {
+                  multiple: fmt.multiple(multiple),
+                })
               : undefined
           }
         >
@@ -289,12 +290,8 @@ export function FinanceTab(props: {
                 ],
                 [t('Official cost'), fmt.usd(data?.matched_official_usd ?? 0)],
                 [
-                  t('Official cost per $1 charged'),
-                  officialPerUSD > 0 ? fmt.usd(officialPerUSD) : '-',
-                ],
-                [
-                  t('Charged per $1 official cost'),
-                  officialPerUSD > 0 ? fmt.usd(1 / officialPerUSD) : '-',
+                  t('Multiple (new-api ÷ official)'),
+                  multiple > 0 ? fmt.multiple(multiple) : '-',
                 ],
               ].map(([label, value]) => (
                 <div key={label} className='flex justify-between gap-2'>
@@ -309,7 +306,7 @@ export function FinanceTab(props: {
           className='lg:col-span-2'
           title={t('What one account is worth')}
           help={t(
-            'A full week of one account at official prices, as corecode-engine calibrated it from the account’s own requests: the median of the plan’s measured accounts, with the smallest and largest. The new-api columns divide it by this range’s official cost per $1 charged; a month is 30/7 weeks.'
+            'A full week of one account at official prices, as corecode-engine calibrated it from the account’s own requests: the median of the plan’s measured accounts, with the smallest and largest. The new-api columns multiply it by this range’s multiple; a month is 30/7 weeks.'
           )}
         >
           {data?.plans_error && (

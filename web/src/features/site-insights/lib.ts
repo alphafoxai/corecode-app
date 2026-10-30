@@ -112,6 +112,10 @@ export function useInsightsFormat() {
     notation: 'compact',
     maximumFractionDigits: 1,
   })
+  const multipleFormat = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
   const percent = new Intl.NumberFormat(locale, {
     style: 'percent',
     maximumFractionDigits: 1,
@@ -135,6 +139,8 @@ export function useInsightsFormat() {
     usdCompact: (value: number) => usdCompactFormat.format(value),
     cnyCompact: (value: number) => `¥${compactFormat.format(value)}`,
     pct: (value: number) => percent.format(value),
+    /** A price multiple, such as 1.95×. */
+    multiple: (value: number) => `${multipleFormat.format(value)}×`,
     day: (unix: number) => day.format(new Date(unix * 1000)),
     time: (unix: number) => (unix ? hour.format(new Date(unix * 1000)) : '-'),
     ms: (value: number) =>
