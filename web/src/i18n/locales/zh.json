@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "占 new-api 总消费",
     "Daily {{vendor}} charge": "{{vendor}} 每日消费",
     "No charge for this vendor in this range": "该厂商在本区间没有消费",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "另有 {{count}} 个号属于其他厂商或尚未读到套餐，未计入。"
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "另有 {{count}} 个号属于其他厂商或尚未读到套餐，未计入。",
+    "Cash": "现金收入",
+    "Money customers paid, in yuan.": "客户实际支付的钱，人民币。",
+    "new-api credit": "new-api 额度",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "按人民币计：客户每 ¥1 充得 $1 额度。≈ 是按 $1 = ¥{{rate}} 换算的美元，用于与 gpt-load 比较。",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "本区间 new-api 按标价扣除的全部请求，含 root 的内部使用。付费部分是客户付款覆盖的；赠送部分是赠送的套餐和各钱包未付款的份额；root 是内部使用，没有人付款。",
+    "Earned per ¥1 consumed": "每 ¥1 消耗确认收入",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "确认收入除以消耗的额度（含 root）：每用掉 ¥1 额度确认了多少收入。付费部分只除以付费消耗：客户实际支付的价格。收现口径改用本区间收到的钱，会随客户付款时间波动。",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "客户当前持有、还能用的额度，人民币。实付是按各钱包的价格他们为这些额度付了多少钱，其余是赠送的。root 的余额是内部额度，不计入。欠费超过警戒线时为红色，余额超过本区间消耗时为琥珀色。",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "收入是收到的钱，人民币。消耗是按标价用掉的 new-api 额度，人民币，含 root 的内部使用。",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "new-api 消费按 $1 = ¥{{rate}} 换算成美元，与 gpt-load 比较；人民币附在旁边。",
+    "Paid part": "付费",
+    "Gifted part": "赠送",
+    "Root (internal)": "root 内部"
   }
 }

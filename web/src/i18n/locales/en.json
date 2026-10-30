@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "Share of all new-api charge",
     "Daily {{vendor}} charge": "Daily {{vendor}} charge",
     "No charge for this vendor in this range": "No charge for this vendor in this range",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out."
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.",
+    "Cash": "Cash",
+    "Money customers paid, in yuan.": "Money customers paid, in yuan.",
+    "new-api credit": "new-api credit",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.",
+    "Earned per ¥1 consumed": "Earned per ¥1 consumed",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.",
+    "Paid part": "Paid part",
+    "Gifted part": "Gifted part",
+    "Root (internal)": "Root (internal)"
   }
 }

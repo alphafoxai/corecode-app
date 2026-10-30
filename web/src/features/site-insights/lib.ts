@@ -206,7 +206,9 @@ export function useInsightsFormat() {
         ? usdFormat.format(value)
         : usdFineFormat.format(value),
     usdWhole: (value: number) => usdWholeFormat.format(Math.round(value)),
-    cny: (value: number) => formatPaymentMoney(value),
+    // A debt reads -¥3.93, not ¥-3.93.
+    cny: (value: number) =>
+      value < 0 ? `-${formatPaymentMoney(-value)}` : formatPaymentMoney(value),
     /** Short forms for chart axes and bar labels. */
     usdCompact: (value: number) => usdCompactFormat.format(value),
     cnyCompact: (value: number) => `¥${compactFormat.format(value)}`,

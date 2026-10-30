@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "Доля всех списаний new-api",
     "Daily {{vendor}} charge": "Списания {{vendor}} по дням",
     "No charge for this vendor in this range": "За этот период списаний по поставщику нет",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} аккаунтов других поставщиков или с непрочитанным планом не учитываются."
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} аккаунтов других поставщиков или с непрочитанным планом не учитываются.",
+    "Cash": "Деньги",
+    "Money customers paid, in yuan.": "Деньги, которые заплатили клиенты, в юанях.",
+    "new-api credit": "Кредит new-api",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "В юанях: клиенты платят ¥1 за каждый доллар кредита. ≈ — в долларах по курсу ¥{{rate}} за доллар, для сравнения с gpt-load.",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "Все запросы, списанные new-api за период по прейскуранту, включая внутреннее использование root. Оплаченная часть покрыта платежами клиентов; подаренная — подаренные планы и неоплаченная доля кошельков; root — внутреннее использование, за которое никто не платит.",
+    "Earned per ¥1 consumed": "Выручка на ¥1 расхода",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "Признанная выручка, делённая на израсходованный кредит, включая root: сколько принёс каждый израсходованный юань. Оплаченная часть делит только на оплаченный расход — цену, которую реально заплатили клиенты. Кассовый метод делит деньги, полученные за период, и колеблется в зависимости от времени оплаты.",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "Кредит, который клиенты держат сейчас и ещё могут потратить, в юанях. Оплачено — сколько они заплатили по цене каждого кошелька; остальное подарено. Баланс root внутренний и не учитывается. Красный, когда долг превышает порог; янтарный, когда баланс больше расхода за период.",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "Выручка — полученные деньги, в юанях. Расход — кредит new-api по прейскуранту, в юанях, включая внутреннее использование root.",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "Списания new-api в долларах по курсу ¥{{rate}} за доллар для сравнения с gpt-load; юани — рядом.",
+    "Paid part": "Оплачено",
+    "Gifted part": "Подарено",
+    "Root (internal)": "root (внутр.)"
   }
 }

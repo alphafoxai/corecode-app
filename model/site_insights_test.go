@@ -268,7 +268,7 @@ func TestFinanceRecognizesRevenueAsItIsEarned(t *testing.T) {
 			assert.Equal(t, 0.56, finance.RevenuePerUSD)
 			assert.Equal(t, 40.0, finance.LiabilityPaidValue, "the payer's $50 at 0.8")
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8, ClaudeUSD: 30, VendorUSD: map[string]float64{VendorClaude: 30}}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1, Subscription: 14, ConsumptionUSD: 16, RecognizedRevenue: 10.8, ClaudeUSD: 30, RootConsumptionUSD: 30, VendorUSD: map[string]float64{VendorClaude: 30}}, finance.Daily[0])
 			assert.Equal(t, FinanceDay{Day: day1 + 86400, ConsumptionUSD: 9, RecognizedRevenue: 6.8, VendorUSD: map[string]float64{VendorCodex: 4}}, finance.Daily[1],
 				"the charge by vendor keeps root, as the Claude charge does")
 			assert.Equal(t, []VendorModel{

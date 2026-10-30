@@ -107,3 +107,33 @@ readout at 6.8, a vendor tab's charge and charge per request, and the fallback t
 status's rate. Checked against production through a read-only GET proxy with the
 fallback rate: Claude $1,487.75 (¥10,116.70) over 7 days, multiple 0.29×, new-api ÷
 account cost 13.01×; the Claude chart answered hover at 40 of 40 positions.
+
+## Addendum: two ledgers at the head of the funds view
+
+The cards above the vendor tabs read new-api's quota dollars as dollars and left root
+out, so consumption did not match the vendor tabs and "earned per $1 consumed" divided
+yuan by yuan under a dollar label. The owner set the logic: root is internal use and
+counts; new-api's side is read in yuan, for what customers topped up, used and are
+owed; its dollars are for comparing with gpt-load.
+
+- **Cash** (yuan): revenue and revenue earned, unchanged.
+- **new-api credit** (yuan first, `≈ $` beside it at `usd_exchange_rate`):
+  consumption with root's internal use, split into paid, gifted and root, which nobody
+  pays for; earned per ¥1 consumed, root included, with paid use and cash basis; and
+  balances owed. Root's balance stays out of the balances: internal credit is not owed.
+- The vendor tabs keep dollars first and now state the rate they convert at.
+- Every other new-api amount on the view (credit issued, balances, adjustments, the
+  daily readout, the overview's consumption and debt) reads in yuan. A debt reads -¥3.93.
+- The server adds `root_consumption_usd` to each day, so the daily readout includes it.
+- The vendor tab list scrolls on a narrow screen instead of widening the page.
+
+`page-transition.tsx` now wraps the route key in `String`. `bun check` infers TanStack
+Router's `routeId` there as `{}` depending on unrelated files: this change's tests
+alone flipped it, after 3c9728650 had annotated the return type for the same error.
+
+`finance-tab.test.tsx` covers the cash figures, consumption in yuan and dollars with
+its three parts, earned per ¥1 with root, the balances in yuan, and the daily readout.
+Checked against production through a read-only GET proxy: over 7 days consumption
+¥10,578.26 (≈ $1,555.63), of which root ¥3,707; earned per ¥1 ¥0.2508; balances owed
+¥10,364.85. Every label's definition opened on hover; the revenue sparkline answered at
+20 of 20 positions; nothing was wider than a 390 px screen.

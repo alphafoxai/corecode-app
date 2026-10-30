@@ -62,12 +62,24 @@ export function VendorTabs(props: { data: FinanceInsights | undefined }) {
   ]
 
   return (
-    <Tabs value={vendor} onValueChange={(value) => setVendor(String(value))}>
+    <Tabs
+      value={vendor}
+      onValueChange={(value) => setVendor(String(value))}
+      className='min-w-0'
+    >
       <div className='flex flex-wrap items-center justify-between gap-2'>
-        <h2 className='text-sm font-semibold'>
-          {t('Usage and cost by vendor')}
-        </h2>
-        <TabsList className='h-auto'>
+        <div className='min-w-0'>
+          <h2 className='text-sm font-semibold'>
+            {t('Usage and cost by vendor')}
+          </h2>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.',
+              { rate: fmt.num(charge.rate) }
+            )}
+          </p>
+        </div>
+        <TabsList className='h-auto max-w-full justify-start overflow-x-auto'>
           {tabs.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key} className='gap-2 px-3'>
               {tab.label}

@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "new-api 請求全体に占める割合",
     "Daily {{vendor}} charge": "{{vendor}} の日別請求",
     "No charge for this vendor in this range": "この期間、このベンダーの請求はありません",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "他ベンダーのアカウント、またはプランを読み取れていないアカウント {{count}} 件は除外しています。"
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "他ベンダーのアカウント、またはプランを読み取れていないアカウント {{count}} 件は除外しています。",
+    "Cash": "現金収入",
+    "Money customers paid, in yuan.": "顧客が実際に支払った金額（人民元）。",
+    "new-api credit": "new-api クレジット",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "人民元建て：顧客は ¥1 で 1 ドル分のクレジットを購入します。≈ は $1 = ¥{{rate}} で換算したドルで、gpt-load との比較に使います。",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "この期間に new-api が定価で差し引いた全リクエストで、root の内部利用を含みます。有料分は顧客の支払いで賄われた分、贈与分は贈与プランと各ウォレットの未払い分、root は誰も支払わない内部利用です。",
+    "Earned per ¥1 consumed": "消費 ¥1 あたりの確定収入",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "確定収入を消費したクレジット（root を含む）で割ったもの：クレジット ¥1 の利用でどれだけ収入を確定したか。有料分は有料消費だけで割ります（顧客が実際に支払った価格）。現金基準は期間中に受け取った金額で割るため、支払時期で変動します。",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "顧客が現在保有し、まだ使えるクレジット（人民元）。実払いは各ウォレットの価格で支払った額で、残りは贈与です。root の残高は内部用のため含めません。負債が警告ラインを超えると赤、残高がこの期間の消費を超えると琥珀色になります。",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "収入は受け取った金額（人民元）。消費は定価で使われた new-api クレジット（人民元）で、root の内部利用を含みます。",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "new-api の請求は $1 = ¥{{rate}} でドルに換算して gpt-load と比較し、人民元を併記します。",
+    "Paid part": "有料分",
+    "Gifted part": "贈与分",
+    "Root (internal)": "root（内部）"
   }
 }

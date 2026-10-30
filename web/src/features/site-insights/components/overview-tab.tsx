@@ -294,7 +294,7 @@ export function OverviewTab(props: {
       tone: 'danger',
       title: t('{{count}} customers owe {{amount}}', {
         count: finance.debtors.length,
-        amount: fmt.usd(-finance.debt_usd),
+        amount: fmt.cny(-finance.debt_usd),
       }),
       tab: 'finance',
     })
@@ -370,7 +370,10 @@ export function OverviewTab(props: {
               value: day.requests,
             })),
             hint: t('Consumption {{amount}} at list price', {
-              amount: fmt.usd(finance?.consumption_usd ?? 0),
+              amount: fmt.cny(
+                (finance?.consumption_usd ?? 0) +
+                  (finance?.root_consumption_usd ?? 0)
+              ),
             }),
           },
           {
@@ -434,7 +437,7 @@ export function OverviewTab(props: {
             },
             {
               label: t('Debt (negative balances)'),
-              value: fmt.usd(finance?.debt_usd ?? 0),
+              value: fmt.cny(finance?.debt_usd ?? 0),
               tone:
                 (finance?.debt_usd ?? 0) < DEBT_ALERT_USD
                   ? 'danger'

@@ -7535,6 +7535,19 @@
     "Share of all new-api charge": "Part de toute la facturation new-api",
     "Daily {{vendor}} charge": "Facturation {{vendor}} par jour",
     "No charge for this vendor in this range": "Aucune facturation pour ce fournisseur sur cette période",
-    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} comptes d’autres fournisseurs, ou dont l’offre n’a pas été lue, sont exclus."
+    "{{count}} accounts of other vendors, or whose plan the engine has not read, are left out.": "{{count}} comptes d’autres fournisseurs, ou dont l’offre n’a pas été lue, sont exclus.",
+    "Cash": "Encaissements",
+    "Money customers paid, in yuan.": "L’argent payé par les clients, en yuans.",
+    "new-api credit": "Crédit new-api",
+    "In yuan: customers pay ¥1 for each credit dollar. ≈ is in dollars at ¥{{rate}} to the dollar, the unit compared with gpt-load.": "En yuans : les clients paient ¥1 par dollar de crédit. ≈ est en dollars à ¥{{rate}} le dollar, l’unité comparée à gpt-load.",
+    "Every request new-api charged in the range at list price, root’s internal use included. Paid is what customers’ payments cover; gifted is given plans and the unpaid share of each wallet; root’s is internal use, which nobody pays for.": "Toutes les requêtes facturées par new-api sur la période au tarif affiché, usage interne de root compris. La part payée est couverte par les paiements des clients ; la part offerte, par les offres données et la part non payée de chaque portefeuille ; root est un usage interne que personne ne paie.",
+    "Earned per ¥1 consumed": "Revenu acquis par ¥1 consommé",
+    "Revenue earned divided by credit consumed, root’s included: what each yuan of credit used earned. Paid use divides by the paid part only: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.": "Le revenu acquis divisé par le crédit consommé, root compris : ce que chaque yuan de crédit utilisé a rapporté. La part payée divise par la seule part payée : le prix réellement payé. La base encaissement divise l’argent reçu sur la période et varie selon le moment des paiements.",
+    "Credit customers hold now and can still spend, in yuan. Paid is what they paid for it at each wallet’s price; the rest was given. Root’s balance is internal and not counted. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.": "Le crédit que les clients détiennent et peuvent encore dépenser, en yuans. Payé est ce qu’ils ont payé au prix de chaque portefeuille ; le reste a été offert. Le solde de root est interne et non compté. Rouge quand la dette dépasse le seuil, ambre quand le solde dépasse la consommation de la période.",
+    "Revenue is the money paid, in yuan. Consumption is new-api credit used at list price, in yuan, root’s internal use included.": "Le revenu est l’argent reçu, en yuans. La consommation est le crédit new-api utilisé au tarif affiché, en yuans, usage interne de root compris.",
+    "new-api’s charge in dollars at ¥{{rate}} to the dollar, to compare with gpt-load; the yuan beside it.": "La facturation new-api en dollars à ¥{{rate}} le dollar, pour comparer avec gpt-load ; les yuans à côté.",
+    "Paid part": "Payé",
+    "Gifted part": "Offert",
+    "Root (internal)": "root (interne)"
   }
 }
