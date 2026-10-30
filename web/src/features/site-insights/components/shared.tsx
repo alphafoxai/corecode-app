@@ -526,6 +526,8 @@ export function BarSeries(props: {
   series: BarSeriesItem[]
   className?: string
   ariaLabel: string
+  /** Draws the series side by side to compare them, instead of stacking parts of a whole. */
+  grouped?: boolean
 }) {
   const { t } = useTranslation()
   const fmt = useInsightsFormat()
@@ -534,14 +536,19 @@ export function BarSeries(props: {
   const axisFormat =
     props.series[0]?.compact ?? props.series[0]?.format ?? fmt.num
   const sum = (values: number[]) => values.reduce((a, b) => a + b, 0)
-  const max = Math.max(0, ...props.points.map((point) => sum(point.values)))
+  const max = Math.max(
+    0,
+    ...props.points.map((point) =>
+      props.grouped ? Math.max(0, ...point.values) : sum(point.values)
+    )
+  )
   const step = niceStep(max / VALUE_TICKS)
   const top = max > 0 ? Math.ceil(max / step) * step : 1
   const ticks = Array.from(
     { length: Math.round(top / step) + 1 },
     (_, index) => index * step
   )
-  const stacked = props.series.length > 1
+  const stacked = props.series.length > 1 && !props.grouped
   const count = props.points.length
   const segmented = props.points.some((point) => point.axis)
   // Labelled points: segment starts, or evenly spaced titles. Either way,
@@ -549,12 +556,14 @@ export function BarSeries(props: {
   const candidates = props.points
     .map((point, index) => ({ index, text: point.axis ?? point.title }))
     .filter((_, index) => !segmented || props.points[index].axis)
-  const barLabels = count <= LABELLED_BARS
+  const short = count <= LABELLED_BARS
+  // A grouped bar has no single total to print above it.
+  const barLabels = short && !props.grouped
   // The space between bars sits inside each bar's hover area, so every point
   // across the chart answers the pointer. A dense series, such as a week of
   // hours in a narrow panel, has no room for it and draws bars edge to edge.
   const spaced = count <= SPACED_BARS
-  const every = barLabels
+  const every = short
     ? 1
     : Math.max(1, Math.ceil(candidates.length / AXIS_LABELS))
   const labels = candidates.filter((_, index) => index % every === 0)
@@ -661,7 +670,22 @@ export function BarSeries(props: {
                           />
                         }
                       >
+                        {total > 0 && props.grouped && (
+                          <span className='flex h-full items-end gap-px'>
+                            {point.values.map((value, index) => (
+                              <span
+                                key={rows[index].id}
+                                className={cn(
+                                  'min-w-0 flex-1 rounded-t-[3px]',
+                                  colorOf(index)
+                                )}
+                                style={{ height: `${(value / top) * 100}%` }}
+                              />
+                            ))}
+                          </span>
+                        )}
                         {total > 0 &&
+                          !props.grouped &&
                           point.values.map((value, index) => (
                             <span
                               key={rows[index].id}
@@ -755,7 +779,7 @@ export function BarSeries(props: {
           })}
         </div>
       </div>
-      {stacked && (
+      {props.series.length > 1 && (
         <ul className='text-muted-foreground flex flex-wrap gap-3 text-xs'>
           {props.series.map((item, index) => (
             <li key={item.label} className='flex items-center gap-1.5'>

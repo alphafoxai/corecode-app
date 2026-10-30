@@ -59,3 +59,14 @@ converted an account's capacity.
   `TestSiteInsightsDatabaseMatrix` covers the Claude-only charge per day and in total.
 - `finance-tab.test.tsx` covers the ratio sentence, a plan row's conversion, and the
   engine-error state.
+
+## Addendum: the daily comparison
+
+The owner's question was a comparison by day, which the totals alone do not show.
+The funds view now opens its Claude section with a chart that draws each day's
+new-api Claude charge beside gpt-load's official-price cost. The tooltip shows that
+day's ratio and request count. `BarSeries` gained a `grouped` mode for it: the bars
+stand side by side, the axis scales to the larger one, and no total row or total
+label is drawn. Stacked charts are unchanged. No server change was needed: the
+response already carried both daily series. `finance-tab.test.tsx` covers the daily
+readout, a day the engine left out, and the absence of a total.

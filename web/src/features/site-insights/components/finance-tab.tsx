@@ -51,6 +51,9 @@ export function FinanceTab(props: {
   const engineReady = !!engine?.configured && !engine.error
   // Official-price dollars per new-api dollar charged for Claude.
   const officialPerUSD = engineReady ? (data?.official_per_usd ?? 0) : 0
+  const engineByDay = new Map(
+    (engine?.daily ?? []).map((day) => [day.day, day])
+  )
   const toCharged = (official: number) =>
     officialPerUSD > 0 ? fmt.usd(official / officialPerUSD) : '-'
 
@@ -162,6 +165,64 @@ export function FinanceTab(props: {
             ],
           }))}
         />
+      </Panel>
+
+      <Panel
+        title={t('Daily Claude usage: new-api against gpt-load')}
+        help={t(
+          'Each day, what new-api charged for Claude models beside what gpt-load (corecode-engine) priced the same day’s Claude requests at official prices. Their ratio is the official cost of each $1 charged.'
+        )}
+        description={
+          officialPerUSD > 0
+            ? t(
+                'Charged {{charged}} against {{official}} at official prices: each $1 charged uses {{ratio}}.',
+                {
+                  charged: fmt.usd(data?.matched_claude_usd ?? 0),
+                  official: fmt.usd(data?.matched_official_usd ?? 0),
+                  ratio: fmt.usd(officialPerUSD),
+                }
+              )
+            : undefined
+        }
+      >
+        {engine?.error ? (
+          <p className='text-destructive text-sm'>{engine.error}</p>
+        ) : (
+          <BarSeries
+            grouped
+            ariaLabel={t('Daily Claude usage: new-api against gpt-load')}
+            series={[
+              {
+                label: t('new-api Claude charge'),
+                format: fmt.usd,
+                compact: fmt.usdCompact,
+              },
+              { label: t('gpt-load official cost'), format: fmt.usd },
+            ]}
+            points={daily.map((day) => {
+              const official = engineByDay.get(day.day)
+              const charged = day.claude_usd ?? 0
+              return {
+                key: day.day,
+                title: fmt.day(day.day),
+                values: [charged, official?.cost_usd ?? 0],
+                extra: [
+                  {
+                    label: t('Official cost per $1 charged'),
+                    value:
+                      official && charged > 0
+                        ? fmt.usd(official.cost_usd / charged)
+                        : '-',
+                  },
+                  {
+                    label: t('Claude requests'),
+                    value: fmt.num(official?.requests ?? 0),
+                  },
+                ],
+              }
+            })}
+          />
+        )}
       </Panel>
 
       <div className='grid gap-4 lg:grid-cols-3'>
