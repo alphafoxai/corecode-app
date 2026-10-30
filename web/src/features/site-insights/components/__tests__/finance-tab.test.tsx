@@ -173,14 +173,12 @@ const engine: EngineDailyCost = {
 }
 
 describe('Claude at official prices on the funds view', () => {
-  it('states the official cost of each dollar charged', () => {
+  it('states the multiple of official prices new-api charges', () => {
     render(<FinanceTab data={finance(engine)} />)
     expect(
-      screen.getByText(
-        'Each $1 new-api charges for Claude uses $0.50 at official prices.'
-      )
+      screen.getByText('new-api charges 2.00× official prices for Claude.')
     ).toBeInTheDocument()
-    expect(screen.getByText('$2.00')).toBeInTheDocument()
+    expect(screen.getByText('2.00×')).toBeInTheDocument()
   })
 
   it('converts a plan’s weekly official value into new-api dollars', () => {
@@ -221,10 +219,10 @@ describe('Claude at official prices on the funds view', () => {
     const bars = chart.querySelectorAll('[tabindex="0"]')
     expect(bars).toHaveLength(2)
     expect(bars[0].getAttribute('aria-label')).toMatch(
-      /new-api Claude charge \$80\.00.*gpt-load official cost \$0\.00.*Official cost per \$1 charged -/
+      /new-api Claude charge \$80\.00.*gpt-load official cost \$0\.00.*Multiple \(new-api ÷ official\) -/
     )
     expect(bars[1].getAttribute('aria-label')).toMatch(
-      /new-api Claude charge \$120\.00.*gpt-load official cost \$60\.00.*Official cost per \$1 charged \$0\.50.*Claude requests 9/
+      /new-api Claude charge \$120\.00.*gpt-load official cost \$60\.00.*Multiple \(new-api ÷ official\) 2\.00×.*Claude requests 9/
     )
     expect(bars[1].getAttribute('aria-label')).not.toMatch(/Total/)
   })

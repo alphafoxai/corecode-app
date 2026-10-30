@@ -70,3 +70,11 @@ stand side by side, the axis scales to the larger one, and no total row or total
 label is drawn. Stacked charts are unchanged. No server change was needed: the
 response already carried both daily series. `finance-tab.test.tsx` covers the daily
 readout, a day the engine left out, and the absence of a total.
+
+## Addendum: the multiple, new-api over official
+
+The owner compares the result with new-api's own ratios, which put new-api in the
+numerator. The console therefore shows new-api's charge divided by the official
+cost as a multiple (1.95×), in the daily tooltip, the totals panel and the account
+conversion, instead of the official cost per dollar charged. The server's
+`official_per_usd` is unchanged; the console takes its inverse.
