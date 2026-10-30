@@ -151,7 +151,7 @@ export function FinanceTab(props: {
             hint: t('{{count}} customers · paid {{paid}} · debt {{debt}}', {
               count: data?.liability_users ?? 0,
               paid: fmt.cny(data?.liability_paid_value ?? 0),
-              debt: fmt.usd(data?.debt_usd ?? 0),
+              debt: fmt.usd(Math.abs(data?.debt_usd ?? 0)),
             }),
             help: t(
               'Credit customers hold now and can still spend. Paid is what they paid for it at each wallet’s price; the rest was given. Red when debt passes the alert line, amber when the balance exceeds this range’s consumption.'
