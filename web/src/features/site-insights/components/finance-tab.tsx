@@ -47,6 +47,12 @@ export function FinanceTab(props: {
     data?.commission_usd ?? 0,
     data?.adjustment_net_usd ?? 0,
   ].reduce((sum, value) => sum + value, 0)
+  const engine = data?.engine_cost
+  const engineReady = !!engine?.configured && !engine.error
+  // Official-price dollars per new-api dollar charged for Claude.
+  const officialPerUSD = engineReady ? (data?.official_per_usd ?? 0) : 0
+  const toCharged = (official: number) =>
+    officialPerUSD > 0 ? fmt.usd(official / officialPerUSD) : '-'
 
   return (
     <div className='grid gap-4'>
@@ -157,6 +163,120 @@ export function FinanceTab(props: {
           }))}
         />
       </Panel>
+
+      <div className='grid gap-4 lg:grid-cols-3'>
+        <Panel
+          title={t('Claude at official prices')}
+          help={t(
+            'Charged is what new-api deducted for Claude models at its own ratios; official cost is what corecode-engine priced the same requests at Anthropic’s official prices. Both cover the days the engine reported. Gifted and paid balance count alike.'
+          )}
+          description={
+            officialPerUSD > 0
+              ? t(
+                  'Each $1 new-api charges for Claude uses {{official}} at official prices.',
+                  { official: fmt.usd(officialPerUSD) }
+                )
+              : undefined
+          }
+        >
+          {engine && !engine.configured && (
+            <p className='text-muted-foreground text-sm'>
+              {t(
+                'Set EngineControlURL and EngineControlKey to read official-price cost from corecode-engine.'
+              )}
+            </p>
+          )}
+          {engine?.error && (
+            <p className='text-destructive text-sm'>{engine.error}</p>
+          )}
+          {(!engine || engineReady) && (
+            <dl className='grid gap-2 text-sm'>
+              {[
+                [
+                  t('Charged for Claude'),
+                  fmt.usd(data?.matched_claude_usd ?? 0),
+                ],
+                [t('Official cost'), fmt.usd(data?.matched_official_usd ?? 0)],
+                [
+                  t('Official cost per $1 charged'),
+                  officialPerUSD > 0 ? fmt.usd(officialPerUSD) : '-',
+                ],
+                [
+                  t('Charged per $1 official cost'),
+                  officialPerUSD > 0 ? fmt.usd(1 / officialPerUSD) : '-',
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className='flex justify-between gap-2'>
+                  <dt className='text-muted-foreground'>{label}</dt>
+                  <dd className='tabular-nums'>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </Panel>
+        <Panel
+          className='lg:col-span-2'
+          title={t('What one account is worth')}
+          help={t(
+            'A full week of one account at official prices, as corecode-engine calibrated it from the account’s own requests: the median of the plan’s measured accounts, with the smallest and largest. The new-api columns divide it by this range’s official cost per $1 charged; a month is 30/7 weeks.'
+          )}
+        >
+          {data?.plans_error && (
+            <p className='text-destructive mb-2 text-sm'>{data.plans_error}</p>
+          )}
+          <SimpleTable
+            rows={data?.plans}
+            rowKey={(row) => `${row.plan}/${row.tier}`}
+            empty={t('No account has a measured weekly capacity')}
+            columns={[
+              {
+                key: 'plan',
+                label: t('Plan'),
+                render: (row) => (
+                  <span>
+                    {row.plan || '-'}
+                    {row.tier && (
+                      <span className='text-muted-foreground ml-1 text-xs'>
+                        {row.tier}
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: 'accounts',
+                label: t('Measured accounts'),
+                align: 'right',
+                render: (row) => `${row.measured} / ${row.accounts}`,
+              },
+              {
+                key: 'week',
+                label: t('Official value per week'),
+                align: 'right',
+                render: (row) => {
+                  const low = fmt.usdWhole(row.week_low_usd)
+                  const high = fmt.usdWhole(row.week_high_usd)
+                  return low === high
+                    ? fmt.usd(row.week_usd)
+                    : `${fmt.usd(row.week_usd)} (${low}–${high})`
+                },
+              },
+              {
+                key: 'charged-week',
+                label: t('new-api value per week'),
+                align: 'right',
+                render: (row) => toCharged(row.week_usd),
+              },
+              {
+                key: 'charged-month',
+                label: t('new-api value per month'),
+                align: 'right',
+                render: (row) => toCharged((row.week_usd * 30) / 7),
+              },
+            ]}
+          />
+        </Panel>
+      </div>
 
       <div className='grid gap-4 lg:grid-cols-3'>
         <Panel

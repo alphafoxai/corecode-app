@@ -92,7 +92,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			require.NoError(t, DB.Create(&topUps).Error)
 			quotaRows := []QuotaData{
 				{UserID: alice.Id, Username: "alice", ModelName: "opus", CreatedAt: day1, Count: 2, Quota: int(2 * dollar), TokenUsed: 20, CacheReadTokens: 80},
-				{UserID: bob.Id, Username: "bob", ModelName: "sonnet", CreatedAt: day1, Count: 1, Quota: int(dollar), TokenUsed: 5},
+				{UserID: bob.Id, Username: "bob", ModelName: "claude-sonnet-5-5", CreatedAt: day1, Count: 1, Quota: int(dollar), TokenUsed: 5},
 				{UserID: alice.Id, Username: "alice", ModelName: "opus", CreatedAt: day1 + 86400, Count: 1, Quota: int(dollar), TokenUsed: 10},
 			}
 			require.NoError(t, DB.Create(&quotaRows).Error)
@@ -112,6 +112,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 70.0, finance.TopupCreditUSD)
 			assert.Equal(t, 5.0, finance.BonusUSD)
 			assert.Equal(t, 4.0, finance.ConsumptionUSD)
+			assert.Equal(t, 1.0, finance.ClaudeUSD, "only the claude- model counts as Claude")
 			assert.Equal(t, 19.975, finance.RevenuePerUSD)
 			assert.Equal(t, 30.0, finance.LiabilityUSD, "root's balance is not owed to a customer")
 			assert.Equal(t, -2.0, finance.DebtUSD)
@@ -120,7 +121,7 @@ func TestSiteInsightsDatabaseMatrix(t *testing.T) {
 			assert.Equal(t, 10.0, finance.Adjustments[0].DeltaUSD)
 			assert.Equal(t, 10.0, finance.AdjustmentNetUSD)
 			require.Len(t, finance.Daily, 2)
-			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3}, finance.Daily[0])
+			assert.Equal(t, FinanceDay{Day: day1, Topup: 50, Subscription: 9.9, ConsumptionUSD: 3, ClaudeUSD: 1}, finance.Daily[0])
 
 			risk, err := GetRiskInsights(r)
 			require.NoError(t, err)

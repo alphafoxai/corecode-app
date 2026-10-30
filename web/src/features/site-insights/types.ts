@@ -150,8 +150,10 @@ export type FinanceInsights = {
     topup: number
     subscription: number
     consumption_usd: number
+    claude_usd: number
   }[]
   consumption_usd: number
+  claude_usd: number
   revenue_per_usd: number
   liability_usd: number
   liability_users: number
@@ -173,6 +175,14 @@ export type FinanceInsights = {
   adjustment_net_usd: number
   commission_usd: number
   redemption_usd: number
+  engine_cost: EngineDailyCost
+  /** Both sides over the days the engine reported. */
+  matched_official_usd: number
+  matched_claude_usd: number
+  /** Official-price cost of one dollar new-api charged for Claude. */
+  official_per_usd: number
+  plans: EnginePlanValue[]
+  plans_error?: string
   bonus_usd: number
   topup_credit_usd: number
 }
@@ -219,6 +229,17 @@ export type GrowthInsights = {
   daily: { day: number; registered: number; activated: number; paid: number }[]
   subscription_buyers: number
   subscription_to_topup: number
+}
+
+/** What one plan's accounts serve in a full week at official prices. */
+export type EnginePlanValue = {
+  plan: string
+  tier: string
+  accounts: number
+  measured: number
+  week_usd: number
+  week_low_usd: number
+  week_high_usd: number
 }
 
 /** Claude's cost at official prices, as corecode-engine recorded it. */

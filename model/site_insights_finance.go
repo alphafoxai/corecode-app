@@ -3,6 +3,7 @@ package model
 import (
 	"cmp"
 	"slices"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 
@@ -10,12 +11,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// ClaudeModelPrefix names the Claude models, which corecode-engine serves
+// from the subscription pool.
+const ClaudeModelPrefix = "claude-"
+
 // FinanceDay is one day of revenue and list-price consumption.
 type FinanceDay struct {
 	Day            int64   `json:"day"`
 	Topup          float64 `json:"topup"`
 	Subscription   float64 `json:"subscription"`
 	ConsumptionUSD float64 `json:"consumption_usd"`
+	// ClaudeUSD is the part of ConsumptionUSD charged for Claude models.
+	ClaudeUSD float64 `json:"claude_usd"`
 }
 
 // BalanceUser is a wallet balance in USD.
@@ -51,6 +58,7 @@ type FinanceInsights struct {
 	Methods             []TopUpMethodTotal `json:"methods"`
 	Daily               []FinanceDay       `json:"daily"`
 	ConsumptionUSD      float64            `json:"consumption_usd"`
+	ClaudeUSD           float64            `json:"claude_usd"`
 	// RevenuePerUSD is revenue divided by list-price consumption: what one
 	// dollar of consumption brought in over the range.
 	RevenuePerUSD       float64           `json:"revenue_per_usd"`
@@ -134,17 +142,26 @@ func GetFinanceInsights(r InsightsRange) (*FinanceInsights, error) {
 	if err != nil {
 		return nil, err
 	}
-	var consumed int64
+	var consumed, claude int64
 	for _, row := range quota {
+		isClaude := strings.HasPrefix(row.ModelName, ClaudeModelPrefix)
 		consumed += int64(row.Quota)
+		if isClaude {
+			claude += int64(row.Quota)
+		}
 		if day := days[r.DayStart(row.CreatedAt)]; day != nil {
 			day.ConsumptionUSD += float64(row.Quota) / common.QuotaPerUnit
+			if isClaude {
+				day.ClaudeUSD += float64(row.Quota) / common.QuotaPerUnit
+			}
 		}
 	}
 	result.ConsumptionUSD = quotaUSD(consumed)
+	result.ClaudeUSD = quotaUSD(claude)
 	result.RevenuePerUSD = ratio(result.Revenue, result.ConsumptionUSD)
 	for _, day := range days {
 		day.Topup, day.Subscription, day.ConsumptionUSD = roundTo(day.Topup, 2), roundTo(day.Subscription, 2), roundTo(day.ConsumptionUSD, 4)
+		day.ClaudeUSD = roundTo(day.ClaudeUSD, 4)
 		result.Daily = append(result.Daily, *day)
 	}
 	slices.SortFunc(result.Daily, func(a, b FinanceDay) int { return cmp.Compare(a.Day, b.Day) })

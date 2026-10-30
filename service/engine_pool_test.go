@@ -48,7 +48,7 @@ func TestFetchEnginePool(t *testing.T) {
 				"five_hour":{"remaining_usd":400,"remaining_low_usd":380,"remaining_high_usd":420,"capacity_usd":600,"counted":4,"unknown":1},
 				"week":{"remaining_usd":2500,"remaining_low_usd":2400,"remaining_high_usd":2600,"capacity_usd":4000,"counted":4,"unknown":1},
 				"refills":[{"credential_id":6,"name":"bob@x.com","at_ms":99,"adds_usd":20}],
-				"accounts":[{"credential_id":6,"five_hour":{"remaining_usd":150},"seven_day":{"remaining_usd":800},"burn_usd_per_hour":9.5}]}}`))
+				"accounts":[{"credential_id":6,"five_hour":{"remaining_usd":150},"seven_day":{"remaining_usd":800,"capacity_usd":1250,"source":"measured"},"burn_usd_per_hour":9.5}]}}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -88,6 +88,9 @@ func TestFetchEnginePool(t *testing.T) {
 	assert.Equal(t, "Max", first.Plan)
 	assert.Equal(t, 150.0, *first.FiveHourRemainingUSD)
 	assert.Equal(t, 9.5, *first.BurnUSDPerHour)
+	assert.Equal(t, 1250.0, *first.SevenDayCapacityUSD)
+	assert.Equal(t, "measured", first.SevenDayCapacitySource)
+	assert.Nil(t, pool.Accounts[1].SevenDayCapacityUSD)
 	assert.Nil(t, pool.Accounts[1].FiveHourRemainingUSD)
 	assert.Equal(t, "a***@y.com", pool.Accounts[1].EmailMask)
 	assert.Equal(t, int64(123), pool.Accounts[3].CooldownUntil)
