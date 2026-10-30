@@ -35,7 +35,11 @@ days ¥0.38. Read-only queries found three causes:
   unit credited (top-up with bonus, manual adjustments, redemption codes)
   before the range ends. A wallet that was only ever given credit has a zero
   price, so the team account above earns nothing without being listed
-  anywhere. The cash ratio stays as the card's hint.
+  anywhere. The card's hint adds the paid-use price (revenue earned over
+  consumption without the gifted part) and the cash ratio. Production on
+  2026-10-30 read ¥0.69 over 24 hours and ¥0.35 over 7 days; paid use read
+  ¥0.83 and ¥0.71. The ratios still differ because given credit was 17% of
+  the 24 hours' consumption and 51% of the 7 days'.
 - **Balances owed show what was paid for them** (`liability_paid_value`):
   $6,335 of the $8,978 owed sits in wallets that never paid.
 - **Debt moves into the balance card** to keep the five-card row; the
@@ -82,6 +86,12 @@ days ¥0.38. Read-only queries found three causes:
 - Upgrading `insight_user_hours` from the origin/main schema with a stored row
   kept the row, added the three columns as `NOT NULL DEFAULT 0`, and kept the
   primary key on all three databases; a second migration changed nothing.
+- The new `GetFinanceInsights`, run on the relay host against production in
+  a read-only PostgreSQL session (each hour's store was refused), read 24
+  hours: cash ¥1,574.80, customers $1,435.50, root $556.42, gifted $247.06,
+  earned ¥988.87; 7 days: cash ¥3,687.80, customers $6,356.61, root
+  $3,248.60, gifted $3,231.15, earned ¥2,223.94. Hand-written SQL over the
+  same tables, minutes earlier, gave ¥966 and ¥2,200.
 - `finance-tab.test.tsx` covers the cards and the daily chart's readout;
   `bun run typecheck` (after failing on a planted error), oxlint on the
   feature, and `bun run i18n:sync` passed.

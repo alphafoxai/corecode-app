@@ -81,7 +81,9 @@ describe('revenue earned', () => {
       screen.getByText('Gifted $8.00 · root $30.00 left out')
     ).toBeInTheDocument()
     expect(screen.getByText('¥0.704')).toBeInTheDocument()
-    expect(screen.getByText('Cash basis ¥0.56')).toBeInTheDocument()
+    expect(
+      screen.getByText('Paid use ¥1.04 · cash basis ¥0.56')
+    ).toBeInTheDocument()
     expect(
       screen.getByText('1 customers · paid ¥40 · debt $0.00')
     ).toBeInTheDocument()

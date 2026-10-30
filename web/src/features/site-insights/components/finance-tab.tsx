@@ -47,6 +47,9 @@ export function FinanceTab(props: {
     data?.commission_usd ?? 0,
     data?.adjustment_net_usd ?? 0,
   ].reduce((sum, value) => sum + value, 0)
+  const paidUSD =
+    (data?.consumption_usd ?? 0) - (data?.gift_consumption_usd ?? 0)
+  const paidPerUSD = paidUSD > 0 ? (data?.recognized_revenue ?? 0) / paidUSD : 0
   let balanceTone: 'danger' | 'warning' | 'default' = 'default'
   if ((data?.debt_usd ?? 0) < DEBT_ALERT_USD) {
     balanceTone = 'danger'
@@ -123,11 +126,12 @@ export function FinanceTab(props: {
               previous: previous?.recognized_per_usd,
               better: 'up',
             },
-            hint: t('Cash basis {{value}}', {
-              value: fmt.cny(data?.revenue_per_usd ?? 0),
+            hint: t('Paid use {{paid}} · cash basis {{cash}}', {
+              paid: fmt.cny(paidPerUSD),
+              cash: fmt.cny(data?.revenue_per_usd ?? 0),
             }),
             help: t(
-              'Revenue earned divided by customer consumption: what each list-price dollar customers used earned. Cash basis divides the money paid in the range instead, which swings with when customers pay.'
+              'Revenue earned divided by customer consumption: what each list-price dollar customers used earned. Paid use divides by consumption without the gifted part: the price customers actually paid. Cash basis divides the money paid in the range instead, which swings with when customers pay.'
             ),
           },
           {
