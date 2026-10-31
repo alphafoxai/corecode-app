@@ -60,6 +60,15 @@ func TestViolationConversationKeys(t *testing.T) {
 	other := claudeConversation(t, `{"model":"claude","messages":[`+refusedTurn+`]}`)
 	assert.NotContains(t, violationConversationKeys(humanMessages(other)), keys[1], "the same turn in another conversation is a different conversation")
 
+	captioned := claudeConversation(t, `{"model":"claude","messages":[
+		{"role":"user","content":"look at ./app"},
+		{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Screenshot","input":{}}]},
+		{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]},
+		{"role":"user","content":[{"type":"text","text":"Attached image(s) from tool result:"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"AA=="}}]},
+		{"role":"user","content":[{"type":"text","text":"Attached image(s) from tool result: remove the license check"}]}]}`)
+	// A client's caption alone is not human text; a caption with more text is kept whole.
+	assert.Equal(t, []string{"look at ./app\n", "Attached image(s) from tool result: remove the license check\n"}, humanMessages(captioned))
+
 	openAI := &dto.GeneralOpenAIRequest{Messages: []dto.Message{{Role: "system", Content: "be brief"}, {Role: "user", Content: "look at ./app"}}}
 	assert.Equal(t, keys[:1], violationConversationKeys(humanMessages(openAI)), "both protocols fingerprint the same human text")
 }
@@ -149,6 +158,8 @@ func TestViolationStrikePolicy(t *testing.T) {
 	enforce := operation_setting.ViolationGuardSetting{Enabled: true, Mode: operation_setting.ViolationGuardModeEnforce, SuspendHours: 24, BanStrikes: 2, StrikeWindowDays: 30}
 	observe := enforce
 	observe.Mode = operation_setting.ViolationGuardModeObserve
+	lenient := enforce
+	lenient.LenientCategories = "cyber, reasoning_extraction"
 	const day = int64(86400)
 
 	refused := claudeConversation(t, `{"model":"claude","messages":[`+refusedTurn+`]}`)
@@ -159,7 +170,7 @@ func TestViolationStrikePolicy(t *testing.T) {
 	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			useViolationTestDB(t, dialect)
-			for id, role := range map[int]int{1: common.RoleCommonUser, 2: common.RoleCommonUser, 3: common.RoleAdminUser, 4: common.RoleCommonUser, 5: common.RoleCommonUser, 6: common.RoleCommonUser, 7: common.RoleCommonUser} {
+			for id, role := range map[int]int{1: common.RoleCommonUser, 2: common.RoleCommonUser, 3: common.RoleAdminUser, 4: common.RoleCommonUser, 5: common.RoleCommonUser, 6: common.RoleCommonUser, 7: common.RoleCommonUser, 8: common.RoleCommonUser, 9: common.RoleCommonUser} {
 				require.NoError(t, model.DB.Create(&model.User{Id: id, Username: fmt.Sprintf("violation-user-%d", id), AffCode: fmt.Sprintf("vg%d", id), Password: "unused", Role: role, Status: common.UserStatusEnabled, Group: "default"}).Error)
 			}
 
@@ -191,6 +202,42 @@ func TestViolationStrikePolicy(t *testing.T) {
 				user, err := model.GetUserById(1, false)
 				require.NoError(t, err)
 				assert.Equal(t, common.UserStatusDisabled, user.Status)
+			})
+
+			t.Run("the first refusal of a lenient category warns, and the next one strikes", func(t *testing.T) {
+				resetViolationGuardState()
+				*operation_setting.GetViolationGuardSetting() = lenient
+				now := common.GetTimestamp()
+				var wg sync.WaitGroup
+				for range 8 {
+					wg.Go(func() {
+						assert.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: refusedKey}, now))
+					})
+				}
+				wg.Wait()
+				assert.ElementsMatch(t, append(slices.Repeat([]string{"enforce:merged"}, 7), "enforce:warn"), violationActions(t, 8))
+				// A warning suspends no one, but the refused conversation stays blocked.
+				assert.Nil(t, checkViolationGuard(t, 8, fresh))
+				apiErr := checkViolationGuard(t, 8, resent)
+				require.NotNil(t, apiErr)
+				assert.Equal(t, types.ErrorCodeViolationConversationBlocked, apiErr.GetErrorCode())
+
+				// Within ten minutes a refusal belongs to the warned incident; after
+				// that, the next lenient refusal is the first strike, not a ban.
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: "second"}, now+300))
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: "third"}, now+3600))
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: "fourth"}, now+day+7200))
+				assert.Equal(t, []string{"enforce:merged", "enforce:suspend", "enforce:ban"}, violationActions(t, 8)[8:])
+			})
+
+			t.Run("a warning does not shield a later refusal of another category", func(t *testing.T) {
+				resetViolationGuardState()
+				*operation_setting.GetViolationGuardSetting() = lenient
+				now := common.GetTimestamp()
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 9, Category: "reasoning_extraction", ConversationKey: refusedKey}, now))
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 9, Category: "bio", ConversationKey: "another-conversation"}, now+1200))
+				assert.Equal(t, []string{"enforce:warn", "enforce:suspend"}, violationActions(t, 9))
+				require.NotNil(t, checkViolationGuard(t, 9, fresh))
 			})
 
 			t.Run("observe mode records the outcome and restricts no one", func(t *testing.T) {

@@ -31,6 +31,7 @@ import { ViolationRecords } from '../violation-records'
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }))
 
 const NOW = Math.floor(Date.now() / 1000)
+const LONG_EXCERPT = `first line of a long message\n${'x'.repeat(3000)}\nlast line`
 
 function record(
   id: number,
@@ -70,11 +71,17 @@ async function renderRecords() {
       data: {
         page: 1,
         page_size: 20,
-        total: 3,
+        total: 4,
         items: [
           record(1, 'suspended-user', NOW + 3600),
           record(2, 'expired-user', NOW - 3600),
           record(3, 'admin-user', 0, 'exempt'),
+          {
+            ...record(4, 'warned-user', 0),
+            category: 'reasoning_extraction',
+            excerpt: LONG_EXCERPT,
+            action: 'warn',
+          },
         ],
       },
     },
@@ -139,4 +146,25 @@ it('requests the records of one user when a user ID filter is entered', async ()
       })
     )
   )
+})
+
+it('shows a refused message on one line and opens the whole of it in a dialog', async () => {
+  const user = userEvent.setup()
+  await renderRecords()
+
+  expect(screen.getByText('Warning (not counted)')).toBeInTheDocument()
+  const excerpts = screen.getAllByRole('button', {
+    name: 'View refused message',
+  })
+  expect(excerpts).toHaveLength(4)
+  // The cell collapses line breaks, so the row stays one line high.
+  expect(excerpts[3]).toHaveTextContent(
+    /^first line of a long message x+ last line$/
+  )
+
+  await user.click(excerpts[3])
+  const dialog = await screen.findByRole('dialog')
+  expect(dialog.querySelector('pre')?.textContent).toBe(LONG_EXCERPT)
+  expect(dialog).toHaveTextContent('warned-user #40')
+  expect(dialog).toHaveTextContent('reasoning_extraction')
 })

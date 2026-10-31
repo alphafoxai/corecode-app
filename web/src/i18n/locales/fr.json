@@ -7575,6 +7575,11 @@
     "The charge divided by the requests.": "La facturation divisée par les requêtes.",
     "This vendor’s charge as a share of new-api’s charge for every model.": "La part de ce fournisseur dans la facturation new-api de tous les modèles.",
     "Model markup": "Majoration du modèle",
-    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Ce modèle coûte plus cher à servir : son prix est de {{markup}}× le prix officiel avant la remise du groupe."
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Ce modèle coûte plus cher à servir : son prix est de {{markup}}× le prix officiel avant la remise du groupe.",
+    "Warning (not counted)": "Avertissement (non compté)",
+    "View refused message": "Voir le message refusé",
+    "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Le dernier message écrit par le client dans la requête refusée, jusqu’à 4 Ko. L’amont a jugé toute la conversation, pas seulement ce message.",
+    "Warn-first categories": "Catégories avec avertissement d’abord",
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Catégories de refus, séparées par des virgules, dont le premier refus dans la fenêtre de comptage n’est qu’un avertissement : la conversation refusée reste bloquée, mais le client n’est pas suspendu et l’avertissement ne compte pas pour la désactivation."
   }
 }

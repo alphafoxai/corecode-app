@@ -7575,6 +7575,11 @@
     "The charge divided by the requests.": "Списание, делённое на число запросов.",
     "This vendor’s charge as a share of new-api’s charge for every model.": "Доля этого поставщика во всех списаниях new-api.",
     "Model markup": "Наценка модели",
-    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Эта модель дороже в обслуживании, поэтому её цена — {{markup}}× от официальной до скидки группы."
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Эта модель дороже в обслуживании, поэтому её цена — {{markup}}× от официальной до скидки группы.",
+    "Warning (not counted)": "Предупреждение (не засчитано)",
+    "View refused message": "Показать отклонённое сообщение",
+    "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Последнее сообщение клиента в отклонённом запросе, до 4 КБ. Провайдер оценивал весь диалог, а не только это сообщение.",
+    "Warn-first categories": "Категории с предупреждением сначала",
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Категории отказов через запятую, для которых первый отказ в окне подсчёта — только предупреждение: отклонённый диалог остаётся заблокированным, но клиент не приостанавливается, и предупреждение не засчитывается для отключения."
   }
 }

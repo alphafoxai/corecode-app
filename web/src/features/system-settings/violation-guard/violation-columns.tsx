@@ -29,6 +29,7 @@ import type { ViolationAction, ViolationRecord } from './api'
 
 const ACTION_VARIANTS: Record<ViolationAction, StatusVariant> = {
   merged: 'neutral',
+  warn: 'cyan',
   strike: 'warning',
   suspend: 'orange',
   ban: 'danger',
@@ -37,17 +38,19 @@ const ACTION_VARIANTS: Record<ViolationAction, StatusVariant> = {
 type ViolationColumnsOptions = {
   nowSeconds: number
   onLift: (record: ViolationRecord) => void
+  onViewExcerpt: (record: ViolationRecord) => void
 }
 
 export function useViolationColumns(
   options: ViolationColumnsOptions
 ): ColumnDef<ViolationRecord>[] {
   const { t } = useTranslation()
-  const { nowSeconds, onLift } = options
+  const { nowSeconds, onLift, onViewExcerpt } = options
 
   return useMemo(() => {
     const actionLabels: Record<ViolationAction, string> = {
       merged: t('Merged into earlier strike'),
+      warn: t('Warning (not counted)'),
       strike: t('Strike'),
       suspend: t('Suspend'),
       ban: t('Disable account'),
@@ -99,11 +102,19 @@ export function useViolationColumns(
         accessorKey: 'excerpt',
         header: t('Refused message'),
         size: 240,
+        // One fixed-width line: the table lays out by content, so a long
+        // message would otherwise push the Lift button off screen.
         cell: ({ row }) =>
           row.original.excerpt ? (
-            <TruncatedCell tooltipClassName='max-w-md whitespace-pre-wrap break-words'>
-              {row.original.excerpt}
-            </TruncatedCell>
+            <button
+              type='button'
+              aria-haspopup='dialog'
+              aria-label={t('View refused message')}
+              onClick={() => onViewExcerpt(row.original)}
+              className='hover:text-foreground focus-visible:ring-ring decoration-muted-foreground/60 block w-60 max-w-60 cursor-pointer truncate rounded-sm text-left underline decoration-dotted underline-offset-4 focus-visible:ring-2 focus-visible:outline-none'
+            >
+              {row.original.excerpt.replaceAll(/\s+/g, ' ')}
+            </button>
           ) : (
             '-'
           ),
@@ -177,8 +188,9 @@ export function useViolationColumns(
             {t('Lift')}
           </Button>
         ),
-        meta: { label: t('Lift') },
+        // Pinned so Lift stays in reach when the table scrolls sideways.
+        meta: { label: t('Lift'), pinned: 'right' as const },
       },
     ]
-  }, [t, nowSeconds, onLift])
+  }, [t, nowSeconds, onLift, onViewExcerpt])
 }

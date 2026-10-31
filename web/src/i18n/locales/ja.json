@@ -7575,6 +7575,11 @@
     "The charge divided by the requests.": "請求額 ÷ リクエスト数。",
     "This vendor’s charge as a share of new-api’s charge for every model.": "このベンダーの請求が new-api の全モデル請求に占める割合。",
     "Model markup": "モデル加算",
-    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "このモデルは提供コストが高いため、グループ割引の前に公式価格の {{markup}} 倍で計算されます。"
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "このモデルは提供コストが高いため、グループ割引の前に公式価格の {{markup}} 倍で計算されます。",
+    "Warning (not counted)": "警告（カウントなし）",
+    "View refused message": "拒否されたメッセージを表示",
+    "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "拒否されたリクエストで顧客が最後に書いたメッセージ（最大 4 KB）。上流はこのメッセージだけでなく会話全体を判断しています。",
+    "Warn-first categories": "初回は警告のみのカテゴリ",
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "カンマ区切りの拒否カテゴリ。集計期間内の最初の拒否は警告のみです。拒否された会話はブロックされたままですが、顧客は停止されず、警告は無効化の回数に数えられません。"
   }
 }

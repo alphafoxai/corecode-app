@@ -3,6 +3,8 @@ package operation_setting
 import (
 	"fmt"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/QuantumNous/new-api/setting/config"
 )
@@ -30,6 +32,25 @@ type ViolationGuardSetting struct {
 	// reach this number; 0 never disables.
 	BanStrikes       int `json:"ban_strikes"`
 	StrikeWindowDays int `json:"strike_window_days"`
+	// LenientCategories lists upstream refusal categories, separated by commas
+	// or whitespace, whose first refusal in the window is only a warning: the
+	// refused conversation stays blocked, and nothing else is restricted.
+	LenientCategories string `json:"lenient_categories"`
+}
+
+// LenientCategory reports whether a refusal of this category is warned about
+// once before it counts as a strike.
+func (s ViolationGuardSetting) LenientCategory(category string) bool {
+	if category == "" {
+		return false
+	}
+	separator := func(r rune) bool { return r == ',' || r == '，' || unicode.IsSpace(r) }
+	for _, lenient := range strings.FieldsFunc(s.LenientCategories, separator) {
+		if strings.EqualFold(lenient, category) {
+			return true
+		}
+	}
+	return false
 }
 
 var violationGuardSetting = ViolationGuardSetting{
@@ -37,6 +58,9 @@ var violationGuardSetting = ViolationGuardSetting{
 	SuspendHours:     24,
 	BanStrikes:       2,
 	StrikeWindowDays: 30,
+	// Anthropic's classifier refuses many ordinary agent sessions with this
+	// category, so the first such refusal only warns.
+	LenientCategories: "reasoning_extraction",
 }
 
 func init() {

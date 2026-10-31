@@ -22,8 +22,11 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { CopyButton } from '@/components/copy-button'
 import { DataTablePage, useDataTable } from '@/components/data-table'
+import { Dialog } from '@/components/dialog'
 import { Input } from '@/components/ui/input'
+import { formatTimestampToDate } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { getViolations, liftViolations, type ViolationRecord } from './api'
@@ -37,6 +40,9 @@ export function ViolationRecords() {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [userIdInput, setUserIdInput] = useState('')
   const [liftTarget, setLiftTarget] = useState<ViolationRecord | null>(null)
+  const [excerptTarget, setExcerptTarget] = useState<ViolationRecord | null>(
+    null
+  )
   const parsedUserId = Number.parseInt(userIdInput, 10)
   const userId = parsedUserId > 0 ? parsedUserId : undefined
 
@@ -64,9 +70,17 @@ export function ViolationRecords() {
     (record: ViolationRecord) => setLiftTarget(record),
     []
   )
+  const onViewExcerpt = useCallback(
+    (record: ViolationRecord) => setExcerptTarget(record),
+    []
+  )
   // Suspensions are compared with the time the records were loaded.
   const nowSeconds = Math.floor(query.dataUpdatedAt / 1000)
-  const columns = useViolationColumns({ nowSeconds, onLift })
+  const columns = useViolationColumns({
+    nowSeconds,
+    onLift,
+    onViewExcerpt,
+  })
   const { table } = useDataTable({
     columns,
     data: query.data?.items ?? EMPTY_RECORDS,
@@ -118,6 +132,44 @@ export function ViolationRecords() {
         className='h-auto min-h-0'
         applyHeaderSize
       />
+      <Dialog
+        open={excerptTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setExcerptTarget(null)
+        }}
+        title={t('Refused message')}
+        description={t(
+          'The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.'
+        )}
+        footer={
+          <CopyButton
+            value={excerptTarget?.excerpt ?? ''}
+            variant='outline'
+            size='sm'
+          >
+            {t('Copy')}
+          </CopyButton>
+        }
+      >
+        {excerptTarget && (
+          <div className='flex flex-col gap-3'>
+            <p className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs'>
+              <span>
+                {excerptTarget.username} #{excerptTarget.user_id}
+              </span>
+              <span className='font-mono tabular-nums'>
+                {formatTimestampToDate(excerptTarget.created_at)}
+              </span>
+              <span>{excerptTarget.category || '-'}</span>
+              <span>{excerptTarget.model_name}</span>
+              <span className='font-mono'>{excerptTarget.request_id}</span>
+            </p>
+            <pre className='bg-muted max-h-[60vh] overflow-auto rounded-md p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap'>
+              {excerptTarget.excerpt}
+            </pre>
+          </div>
+        )}
+      </Dialog>
       <ConfirmDialog
         open={liftTarget !== null}
         onOpenChange={(open) => {
