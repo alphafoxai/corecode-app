@@ -31,6 +31,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
@@ -132,93 +133,97 @@ export function SpendTrendPanel(props: {
         </div>
       }
     >
-      <ol
-        className='flex min-h-52 flex-1 items-end gap-1.5 px-1'
-        aria-label={showCache ? t('Daily cache hit rate') : t('Daily spend')}
-      >
-        {props.daily.map((day, index) => {
-          const label = dayFormat.format(new Date(day.day * 1000))
-          const amount = formatQuota(day.quota)
-          const requests = formatNumber(day.requests, locale)
-          const hitRate = getDailyCacheHitRate(day)
-          const isToday = index === lastIndex
-          let height = max > 0 ? (day.quota / max) * 100 : 0
-          let barClassName = cn(
-            isToday
-              ? 'bg-primary'
-              : 'bg-primary/30 group-hover/bar:bg-primary/55',
-            day.quota > 0 ? 'min-h-1' : 'bg-border min-h-px'
-          )
-          let barLabel = t('{{date}}: {{amount}}, {{requests}} requests', {
-            date: label,
-            amount,
-            requests,
-          })
-          if (showCache) {
-            height = hitRate === null ? 0 : hitRate * 100
-            barClassName =
-              hitRate === null
-                ? 'bg-border min-h-px'
-                : cn('min-h-1', CACHE_BAR_CLASS_NAMES[getCacheGrade(hitRate)])
-            barLabel =
-              hitRate === null
-                ? t('{{date}}: no cache data', { date: label })
-                : t('{{date}}: {{rate}} cache hit', {
-                    date: label,
-                    rate: percent(hitRate),
-                  })
-          }
-          return (
-            <li key={day.day} className='flex h-full min-w-0 flex-1 flex-col'>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <div
-                      tabIndex={0}
-                      aria-label={barLabel}
-                      className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-md outline-none focus-visible:ring-3'
+      {/* Spacing sits inside each bar's trigger, so every pixel across the
+          chart opens a day, and the provider opens it without a delay. */}
+      <TooltipProvider delay={0}>
+        <ol
+          className='flex min-h-52 flex-1 items-end px-1'
+          aria-label={showCache ? t('Daily cache hit rate') : t('Daily spend')}
+        >
+          {props.daily.map((day, index) => {
+            const label = dayFormat.format(new Date(day.day * 1000))
+            const amount = formatQuota(day.quota)
+            const requests = formatNumber(day.requests, locale)
+            const hitRate = getDailyCacheHitRate(day)
+            const isToday = index === lastIndex
+            let height = max > 0 ? (day.quota / max) * 100 : 0
+            let barClassName = cn(
+              isToday
+                ? 'bg-primary'
+                : 'bg-primary/30 group-hover/bar:bg-primary/55',
+              day.quota > 0 ? 'min-h-1' : 'bg-border min-h-px'
+            )
+            let barLabel = t('{{date}}: {{amount}}, {{requests}} requests', {
+              date: label,
+              amount,
+              requests,
+            })
+            if (showCache) {
+              height = hitRate === null ? 0 : hitRate * 100
+              barClassName =
+                hitRate === null
+                  ? 'bg-border min-h-px'
+                  : cn('min-h-1', CACHE_BAR_CLASS_NAMES[getCacheGrade(hitRate)])
+              barLabel =
+                hitRate === null
+                  ? t('{{date}}: no cache data', { date: label })
+                  : t('{{date}}: {{rate}} cache hit', {
+                      date: label,
+                      rate: percent(hitRate),
+                    })
+            }
+            return (
+              <li key={day.day} className='flex h-full min-w-0 flex-1 flex-col'>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <div
+                        tabIndex={0}
+                        aria-label={barLabel}
+                        className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-md px-[3px] outline-none focus-visible:ring-3'
+                      />
+                    }
+                  >
+                    <span
+                      className={cn(
+                        'w-full rounded-t-[5px] rounded-b-[2px] transition-[height,background-color] duration-300 ease-out',
+                        barClassName
+                      )}
+                      style={{ height: `${height}%` }}
                     />
-                  }
-                >
-                  <span
-                    className={cn(
-                      'w-full rounded-t-[5px] rounded-b-[2px] transition-[height,background-color] duration-300 ease-out',
-                      barClassName
-                    )}
-                    style={{ height: `${height}%` }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className='flex flex-col gap-0.5 text-xs'>
-                    <span className='font-medium'>{label}</span>
-                    <span className='tabular-nums'>{amount}</span>
-                    <span className='opacity-70'>
-                      {t('{{value}} requests', { value: requests })}
-                    </span>
-                    {hitRate !== null && (
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className='flex flex-col gap-0.5 text-xs'>
+                      <span className='font-medium'>{label}</span>
+                      <span className='tabular-nums'>{amount}</span>
                       <span className='opacity-70'>
-                        {t('Cache {{rate}}', { rate: percent(hitRate) })}
+                        {t('{{value}} requests', { value: requests })}
                       </span>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-              <span
-                className={cn(
-                  'text-muted-foreground mt-1.5 truncate text-center text-[10px] tabular-nums',
-                  index % 2 === 1 &&
-                    index !== lastIndex &&
-                    'invisible sm:visible',
-                  isToday && 'text-foreground font-medium'
-                )}
-                aria-hidden
-              >
-                {isToday ? t('Today') : label}
-              </span>
-            </li>
-          )
-        })}
-      </ol>
+                      {hitRate !== null && (
+                        <span className='opacity-70'>
+                          {t('Cache {{rate}}', { rate: percent(hitRate) })}
+                        </span>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+                <span
+                  className={cn(
+                    'text-muted-foreground mt-1.5 truncate text-center text-[10px] tabular-nums',
+                    index % 2 === 1 &&
+                      index !== lastIndex &&
+                      'invisible sm:visible',
+                    isToday && 'text-foreground font-medium'
+                  )}
+                  aria-hidden
+                >
+                  {isToday ? t('Today') : label}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </TooltipProvider>
     </PanelWrapper>
   )
 }

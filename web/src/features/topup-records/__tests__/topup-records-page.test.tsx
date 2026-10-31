@@ -134,6 +134,35 @@ it('summarizes the default thirty-day range and lists its records', async () => 
   })
 })
 
+it('shows a day as soon as the pointer reaches any part of its column', async () => {
+  renderPage()
+
+  const chart = await screen.findByRole('list', {
+    name: 'Daily top-up revenue',
+  })
+  // The spacing between bars is padding inside each trigger, not a list gap,
+  // so the pointer never rests on a point that opens nothing.
+  expect(chart.className).not.toMatch(/\bgap-/)
+  const [first] = await within(chart).findAllByRole('listitem')
+  const bar = first.querySelector(
+    '[data-slot="tooltip-trigger"]'
+  ) as HTMLElement
+  expect(bar).toHaveClass('px-[0.5px]', 'sm:px-0.5')
+
+  await userEvent.hover(bar)
+  // Base UI waits 600ms by default; the chart's provider opens at once.
+  const tooltip = await waitFor(
+    () => {
+      const popup = document.querySelector('[data-slot="tooltip-content"]')
+      expect(popup).not.toBeNull()
+      return popup as HTMLElement
+    },
+    { timeout: 200 }
+  )
+  expect(tooltip).toHaveTextContent(formatPaymentMoney(30.3))
+  expect(tooltip).toHaveTextContent('2 orders')
+})
+
 it('applies the user filter to both the records and the summary on Search', async () => {
   const { get, router } = renderPage()
   const user = userEvent.setup()
