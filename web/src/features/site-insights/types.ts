@@ -64,6 +64,8 @@ export type EngineAccount = {
 export type EngineGroup = {
   id: number
   name: string
+  /** The engine channel, such as claude or codex; Claude groups come first. */
+  channel: string
   enabled: boolean
   in_flight: number
   /** 0 means no group limit. */

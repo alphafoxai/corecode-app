@@ -28,6 +28,7 @@ function group(overrides: Partial<EngineGroup>): EngineGroup {
   return {
     id: 1,
     name: 'group',
+    channel: 'claude',
     enabled: true,
     in_flight: 0,
     effective_limit: 10,

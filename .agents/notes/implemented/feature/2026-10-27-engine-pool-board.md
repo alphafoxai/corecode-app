@@ -33,6 +33,11 @@ a tunnel to see it.
   limit, capped by the group limit.
 - **Emails are masked in the app** (`b***@example.com`) before they reach the
   browser; the engine returns them in full.
+- **Claude groups come first.** The app reads each group's `channel_id`,
+  returns it as `channel`, and stable-sorts the groups with `claude` ahead of
+  every other channel (Codex, Grok, Antigravity) before building the rows, so
+  the group table, the group filter and the account list all start with the
+  Claude accounts. Each side keeps the engine's order.
 - **The tab is read-only.** Group limits, budgets and routing stay in the
   engine's console.
 - The capacity view keeps a pool summary with a link to the tab. The
@@ -57,6 +62,9 @@ a tunnel to see it.
   account of every group, eligibility with a cooling account and a disabled
   group, slots capped by a group limit, masked emails, activity, and
   estimate dollars joined by account.
+- `TestEnginePoolListsClaudeFirst` serves Codex, Claude, Grok and Claude
+  groups and checks groups and accounts come back Claude first, each side in
+  the engine's order.
 - `go test ./router/ ./middleware/ ./service/ ./controller/` passes,
   including the PAT route-coverage test.
 - `bun run typecheck`, `oxlint` and `oxfmt` on the feature.

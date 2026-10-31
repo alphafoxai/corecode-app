@@ -1,11 +1,13 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -61,6 +63,7 @@ type EngineAccount struct {
 type EngineGroup struct {
 	ID             int            `json:"id"`
 	Name           string         `json:"name"`
+	Channel        string         `json:"channel"`
 	Enabled        bool           `json:"enabled"`
 	InFlight       int            `json:"in_flight"`
 	EffectiveLimit int            `json:"effective_limit"`
@@ -129,45 +132,48 @@ type engineWindow struct {
 	ResetAt     *int64   `json:"reset_at_ms"`
 }
 
+type engineGroup struct {
+	ID             int            `json:"id"`
+	Name           string         `json:"name"`
+	Channel        string         `json:"channel_id"`
+	Enabled        bool           `json:"enabled"`
+	Current        int            `json:"current"`
+	OverrideLimit  *int           `json:"override_limit"`
+	EffectiveLimit int            `json:"effective_limit"`
+	QuotaSupported bool           `json:"quota_supported"`
+	QuotaEffective engineBudget   `json:"quota_effective"`
+	Counts         map[string]int `json:"counts"`
+	Credentials    []struct {
+		ID            int          `json:"id"`
+		Name          string       `json:"name"`
+		Status        string       `json:"status"`
+		FiveHour      engineWindow `json:"five_hour"`
+		SevenDay      engineWindow `json:"seven_day"`
+		Active        int          `json:"active"`
+		Sessions      int          `json:"sessions"`
+		CooldownUntil *int64       `json:"cooldown_until_ms"`
+		Activity      *struct {
+			LastUsedAt    *int64 `json:"last_used_at_ms"`
+			LastFailure   string `json:"last_failure_summary"`
+			LastFailureAt *int64 `json:"last_failure_at_ms"`
+			SuccessCount  int64  `json:"success_count"`
+			FailureCount  int64  `json:"failure_count"`
+		} `json:"activity"`
+		Account *struct {
+			State      string `json:"state"`
+			ObservedAt *int64 `json:"observed_at_ms"`
+			Email      string `json:"email"`
+			Plan       string `json:"plan"`
+			Tier       string `json:"tier"`
+		} `json:"account"`
+	} `json:"credentials"`
+}
+
 type engineConcurrency struct {
-	ObservedAt         int64        `json:"observed_at_ms"`
-	CredentialLimit    int          `json:"credential_limit"`
-	DefaultQuotaBudget engineBudget `json:"default_quota_budget"`
-	Groups             []struct {
-		ID             int            `json:"id"`
-		Name           string         `json:"name"`
-		Enabled        bool           `json:"enabled"`
-		Current        int            `json:"current"`
-		OverrideLimit  *int           `json:"override_limit"`
-		EffectiveLimit int            `json:"effective_limit"`
-		QuotaSupported bool           `json:"quota_supported"`
-		QuotaEffective engineBudget   `json:"quota_effective"`
-		Counts         map[string]int `json:"counts"`
-		Credentials    []struct {
-			ID            int          `json:"id"`
-			Name          string       `json:"name"`
-			Status        string       `json:"status"`
-			FiveHour      engineWindow `json:"five_hour"`
-			SevenDay      engineWindow `json:"seven_day"`
-			Active        int          `json:"active"`
-			Sessions      int          `json:"sessions"`
-			CooldownUntil *int64       `json:"cooldown_until_ms"`
-			Activity      *struct {
-				LastUsedAt    *int64 `json:"last_used_at_ms"`
-				LastFailure   string `json:"last_failure_summary"`
-				LastFailureAt *int64 `json:"last_failure_at_ms"`
-				SuccessCount  int64  `json:"success_count"`
-				FailureCount  int64  `json:"failure_count"`
-			} `json:"activity"`
-			Account *struct {
-				State      string `json:"state"`
-				ObservedAt *int64 `json:"observed_at_ms"`
-				Email      string `json:"email"`
-				Plan       string `json:"plan"`
-				Tier       string `json:"tier"`
-			} `json:"account"`
-		} `json:"credentials"`
-	} `json:"groups"`
+	ObservedAt         int64         `json:"observed_at_ms"`
+	CredentialLimit    int           `json:"credential_limit"`
+	DefaultQuotaBudget engineBudget  `json:"default_quota_budget"`
+	Groups             []engineGroup `json:"groups"`
 }
 
 type engineEstimateHorizon struct {
@@ -195,6 +201,14 @@ type engineEstimate struct {
 		} `json:"seven_day"`
 		BurnUSDPerHour *float64 `json:"burn_usd_per_hour"`
 	} `json:"accounts"`
+}
+
+// channelOrder ranks the Claude channel before every other channel.
+func channelOrder(channel string) int {
+	if channel == "claude" {
+		return 0
+	}
+	return 1
 }
 
 // maskEmail keeps the first letter and the domain: b***@example.com.
@@ -343,10 +357,16 @@ func readEnginePool(base, key string) EnginePool {
 		pool.FiveHourBudget = snapshot.DefaultQuotaBudget.FiveHourPercent
 		pool.SevenDayBudget = snapshot.DefaultQuotaBudget.SevenDayPercent
 	}
+	// Claude groups, and so their accounts, come first; the rest keep the
+	// engine's order.
+	slices.SortStableFunc(snapshot.Groups, func(a, b engineGroup) int {
+		return cmp.Compare(channelOrder(a.Channel), channelOrder(b.Channel))
+	})
 	for _, group := range snapshot.Groups {
 		row := EngineGroup{
 			ID:             group.ID,
 			Name:           group.Name,
+			Channel:        group.Channel,
 			Enabled:        group.Enabled,
 			InFlight:       group.Current,
 			EffectiveLimit: group.EffectiveLimit,
