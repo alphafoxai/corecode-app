@@ -27,13 +27,13 @@ func TestFetchEnginePool(t *testing.T) {
 			_, _ = w.Write([]byte(`{"code":0,"data":{"observed_at_ms":1000,"credential_limit":5,
 				"default_quota_budget":{"enabled":true,"five_hour_percent":90,"seven_day_percent":95},
 				"groups":[
-					{"id":1,"name":"us-01","enabled":true,"current":2,"override_limit":null,"effective_limit":0,"quota_supported":true,
+					{"id":1,"name":"us-01","channel_id":"claude","enabled":true,"current":2,"override_limit":null,"effective_limit":0,"quota_supported":true,
 					 "quota_effective":{"enabled":true,"five_hour_percent":90,"seven_day_percent":95},"counts":{"total":1,"available":1},
 					 "credentials":[{"id":6,"name":"#6","status":"available","five_hour":{"utilization":0.05,"reset_at_ms":7},"seven_day":{"utilization":0.36,"reset_at_ms":8},
 					   "active":2,"sessions":3,"cooldown_until_ms":null,
 					   "activity":{"last_used_at_ms":9,"last_failure_summary":"rate limited","last_failure_at_ms":10,"success_count":40,"failure_count":1},
 					   "account":{"state":"fresh","observed_at_ms":11,"email":"bob@x.com","plan":"Max","tier":"default_claude_max_5x"}}]},
-					{"id":7,"name":"team-01","enabled":true,"current":0,"override_limit":8,"effective_limit":8,"quota_supported":true,
+					{"id":7,"name":"team-01","channel_id":"claude","enabled":true,"current":0,"override_limit":8,"effective_limit":8,"quota_supported":true,
 					 "quota_effective":{"enabled":true,"five_hour_percent":90,"seven_day_percent":95},"counts":{"total":3,"available":2,"cooldown":1},
 					 "credentials":[
 					   {"id":8,"name":"a@y.com","status":"available","five_hour":{"utilization":0.1},"seven_day":{"utilization":0.2},"active":0,"sessions":0,"activity":null,"account":null},
@@ -71,7 +71,7 @@ func TestFetchEnginePool(t *testing.T) {
 	assert.Equal(t, 3, pool.EligibleAccounts, "the cooling account and the disabled group's account are not eligible")
 	assert.Equal(t, 5+8, pool.EffectiveSlots, "team-01's two accounts give ten slots, capped at its limit of eight")
 	require.Len(t, pool.Groups, 3)
-	assert.Equal(t, EngineGroup{ID: 7, Name: "team-01", Enabled: true, EffectiveLimit: 8, OverrideLimit: pool.Groups[1].OverrideLimit,
+	assert.Equal(t, EngineGroup{ID: 7, Name: "team-01", Channel: "claude", Enabled: true, EffectiveLimit: 8, OverrideLimit: pool.Groups[1].OverrideLimit,
 		Accounts: 3, Eligible: 2, Slots: 8, Counts: map[string]int{"total": 3, "available": 2, "cooldown": 1},
 		QuotaBudget: true, FiveHourBudget: 90, SevenDayBudget: 95}, pool.Groups[1])
 	assert.Equal(t, 8, *pool.Groups[1].OverrideLimit)
@@ -138,4 +138,40 @@ func TestRecentEnginePoolServesTheLastReadWhileRefreshing(t *testing.T) {
 	assert.EqualValues(t, 1, stale.ObservedAt, "an older read is returned without waiting for the engine")
 	assert.Eventually(t, func() bool { return reads.Load() == 2 }, time.Second, 10*time.Millisecond,
 		"the older read starts a new one in the background")
+}
+
+func TestEnginePoolListsClaudeFirst(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/group-concurrency":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"credential_limit":1,"groups":[
+				{"id":1,"name":"Codex","channel_id":"codex","enabled":true,"credentials":[{"id":11,"name":"a@x.com","status":"available"}]},
+				{"id":2,"name":"Team","channel_id":"claude","enabled":true,"credentials":[{"id":21,"name":"b@x.com","status":"available"},{"id":22,"name":"c@x.com","status":"available"}]},
+				{"id":3,"name":"Grok","channel_id":"grok","enabled":true,"credentials":[{"id":31,"name":"d@x.com","status":"available"}]},
+				{"id":4,"name":"Own IP","channel_id":"claude","enabled":true,"credentials":[{"id":41,"name":"e@x.com","status":"available"}]}
+			]}}`))
+		case "/api/group-concurrency/pool-estimate":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"five_hour":{},"week":{}}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	previousURL, previousKey := operation_setting.EngineControlURL, operation_setting.EngineControlKey
+	t.Cleanup(func() {
+		operation_setting.EngineControlURL, operation_setting.EngineControlKey = previousURL, previousKey
+	})
+	operation_setting.EngineControlURL, operation_setting.EngineControlKey = server.URL, "claude-first"
+
+	pool := FetchEnginePool()
+	require.Empty(t, pool.Error)
+	var groups, accounts []int
+	for _, group := range pool.Groups {
+		groups = append(groups, group.ID)
+	}
+	for _, account := range pool.Accounts {
+		accounts = append(accounts, account.CredentialID)
+	}
+	assert.Equal(t, []int{2, 4, 1, 3}, groups, "Claude groups first, each side in the engine's order")
+	assert.Equal(t, []int{21, 22, 41, 11, 31}, accounts, "accounts follow their groups")
 }
