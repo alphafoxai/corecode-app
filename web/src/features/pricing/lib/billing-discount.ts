@@ -17,18 +17,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+import type { PricingModel } from '../types'
+
 /**
  * What a customer pays relative to the provider's official price, split into
- * the two factors the model square explains.
+ * the factors the model square explains.
  *
  * `price` is what the customer recharges, in CNY, for $1 of credit;
  * `usdExchangeRate` is the reference CNY per USD. Their quotient is the
- * exchange-rate factor. Card prices already include the group ratio, so the
- * combined factor is the two multiplied.
+ * exchange-rate factor. Card prices already include the group ratio and the
+ * model's markup over the official price, so the combined factor is all three
+ * multiplied.
  */
 export type BillingDiscount = {
   exchange: number
   group: number
+  markup: number
   combined: number
 }
 
@@ -36,13 +40,33 @@ export function getBillingDiscount(input: {
   price: number
   usdExchangeRate: number
   groupRatio: number
+  markup?: number
 }): BillingDiscount {
   const exchange = input.price / input.usdExchangeRate
+  const markup = input.markup ?? 1
   return {
     exchange,
     group: input.groupRatio,
-    combined: exchange * input.groupRatio,
+    markup,
+    combined: exchange * input.groupRatio * markup,
   }
+}
+
+/**
+ * How far a model's ratios sit above the provider's official price: 1 unless
+ * the operator priced it higher because it costs more to serve. Dividing a
+ * ratio-derived price by it gives the official price.
+ */
+export function getOfficialPriceMarkup(model: PricingModel): number {
+  const markup = model.official_price_markup
+  return typeof markup === 'number' && Number.isFinite(markup) && markup > 0
+    ? markup
+    : 1
+}
+
+/** Whether a markup changes any figure at two decimals. */
+export function hasMarkup(markup: number): boolean {
+  return Math.round(markup * 100) !== 100
 }
 
 /**

@@ -71,6 +71,8 @@ export type PricingModel = {
   model_price?: number
   cache_ratio?: number | null
   create_cache_ratio?: number | null
+  /** CoreCode fork: how far the model's ratios sit above the official price. */
+  official_price_markup?: number | null
   image_ratio?: number | null
   audio_ratio?: number | null
   audio_completion_ratio?: number | null

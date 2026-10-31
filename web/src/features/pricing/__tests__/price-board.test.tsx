@@ -167,3 +167,39 @@ it('puts Claude first and selects it even when another pool is cheaper', () => {
   expect(screen.getByText('Claude, made for Claude Code')).toBeVisible()
   expect(screen.getByText('More models')).toBeVisible()
 })
+
+it('shows a marked-up model at its official price and explains its saving', async () => {
+  const fable: PricingModel = {
+    ...opus,
+    id: 3,
+    model_name: 'claude-fable-5-1',
+    model_ratio: 7.5,
+    cache_ratio: 0.025,
+    official_price_markup: 1.5,
+  }
+  render(
+    <PriceBoard
+      models={[opus, fable]}
+      groupRatio={{ [GROUP]: 1.5 }}
+      usableGroup={{ [GROUP]: '' }}
+      priceRate={1}
+      usdExchangeRate={6.8}
+      onModelClick={vi.fn()}
+    />
+  )
+
+  const row = within(screen.getByRole('table')).getByRole('row', {
+    name: /claude-fable-5-1/,
+  })
+  expect(within(row).getByText('¥22.5')).toBeVisible()
+  expect(within(row).getByText('Official ¥68')).toBeVisible()
+  const saving = within(row).getByRole('button', { name: /Save 67%/ })
+  expect(within(desktopRow()).getByText('Save 78%')).toBeVisible()
+
+  await userEvent.setup().hover(saving)
+  expect(
+    await screen.findByText(
+      'This model costs more to serve, so it is priced at 1.5× the official price before the group discount.'
+    )
+  ).toBeInTheDocument()
+})

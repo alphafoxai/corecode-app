@@ -40,7 +40,12 @@ import {
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
-import { getBillingDiscount, getDiscountKind } from '../lib/billing-discount'
+import {
+  getBillingDiscount,
+  getDiscountKind,
+  getOfficialPriceMarkup,
+  hasMarkup,
+} from '../lib/billing-discount'
 import {
   getConfiguredGroupRatio,
   isTokenBasedModel,
@@ -123,6 +128,7 @@ export function BillingExplainer(props: {
     price: props.priceRate,
     usdExchangeRate: props.usdExchangeRate,
     groupRatio,
+    markup: getOfficialPriceMarkup(model),
   })
   const kind = getDiscountKind(discount.combined)
   const price = trimNumber(props.priceRate, 2)
@@ -307,6 +313,21 @@ export function BillingExplainer(props: {
                     </p>
                   )}
                 </div>
+                {hasMarkup(discount.markup) && (
+                  <div>
+                    <StepLabel
+                      index={3}
+                      title={t('Model markup')}
+                      value={`× ${trimNumber(discount.markup, 2)}`}
+                    />
+                    <p className='text-muted-foreground mt-1 pl-7 text-xs text-pretty'>
+                      {t(
+                        'This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.',
+                        { markup: trimNumber(discount.markup, 2) }
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
               <div
                 className={cn(

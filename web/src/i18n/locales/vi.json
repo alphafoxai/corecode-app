@@ -7573,6 +7573,8 @@
     "Balance an administrator added, less what one took away, from the audit log. Root’s own wallet included.": "Số dư quản trị viên thêm thủ công trừ phần đã bớt, từ nhật ký kiểm toán, gồm cả ví của root.",
     "What new-api deducted for this vendor’s models, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.": "Số new-api đã trừ cho mô hình của nhà cung cấp này, gồm root. Quy đổi sang đô la theo tỷ giá của trang; trong ngoặc là nhân dân tệ new-api ghi nhận.",
     "The charge divided by the requests.": "Phí chia cho số yêu cầu.",
-    "This vendor’s charge as a share of new-api’s charge for every model.": "Tỷ trọng phí của nhà cung cấp này trong tổng phí new-api của mọi mô hình."
+    "This vendor’s charge as a share of new-api’s charge for every model.": "Tỷ trọng phí của nhà cung cấp này trong tổng phí new-api của mọi mô hình.",
+    "Model markup": "Phụ phí mô hình",
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Mô hình này có chi phí phục vụ cao hơn nên được tính theo {{markup}}× giá chính thức trước khi áp dụng chiết khấu nhóm."
   }
 }

@@ -20,14 +20,19 @@ import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
 
-import { getBillingDiscount, getDiscountKind } from '../lib/billing-discount'
+import {
+  getBillingDiscount,
+  getDiscountKind,
+  getOfficialPriceMarkup,
+  hasMarkup,
+} from '../lib/billing-discount'
 import { getDisplayGroupRatio } from '../lib/model-helpers'
 import type { PricingModel } from '../types'
 
 /**
  * "≈2.2折" next to a model: what the viewer pays against the official price
- * at the group the card prices use. Renders nothing unless it is a discount,
- * so a markup never becomes a badge.
+ * at the group the card prices use, after the model's own markup. Renders
+ * nothing unless it is a discount, so a markup never becomes a badge.
  */
 export function DiscountBadge(props: {
   model: PricingModel
@@ -37,16 +42,25 @@ export function DiscountBadge(props: {
   className?: string
 }) {
   const { t } = useTranslation()
+  const markup = getOfficialPriceMarkup(props.model)
   const { combined } = getBillingDiscount({
     price: props.priceRate,
     usdExchangeRate: props.usdExchangeRate,
     groupRatio: getDisplayGroupRatio(props.model, props.selectedGroup),
+    markup,
   })
   if (getDiscountKind(combined) !== 'discount') return null
 
   return (
     <span
-      title={t('Compared with the official price')}
+      title={
+        hasMarkup(markup)
+          ? t(
+              'This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.',
+              { markup: String(Number(markup.toFixed(2))) }
+            )
+          : t('Compared with the official price')
+      }
       className={cn(
         'border-primary/30 bg-primary/10 text-primary inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-xs font-semibold tabular-nums',
         props.className

@@ -7573,6 +7573,8 @@
     "Balance an administrator added, less what one took away, from the audit log. Root’s own wallet included.": "管理員手動加的餘額減去扣掉的，來自稽核日誌，含 root 自己的錢包。",
     "What new-api deducted for this vendor’s models, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.": "new-api 為該廠商模型扣除的額度，含 root。依站點匯率換算成美元，括號裡是 new-api 記的人民幣。",
     "The charge divided by the requests.": "消費 ÷ 請求數。",
-    "This vendor’s charge as a share of new-api’s charge for every model.": "該廠商消費佔 new-api 全部模型消費的比例。"
+    "This vendor’s charge as a share of new-api’s charge for every model.": "該廠商消費佔 new-api 全部模型消費的比例。",
+    "Model markup": "模型加價",
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "該模型的成本較高，價格先按官方價的 {{markup}} 倍計算，再享受分組折扣。"
   }
 }
