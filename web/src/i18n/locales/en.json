@@ -7575,6 +7575,11 @@
     "The charge divided by the requests.": "The charge divided by the requests.",
     "This vendor’s charge as a share of new-api’s charge for every model.": "This vendor’s charge as a share of new-api’s charge for every model.",
     "Model markup": "Model markup",
-    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount."
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.",
+    "Warning (not counted)": "Warning (not counted)",
+    "View refused message": "View refused message",
+    "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.",
+    "Warn-first categories": "Warn-first categories",
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling."
   }
 }

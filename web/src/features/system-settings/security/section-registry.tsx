@@ -116,6 +116,8 @@ const SECURITY_SECTIONS = [
             settings['violation_guard_setting.ban_strikes'],
           'violation_guard_setting.strike_window_days':
             settings['violation_guard_setting.strike_window_days'],
+          'violation_guard_setting.lenient_categories':
+            settings['violation_guard_setting.lenient_categories'],
         }}
       />
     ),

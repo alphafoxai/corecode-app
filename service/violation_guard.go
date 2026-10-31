@@ -186,7 +186,9 @@ func violationExempt(role int) bool {
 // user's last strike is recent enough to merge with: the suspension period,
 // at least minViolationMergeSeconds. Strikes count only within the mode they
 // were recorded in, so observe mode is a dry run and enforce mode starts from
-// zero. Administrators are recorded as exempt.
+// zero. The first new strike of a lenient category in the window is a warning
+// instead: it blocks the conversation, restricts nothing else, and does not
+// count. Administrators are recorded as exempt.
 func applyViolationStrike(setting operation_setting.ViolationGuardSetting, record model.ViolationRecord, now int64) error {
 	user, err := model.GetUserCache(record.UserId)
 	if err != nil {
@@ -211,19 +213,27 @@ func applyViolationStrike(setting operation_setting.ViolationGuardSetting, recor
 		}
 		newStrike = !counted
 	}
+	mergeSeconds := max(int64(setting.SuspendHours)*3600, minViolationMergeSeconds)
 	if newStrike {
-		mergeSeconds := max(int64(setting.SuspendHours)*3600, minViolationMergeSeconds)
 		if newStrike, err = model.ClaimViolationStrike(record.UserId, record.Mode, now, now-mergeSeconds); err != nil {
 			return err
 		}
 	}
 	record.Action = model.ViolationActionMerged
 	if newStrike {
+		warned := true
+		if setting.LenientCategory(record.Category) {
+			if warned, err = model.HasViolationWarning(record.UserId, record.Mode, windowStart); err != nil {
+				return err
+			}
+		}
 		strikes, err := model.CountViolationStrikes(record.UserId, record.Mode, windowStart)
 		if err != nil {
 			return err
 		}
 		switch {
+		case !warned:
+			record.Action = model.ViolationActionWarn
 		case setting.BanStrikes > 0 && strikes+1 >= int64(setting.BanStrikes):
 			record.Action = model.ViolationActionBan
 		case setting.SuspendHours > 0:
@@ -234,6 +244,13 @@ func applyViolationStrike(setting operation_setting.ViolationGuardSetting, recor
 	}
 	if err := model.CreateViolationRecord(&record); err != nil {
 		return err
+	}
+	if record.Action == model.ViolationActionWarn {
+		// A warning suspends no one, so only the refusals of its own incident,
+		// within ten minutes, merge into it; a later refusal is judged anew.
+		if err := model.ShortenViolationMerge(record.UserId, now, now-mergeSeconds+minViolationMergeSeconds); err != nil {
+			return err
+		}
 	}
 	// Refused messages are kept for review only as long as strikes count.
 	if err := model.ClearViolationExcerpts(now - int64(setting.StrikeWindowDays)*86400); err != nil {
@@ -356,15 +373,24 @@ func violationConversationKeys(messages []string) []string {
 	return keys
 }
 
+// clientCaptions are whole text blocks that agent clients write into the
+// user turn themselves. Only an exact match is skipped, so nothing a person
+// writes can hide behind one.
+var clientCaptions = []string{
+	// The caption before images that a tool returned, sent as a user message.
+	"Attached image(s) from tool result:",
+}
+
 // humanMessageText joins the text blocks of one user message that a person
 // wrote, leaving out injected <system-reminder> blocks, including the ones
-// hooks write with attributes, such as <system-reminder data-role="hook">.
+// hooks write with attributes, such as <system-reminder data-role="hook">,
+// and client captions.
 func humanMessageText(texts []string) string {
 	var builder strings.Builder
 	for _, text := range texts {
 		trimmed := strings.TrimSpace(text)
 		reminder := strings.HasPrefix(trimmed, "<system-reminder>") || strings.HasPrefix(trimmed, "<system-reminder ")
-		if trimmed == "" || (reminder && strings.HasSuffix(trimmed, "</system-reminder>")) {
+		if trimmed == "" || (reminder && strings.HasSuffix(trimmed, "</system-reminder>")) || slices.Contains(clientCaptions, trimmed) {
 			continue
 		}
 		builder.WriteString(trimmed)

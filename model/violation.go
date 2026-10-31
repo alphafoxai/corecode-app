@@ -13,6 +13,7 @@ const (
 	ViolationActionStrike  = "strike"  // counted, nothing restricted
 	ViolationActionSuspend = "suspend" // counted, relay access suspended
 	ViolationActionBan     = "ban"     // counted, account disabled
+	ViolationActionWarn    = "warn"    // first refusal of a lenient category, not counted
 )
 
 // ViolationModeExempt marks a refusal by an administrator, which is recorded
@@ -20,6 +21,10 @@ const (
 const ViolationModeExempt = "exempt"
 
 var violationStrikeActions = []string{ViolationActionStrike, ViolationActionSuspend, ViolationActionBan}
+
+// violationIncidentActions are the actions that start an incident: a strike
+// or a warning. Later refusals of the same conversation merge into it.
+var violationIncidentActions = append([]string{ViolationActionWarn}, violationStrikeActions...)
 
 // ViolationRecord is one upstream usage-policy refusal of a customer request
 // and what the violation guard decided about it. Mode is the guard mode at the
@@ -89,14 +94,32 @@ func CountViolationStrikes(userId int, mode string, since int64) (int64, error) 
 	return count, err
 }
 
-// HasViolationStrikeInConversation reports whether a strike in mode after
-// since was already counted for the same conversation.
+// HasViolationStrikeInConversation reports whether a strike or a warning in
+// mode after since was already recorded for the same conversation.
 func HasViolationStrikeInConversation(userId int, mode string, conversationKey string, since int64) (bool, error) {
 	var count int64
 	err := DB.Model(&ViolationRecord{}).
-		Where("user_id = ? AND mode = ? AND conversation_key = ? AND created_at > ? AND action IN ?", userId, mode, conversationKey, since, violationStrikeActions).
+		Where("user_id = ? AND mode = ? AND conversation_key = ? AND created_at > ? AND action IN ?", userId, mode, conversationKey, since, violationIncidentActions).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// HasViolationWarning reports whether the user was warned in mode after since.
+func HasViolationWarning(userId int, mode string, since int64) (bool, error) {
+	var count int64
+	err := DB.Model(&ViolationRecord{}).
+		Where("user_id = ? AND mode = ? AND created_at > ? AND action = ?", userId, mode, since, ViolationActionWarn).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// ShortenViolationMerge moves the start of the user's last incident from
+// claimedAt back to mergeFrom, so that the incident's merge period ends
+// earlier. It changes nothing once another incident has been claimed.
+func ShortenViolationMerge(userId int, claimedAt, mergeFrom int64) error {
+	return DB.Model(&UserViolationState{}).
+		Where("user_id = ? AND last_strike_at = ?", userId, claimedAt).
+		Update("last_strike_at", mergeFrom).Error
 }
 
 func CreateViolationRecord(record *ViolationRecord) error {

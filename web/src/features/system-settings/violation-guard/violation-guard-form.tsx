@@ -58,6 +58,7 @@ const violationGuardSchema = z.object({
   suspend_hours: z.number().int().min(0),
   ban_strikes: z.number().int().min(0),
   strike_window_days: z.number().int().min(1),
+  lenient_categories: z.string(),
 })
 
 type ViolationGuardFormValues = z.output<typeof violationGuardSchema>
@@ -68,6 +69,7 @@ export type ViolationGuardValues = {
   'violation_guard_setting.suspend_hours': number
   'violation_guard_setting.ban_strikes': number
   'violation_guard_setting.strike_window_days': number
+  'violation_guard_setting.lenient_categories': string
 }
 
 type ViolationGuardFormProps = {
@@ -82,6 +84,7 @@ const toFormValues = (
   suspend_hours: defaults['violation_guard_setting.suspend_hours'],
   ban_strikes: defaults['violation_guard_setting.ban_strikes'],
   strike_window_days: defaults['violation_guard_setting.strike_window_days'],
+  lenient_categories: defaults['violation_guard_setting.lenient_categories'],
 })
 
 const toOptionValues = (
@@ -92,6 +95,8 @@ const toOptionValues = (
   'violation_guard_setting.suspend_hours': values.suspend_hours,
   'violation_guard_setting.ban_strikes': values.ban_strikes,
   'violation_guard_setting.strike_window_days': values.strike_window_days,
+  'violation_guard_setting.lenient_categories':
+    values.lenient_categories.trim(),
 })
 
 export function ViolationGuardForm(props: ViolationGuardFormProps) {
@@ -250,6 +255,24 @@ export function ViolationGuardForm(props: ViolationGuardFormProps) {
             ),
             1
           )}
+          <FormField
+            control={form.control}
+            name='lenient_categories'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Warn-first categories')}</FormLabel>
+                <FormControl>
+                  <Input placeholder='reasoning_extraction' {...field} />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </SettingsFormGrid>
       </SettingsForm>
     </Form>

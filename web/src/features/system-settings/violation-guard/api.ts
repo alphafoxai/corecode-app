@@ -20,7 +20,7 @@ import type { ApiResponse } from '@/features/profile/types'
 import { api } from '@/lib/api'
 import { createServerError } from '@/lib/server-error-message'
 
-export type ViolationAction = 'merged' | 'strike' | 'suspend' | 'ban'
+export type ViolationAction = 'merged' | 'warn' | 'strike' | 'suspend' | 'ban'
 export type ViolationMode = 'observe' | 'enforce' | 'exempt'
 
 export type ViolationRecord = {

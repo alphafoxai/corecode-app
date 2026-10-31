@@ -429,6 +429,7 @@ export type SecuritySettings = {
   'violation_guard_setting.suspend_hours': number
   'violation_guard_setting.ban_strikes': number
   'violation_guard_setting.strike_window_days': number
+  'violation_guard_setting.lenient_categories': string
   'risk_gate_setting.enabled': boolean
   'risk_gate_setting.mode': 'observe' | 'enforce'
   'risk_gate_setting.distill_enabled': boolean
