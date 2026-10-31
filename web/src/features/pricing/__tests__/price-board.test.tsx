@@ -16,7 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { cleanup, render, screen, within } from '@testing-library/react'
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
@@ -196,10 +202,22 @@ it('shows a marked-up model at its official price and explains its saving', asyn
   const saving = within(row).getByRole('button', { name: /Save 67%/ })
   expect(within(desktopRow()).getByText('Save 78%')).toBeVisible()
 
-  await userEvent.setup().hover(saving)
-  expect(
-    await screen.findByText(
-      'This model costs more to serve, so it is priced at 1.5× the official price before the group discount.'
-    )
-  ).toBeInTheDocument()
+  const user = userEvent.setup()
+  await user.hover(saving)
+  expect(await screen.findByText(MARKUP_HELP)).toBeInTheDocument()
+  await user.unhover(saving)
+  await waitFor(() => expect(screen.queryByText(MARKUP_HELP)).toBeNull())
+
+  // A click, and a tap on a touch screen, opens it too, and it stays open
+  // after the pointer leaves until the reader dismisses it.
+  await user.click(saving)
+  expect(await screen.findByText(MARKUP_HELP)).toBeInTheDocument()
+  await user.unhover(saving)
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  expect(screen.getByText(MARKUP_HELP)).toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  await waitFor(() => expect(screen.queryByText(MARKUP_HELP)).toBeNull())
 })
+
+const MARKUP_HELP =
+  'This model costs more to serve, so it is priced at 1.5× the official price before the group discount.'

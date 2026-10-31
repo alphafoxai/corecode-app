@@ -22,10 +22,10 @@ import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +60,9 @@ const COLUMN_LABEL: Record<UnitPriceKey, string> = {
   cacheWrite: 'Cache Creation',
   cacheRead: 'Cache Read',
 }
+
+// Opens quickly on hover, and stays long enough to move the pointer onto it.
+const MARKUP_HELP_DELAY = 150
 
 function trimNumber(value: number, digits: number): string {
   return String(Number(value.toFixed(digits)))
@@ -202,26 +205,34 @@ export function PriceBoard(props: {
         <span className='text-muted-foreground'>—</span>
       )
     if (!hasMarkup(markup)) return chip
+    // A popover rather than a tooltip: a tooltip opens only on hover, so a
+    // click or a tap on a touch screen would show nothing.
     return (
-      <Tooltip>
-        <TooltipTrigger
+      <Popover>
+        <PopoverTrigger
+          openOnHover
+          delay={MARKUP_HELP_DELAY}
+          closeDelay={MARKUP_HELP_DELAY}
           render={
             <button
               type='button'
-              className='inline-flex cursor-help items-center gap-1'
+              className='focus-visible:ring-ring/50 inline-flex cursor-help items-center gap-1 rounded-full outline-none focus-visible:ring-2'
             />
           }
         >
           {chip}
           <CircleHelp className='text-muted-foreground size-3.5' aria-hidden />
-        </TooltipTrigger>
-        <TooltipContent side='top' className='max-w-64 text-xs'>
+        </PopoverTrigger>
+        <PopoverContent
+          side='top'
+          className='text-muted-foreground w-auto max-w-64 p-3 text-xs leading-relaxed'
+        >
           {t(
             'This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.',
             { markup: trimNumber(markup, 2) }
           )}
-        </TooltipContent>
-      </Tooltip>
+        </PopoverContent>
+      </Popover>
     )
   }
   const modelName = (model: PricingModel) => (
