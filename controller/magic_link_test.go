@@ -193,6 +193,10 @@ func TestMagicLinkSignsInAndRegistersUnknownAddress(t *testing.T) {
 	assert.Equal(t, common.RoleCommonUser, user.Role)
 	assert.Equal(t, common.UserStatusEnabled, user.Status)
 	assert.Empty(t, user.Password, "an emailed link must not create a password")
+	assert.Equal(t, magicLinkTestEmail, user.DisplayName)
+	// The console's user editor and profile form validate the whole record,
+	// so an account the link created must pass the same check to be saved.
+	assert.NoError(t, common.Validate.StructExcept(user, "Password"))
 
 	// Consumption returns the same session path as any other login, so the
 	// console can reuse its bundle handling unchanged.
