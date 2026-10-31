@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
@@ -83,50 +84,54 @@ export function UptimeSparkline(props: UptimeSparklineProps) {
 
   const containerHeight = size === 'sm' ? 'h-3.5' : 'h-5'
   const barWidth = size === 'sm' ? 'w-[3px]' : 'w-1'
-  const gap = size === 'sm' ? 'gap-px' : 'gap-[2px]'
+  const spacing = size === 'sm' ? 'px-[0.5px]' : 'px-px'
 
   return (
     <div className={cn('flex items-center gap-2', props.className)}>
-      <div
-        className={cn('flex items-end', containerHeight, gap)}
-        role='img'
-        aria-label={`30 day uptime ${overall.toFixed(2)}%`}
-      >
-        {props.series.map((day) => (
-          <Tooltip key={day.date}>
-            <TooltipTrigger
-              render={
+      {/* Spacing sits inside each day's trigger, so the strip has no dead
+          gaps, and the provider opens a day without a delay. */}
+      <TooltipProvider delay={0}>
+        <div
+          className={cn('flex items-end', containerHeight)}
+          role='img'
+          aria-label={`30 day uptime ${overall.toFixed(2)}%`}
+        >
+          {props.series.map((day) => (
+            <Tooltip key={day.date}>
+              <TooltipTrigger
+                render={
+                  <div
+                    className={cn(
+                      'flex items-end transition-opacity hover:opacity-80',
+                      spacing,
+                      containerHeight
+                    )}
+                  />
+                }
+              >
                 <div
                   className={cn(
-                    'rounded-sm transition-opacity hover:opacity-80',
+                    'rounded-sm',
                     barWidth,
-                    containerHeight,
-                    'flex items-end'
+                    getSuccessRateDotClass(day.uptime_pct),
+                    heightFor(day.uptime_pct)
                   )}
+                  aria-hidden
                 />
-              }
-            >
-              <div
-                className={cn(
-                  'w-full rounded-sm',
-                  getSuccessRateDotClass(day.uptime_pct),
-                  heightFor(day.uptime_pct)
+              </TooltipTrigger>
+              <TooltipContent side='top' className='font-mono text-xs'>
+                <div className='font-medium'>{day.date}</div>
+                <div>{formatUptimePct(day.uptime_pct)}</div>
+                {day.outage_minutes > 0 && (
+                  <div className='text-muted-foreground'>
+                    {day.outage_minutes} min outage
+                  </div>
                 )}
-                aria-hidden
-              />
-            </TooltipTrigger>
-            <TooltipContent side='top' className='font-mono text-xs'>
-              <div className='font-medium'>{day.date}</div>
-              <div>{formatUptimePct(day.uptime_pct)}</div>
-              {day.outage_minutes > 0 && (
-                <div className='text-muted-foreground'>
-                  {day.outage_minutes} min outage
-                </div>
-              )}
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipProvider>
       {showOverall && (
         <span
           className={cn(

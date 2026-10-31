@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatPaymentMoney } from '@/features/wallet/lib'
@@ -107,46 +108,50 @@ export function TopupSummary(props: TopupSummaryProps) {
             )}
           </p>
         </div>
-        <ol
-          className='flex min-h-40 items-end gap-px sm:gap-1'
-          aria-label={t('Daily top-up revenue')}
-        >
-          {daily.map((day) => {
-            const label = t('{{date}}: {{amount}}, {{count}} orders', {
-              date: dayFormat.format(new Date(day.day * 1000)),
-              amount: formatPaymentMoney(day.money),
-              count: day.count,
-            })
-            return (
-              <li key={day.day} className='flex h-full min-w-0 flex-1'>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <div
-                        tabIndex={0}
-                        aria-label={label}
-                        className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-sm outline-none focus-visible:ring-3'
+        {/* Spacing sits inside each bar's trigger, so every pixel across the
+            chart opens a day, and the provider opens it without a delay. */}
+        <TooltipProvider delay={0}>
+          <ol
+            className='flex min-h-40 items-end'
+            aria-label={t('Daily top-up revenue')}
+          >
+            {daily.map((day) => {
+              const label = t('{{date}}: {{amount}}, {{count}} orders', {
+                date: dayFormat.format(new Date(day.day * 1000)),
+                amount: formatPaymentMoney(day.money),
+                count: day.count,
+              })
+              return (
+                <li key={day.day} className='flex h-full min-w-0 flex-1'>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <div
+                          tabIndex={0}
+                          aria-label={label}
+                          className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-sm px-[0.5px] outline-none focus-visible:ring-3 sm:px-0.5'
+                        />
+                      }
+                    >
+                      <span
+                        className={cn(
+                          'w-full rounded-t-[3px] transition-[height] duration-300 ease-out',
+                          day.money > 0
+                            ? 'bg-primary/40 group-hover/bar:bg-primary min-h-1'
+                            : 'bg-border min-h-px'
+                        )}
+                        style={{
+                          height: `${max > 0 ? (day.money / max) * 100 : 0}%`,
+                        }}
                       />
-                    }
-                  >
-                    <span
-                      className={cn(
-                        'w-full rounded-t-[3px] transition-[height] duration-300 ease-out',
-                        day.money > 0
-                          ? 'bg-primary/40 group-hover/bar:bg-primary min-h-1'
-                          : 'bg-border min-h-px'
-                      )}
-                      style={{
-                        height: `${max > 0 ? (day.money / max) * 100 : 0}%`,
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>{label}</TooltipContent>
-                </Tooltip>
-              </li>
-            )
-          })}
-        </ol>
+                    </TooltipTrigger>
+                    <TooltipContent>{label}</TooltipContent>
+                  </Tooltip>
+                </li>
+              )
+            })}
+          </ol>
+        </TooltipProvider>
       </CardContent>
     </Card>
   )

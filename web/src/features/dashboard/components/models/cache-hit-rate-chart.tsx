@@ -30,6 +30,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { getUserQuotaDates } from '@/features/dashboard/api'
@@ -204,72 +205,79 @@ export function CacheHitRateChart(props: CacheHitRateChartProps) {
               />
             ))}
           </div>
-          <ol
-            className={cn(
-              'relative flex flex-1 items-end',
-              summary.buckets.length > 48 ? 'gap-px' : 'gap-1.5'
-            )}
-            aria-label={t('Cache hit rate')}
-          >
-            {summary.buckets.map((bucket, index) => {
-              const label = formatChartTime(bucket.start, granularity)
-              const bucketRate = getCacheHitRate(
-                getSeriesUsage(bucket, activeSeries)
-              )
-              const barLabel =
-                bucketRate === null
-                  ? t('{{date}}: no cache data', { date: label })
-                  : t('{{date}}: {{rate}} cache hit', {
-                      date: label,
-                      rate: percent(bucketRate),
-                    })
-              return (
-                <li
-                  key={bucket.start}
-                  className='flex h-full min-w-0 flex-1 flex-col'
-                >
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <div
-                          tabIndex={0}
-                          aria-label={barLabel}
-                          className='group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-sm outline-none focus-visible:ring-3'
+          {/* Spacing sits inside each bar's trigger, so every pixel across
+              the chart opens a bucket, and the provider opens it without a
+              delay. */}
+          <TooltipProvider delay={0}>
+            <ol
+              className='relative flex flex-1 items-end'
+              aria-label={t('Cache hit rate')}
+            >
+              {summary.buckets.map((bucket, index) => {
+                const label = formatChartTime(bucket.start, granularity)
+                const bucketRate = getCacheHitRate(
+                  getSeriesUsage(bucket, activeSeries)
+                )
+                const barLabel =
+                  bucketRate === null
+                    ? t('{{date}}: no cache data', { date: label })
+                    : t('{{date}}: {{rate}} cache hit', {
+                        date: label,
+                        rate: percent(bucketRate),
+                      })
+                return (
+                  <li
+                    key={bucket.start}
+                    className='flex h-full min-w-0 flex-1 flex-col'
+                  >
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <div
+                            tabIndex={0}
+                            aria-label={barLabel}
+                            className={cn(
+                              'group/bar focus-visible:ring-ring/50 flex flex-1 items-end rounded-sm outline-none focus-visible:ring-3',
+                              summary.buckets.length > 48
+                                ? 'px-[0.5px]'
+                                : 'px-[3px]'
+                            )}
+                          />
+                        }
+                      >
+                        <span
+                          className={cn(
+                            'w-full rounded-t-[3px] opacity-80 transition-[height,opacity] duration-300 ease-out group-hover/bar:opacity-100',
+                            bucketRate === null ? 'h-0' : 'min-h-1'
+                          )}
+                          style={{
+                            height: `${(bucketRate ?? 0) * 100}%`,
+                            backgroundColor: seriesColor(activeSeries),
+                          }}
                         />
-                      }
-                    >
-                      <span
-                        className={cn(
-                          'w-full rounded-t-[3px] opacity-80 transition-[height,opacity] duration-300 ease-out group-hover/bar:opacity-100',
-                          bucketRate === null ? 'h-0' : 'min-h-1'
-                        )}
-                        style={{
-                          height: `${(bucketRate ?? 0) * 100}%`,
-                          backgroundColor: seriesColor(activeSeries),
-                        }}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>{barLabel}</TooltipContent>
-                  </Tooltip>
-                  {/* Centred under the bar and allowed past its width, since
+                      </TooltipTrigger>
+                      <TooltipContent>{barLabel}</TooltipContent>
+                    </Tooltip>
+                    {/* Centred under the bar and allowed past its width, since
                       an hourly label is wider than an hourly bar. A phone
                       shows every other one. */}
-                  <span className='relative mt-1.5 h-3.5' aria-hidden>
-                    {index % labelStep === 0 && (
-                      <span
-                        className={cn(
-                          'text-muted-foreground absolute left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap tabular-nums',
-                          index % (labelStep * 2) !== 0 && 'max-sm:hidden'
-                        )}
-                      >
-                        {label}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
+                    <span className='relative mt-1.5 h-3.5' aria-hidden>
+                      {index % labelStep === 0 && (
+                        <span
+                          className={cn(
+                            'text-muted-foreground absolute left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap tabular-nums',
+                            index % (labelStep * 2) !== 0 && 'max-sm:hidden'
+                          )}
+                        >
+                          {label}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          </TooltipProvider>
         </div>
       </div>
       <ToggleGroup
