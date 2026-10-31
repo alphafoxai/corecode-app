@@ -7573,6 +7573,8 @@
     "Balance an administrator added, less what one took away, from the audit log. Root’s own wallet included.": "Баланс, добавленный администратором, за вычетом снятого, по журналу аудита, включая кошелёк самого root.",
     "What new-api deducted for this vendor’s models, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.": "Сколько new-api списал за модели этого поставщика, включая root. В долларах по курсу сайта; в скобках — юани, учтённые new-api.",
     "The charge divided by the requests.": "Списание, делённое на число запросов.",
-    "This vendor’s charge as a share of new-api’s charge for every model.": "Доля этого поставщика во всех списаниях new-api."
+    "This vendor’s charge as a share of new-api’s charge for every model.": "Доля этого поставщика во всех списаниях new-api.",
+    "Model markup": "Наценка модели",
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Эта модель дороже в обслуживании, поэтому её цена — {{markup}}× от официальной до скидки группы."
   }
 }

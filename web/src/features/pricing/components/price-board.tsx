@@ -16,16 +16,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Check, ReceiptText } from 'lucide-react'
+import { Check, CircleHelp, ReceiptText } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { EXCLUDED_GROUPS } from '../constants'
-import { getBillingDiscount, getDiscountKind } from '../lib/billing-discount'
+import {
+  getBillingDiscount,
+  getDiscountKind,
+  getOfficialPriceMarkup,
+  hasMarkup,
+} from '../lib/billing-discount'
 import {
   CLAUDE_VENDOR,
   groupVendor,
@@ -99,8 +109,9 @@ function groupDescription(value: unknown): string {
  * CoreCode fork: the model square as a price list. Each model's four Claude
  * Code prices in CNY at the chosen group, the official price struck through
  * beside them, and the share saved. Every figure comes from the live recharge
- * price, exchange rate and group ratios. A lone group is shown, not offered
- * as a choice.
+ * price, exchange rate, group ratios and each model's markup over the official
+ * price; a marked-up model's saving explains itself in a tooltip. A lone group
+ * is shown, not offered as a choice.
  */
 export function PriceBoard(props: {
   models: PricingModel[]
@@ -139,17 +150,25 @@ export function PriceBoard(props: {
 
   const rows = props.models
     .filter((model) => !group || (model.enable_groups ?? []).includes(group))
-    .map((model) => ({ model, base: getBaseUnitPrices(model) }))
-    .filter((row): row is { model: PricingModel; base: BaseUnitPrices } =>
-      Boolean(row.base)
+    .map((model) => ({
+      model,
+      base: getBaseUnitPrices(model),
+      markup: getOfficialPriceMarkup(model),
+    }))
+    .filter(
+      (
+        row
+      ): row is { model: PricingModel; base: BaseUnitPrices; markup: number } =>
+        Boolean(row.base)
     )
     .sort((a, b) => a.base.prices.input - b.base.prices.input)
 
   const groupYuan = (usd: number) => usd * ratio * props.priceRate
-  const officialYuan = (usd: number) => usd * props.usdExchangeRate
+  const officialYuan = (usd: number, markup: number) =>
+    (usd / markup) * props.usdExchangeRate
   const description = group ? groupDescription(props.usableGroup[group]) : ''
 
-  const renderPrice = (usd: number) => {
+  const renderPrice = (usd: number, markup: number) => {
     if (!Number.isFinite(usd)) {
       return <span className='text-muted-foreground'>—</span>
     }
@@ -164,22 +183,47 @@ export function PriceBoard(props: {
         </span>
         <span className='text-muted-foreground block font-mono text-xs tabular-nums line-through'>
           {t('Official {{price}}', {
-            price: formatYuan(officialYuan(usd)),
+            price: formatYuan(officialYuan(usd, markup)),
           })}
         </span>
       </>
     )
   }
-  const savingChip =
-    saving > 0 ? (
-      <span className='inline-flex shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400'>
-        {t('Save {{percent}}', {
-          percent: `${Math.round(saving * 100)}%`,
-        })}
-      </span>
-    ) : (
-      <span className='text-muted-foreground'>—</span>
+  const savingChip = (markup: number) => {
+    const modelCombined = combined * markup
+    const chip =
+      getDiscountKind(modelCombined) === 'discount' ? (
+        <span className='inline-flex shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400'>
+          {t('Save {{percent}}', {
+            percent: `${Math.round((1 - modelCombined) * 100)}%`,
+          })}
+        </span>
+      ) : (
+        <span className='text-muted-foreground'>—</span>
+      )
+    if (!hasMarkup(markup)) return chip
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type='button'
+              className='inline-flex cursor-help items-center gap-1'
+            />
+          }
+        >
+          {chip}
+          <CircleHelp className='text-muted-foreground size-3.5' aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent side='top' className='max-w-64 text-xs'>
+          {t(
+            'This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.',
+            { markup: trimNumber(markup, 2) }
+          )}
+        </TooltipContent>
+      </Tooltip>
     )
+  }
   const modelName = (model: PricingModel) => (
     <span className='flex min-w-0 items-center gap-1.5'>
       <VendorIcon icon={modelVendor(model)?.icon} size={16} />
@@ -350,14 +394,14 @@ export function PriceBoard(props: {
           )}
 
           <ul className='flex flex-col gap-3 md:hidden'>
-            {rows.map(({ model, base }) => (
+            {rows.map(({ model, base, markup }) => (
               <li key={model.model_name} className='rounded-lg border p-3'>
                 <div className='flex items-start justify-between gap-2'>
                   <div className='min-w-0'>
                     {modelName(model)}
                     {base.tiered && tierNote}
                   </div>
-                  {savingChip}
+                  {savingChip(markup)}
                 </div>
                 <dl className='mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5'>
                   {UNIT_PRICE_KEYS.map((key) => (
@@ -366,7 +410,7 @@ export function PriceBoard(props: {
                         {t(COLUMN_LABEL[key])}
                       </dt>
                       <dd className='text-sm'>
-                        {renderPrice(base.prices[key])}
+                        {renderPrice(base.prices[key], markup)}
                       </dd>
                     </div>
                   ))}
@@ -400,7 +444,7 @@ export function PriceBoard(props: {
                 </tr>
               </thead>
               <tbody className='divide-y'>
-                {rows.map(({ model, base }) => (
+                {rows.map(({ model, base, markup }) => (
                   <tr key={model.model_name} className='hover:bg-muted/30'>
                     <th scope='row' className='px-4 py-3 text-left font-normal'>
                       {modelName(model)}
@@ -411,10 +455,12 @@ export function PriceBoard(props: {
                         key={key}
                         className='px-3 py-3 align-top whitespace-nowrap'
                       >
-                        {renderPrice(base.prices[key])}
+                        {renderPrice(base.prices[key], markup)}
                       </td>
                     ))}
-                    <td className='px-4 py-3 text-right'>{savingChip}</td>
+                    <td className='px-4 py-3 text-right'>
+                      {savingChip(markup)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

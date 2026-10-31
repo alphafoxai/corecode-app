@@ -321,6 +321,12 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorT(c, "Failed to set the cache creation ratio: {{error}}", map[string]any{"error": err.Error()})
 			return
 		}
+	case "OfficialPriceMarkup":
+		err = ratio_setting.UpdateOfficialPriceMarkupByJSONString(option.Value.(string))
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "ModelRequestRateLimitGroup":
 		err = setting.CheckModelRequestRateLimitGroup(option.Value.(string))
 		if err != nil {

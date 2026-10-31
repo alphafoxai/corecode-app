@@ -7573,6 +7573,8 @@
     "Balance an administrator added, less what one took away, from the audit log. Root’s own wallet included.": "管理者が手動で追加した残高から差し引いた分を引いたもの。監査ログから取得し、root 自身のウォレットを含みます。",
     "What new-api deducted for this vendor’s models, root included. In dollars at the site’s exchange rate; the yuan new-api counted is in brackets.": "new-api がこのベンダーのモデルに差し引いた額（root を含む）。サイトの為替レートでドル換算し、括弧内は new-api が記録した人民元です。",
     "The charge divided by the requests.": "請求額 ÷ リクエスト数。",
-    "This vendor’s charge as a share of new-api’s charge for every model.": "このベンダーの請求が new-api の全モデル請求に占める割合。"
+    "This vendor’s charge as a share of new-api’s charge for every model.": "このベンダーの請求が new-api の全モデル請求に占める割合。",
+    "Model markup": "モデル加算",
+    "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "このモデルは提供コストが高いため、グループ割引の前に公式価格の {{markup}} 倍で計算されます。"
   }
 }
