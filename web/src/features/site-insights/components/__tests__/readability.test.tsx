@@ -277,6 +277,32 @@ describe('sparkline', () => {
     fireEvent.keyDown(line, { key: 'ArrowLeft' })
     expect(screen.getByRole('status')).toHaveTextContent('10/27 ¥300')
   })
+
+  it('reads out the bar under the pointer across its whole column', () => {
+    render(
+      <Sparkline
+        bars
+        points={points}
+        format={(v) => `¥${v}`}
+        label='Revenue earned'
+      />
+    )
+    const chart = screen.getByRole('img', { name: /^Revenue earned/ })
+    chart.getBoundingClientRect = () =>
+      ({ left: 0, width: 300, top: 0, height: 32 }) as DOMRect
+    // Each bar owns a 100px column: its edges read out, not only its centre.
+    for (const [clientX, text] of [
+      [1, '10/26 ¥100'],
+      [99, '10/26 ¥100'],
+      [101, '10/27 ¥300'],
+      [199, '10/27 ¥300'],
+      [299, '10/28 ¥200'],
+    ] as const) {
+      fireEvent.pointerMove(chart, { clientX })
+      expect(screen.getByRole('status')).toHaveTextContent(text)
+    }
+    expect(chart.querySelectorAll('rect')).toHaveLength(3)
+  })
 })
 
 describe('bar hover areas', () => {

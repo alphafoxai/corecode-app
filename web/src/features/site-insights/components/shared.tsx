@@ -321,15 +321,18 @@ export type TrendPoint = {
 }
 
 /**
- * A small line of a figure's values over the range. Hovering, or focusing
- * and pressing the arrow keys, marks the nearest point and reads out its
- * date and value.
+ * A small line of a figure's values over the range, or a bar per point
+ * when the values are amounts per day rather than a level. Hovering, or
+ * focusing and pressing the arrow keys, marks the point under the pointer
+ * and reads out its date and value.
  */
 export function Sparkline(props: {
   points: TrendPoint[]
   format: (value: number) => string
   label: string
   className?: string
+  /** Draws a bar per point instead of a line. */
+  bars?: boolean
 }) {
   const { t } = useTranslation()
   const [active, setActive] = useState<number | null>(null)
@@ -340,8 +343,12 @@ export function Sparkline(props: {
   const min = Math.min(0, ...values)
   const span = max - min || 1
   const last = points.length - 1
-  const xOf = (index: number) => (index / last) * 100
+  // A line puts its points on the edges; bars put each in its own column,
+  // so every position across the chart belongs to one bar.
+  const xOf = (index: number) =>
+    props.bars ? ((index + 0.5) / points.length) * 100 : (index / last) * 100
   const yOf = (value: number) => 28 - ((value - min) / span) * 26
+  const column = 100 / points.length
   const path = values
     .map(
       (value, index) =>
@@ -351,7 +358,10 @@ export function Sparkline(props: {
   const nearest = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect()
     const share = (event.clientX - box.left) / Math.max(box.width, 1)
-    return Math.min(last, Math.max(0, Math.round(share * last)))
+    const index = props.bars
+      ? Math.floor(share * points.length)
+      : Math.round(share * last)
+    return Math.min(last, Math.max(0, index))
   }
   const point = active === null ? null : points[active]
   const x = active === null ? 0 : xOf(active)
@@ -390,31 +400,58 @@ export function Sparkline(props: {
         preserveAspectRatio='none'
         className='text-primary block h-8 w-full overflow-visible'
       >
-        <path
-          d={`${path} L100,30 L0,30 Z`}
-          className='fill-current opacity-10'
-        />
-        <path
-          d={path}
-          fill='none'
-          stroke='currentColor'
-          strokeWidth={1.5}
-          vectorEffect='non-scaling-stroke'
-          strokeLinejoin='round'
-        />
+        {props.bars ? (
+          points.map(({ title, value }, index) => (
+            <rect
+              key={title}
+              x={index * column + column * 0.15}
+              width={column * 0.7}
+              y={Math.min(yOf(value), yOf(0))}
+              height={Math.abs(yOf(0) - yOf(value))}
+              className={cn(
+                'fill-current',
+                active === null || active === index
+                  ? 'opacity-70'
+                  : 'opacity-30'
+              )}
+            />
+          ))
+        ) : (
+          <>
+            <path
+              d={`${path} L100,30 L0,30 Z`}
+              className='fill-current opacity-10'
+            />
+            <path
+              d={path}
+              fill='none'
+              stroke='currentColor'
+              strokeWidth={1.5}
+              vectorEffect='non-scaling-stroke'
+              strokeLinejoin='round'
+            />
+          </>
+        )}
       </svg>
       {point && (
         <>
-          <span
-            aria-hidden
-            className='border-foreground/30 pointer-events-none absolute inset-y-0 border-l border-dashed'
-            style={{ left: `${x}%` }}
-          />
-          <span
-            aria-hidden
-            className='bg-primary ring-background pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2'
-            style={{ left: `${x}%`, top: `${(yOf(point.value) / 30) * 100}%` }}
-          />
+          {!props.bars && (
+            <>
+              <span
+                aria-hidden
+                className='border-foreground/30 pointer-events-none absolute inset-y-0 border-l border-dashed'
+                style={{ left: `${x}%` }}
+              />
+              <span
+                aria-hidden
+                className='bg-primary ring-background pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2'
+                style={{
+                  left: `${x}%`,
+                  top: `${(yOf(point.value) / 30) * 100}%`,
+                }}
+              />
+            </>
+          )}
           <span
             role='status'
             className={cn(
