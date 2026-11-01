@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { KeyRound, Loader2, ShieldCheck } from 'lucide-react'
+import { KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -41,6 +41,13 @@ interface SecureVerificationDialogProps {
   onCancel: () => void
   onRetry: () => void
   onInputChange: (input: VerificationInput) => void
+  /** Step-up code mail state; absent where the caller offers no email method. */
+  emailCode?: {
+    sentTo: string | null
+    sending: boolean
+    resendSecondsLeft: number
+  }
+  onSendEmailCode?: () => void | Promise<void>
 }
 
 const methodLabels: Record<VerificationMethod, string> = {
@@ -48,6 +55,7 @@ const methodLabels: Record<VerificationMethod, string> = {
   passkey: 'Passkey',
   password: 'Password',
   oauth: 'Linked account',
+  email: 'Email code',
   session: 'Login session',
 }
 
@@ -70,6 +78,16 @@ export function SecureVerificationDialog(props: SecureVerificationDialogProps) {
   if (input?.method === '2fa') {
     canVerify = canVerify && input.code.trim().length >= 6
   }
+  if (input?.method === 'email') {
+    canVerify = canVerify && /^\d{6}$/.test(input.code.trim())
+  }
+  const emailCode = props.emailCode
+  let sendLabel = emailCode?.sentTo ? t('Resend code') : t('Send code')
+  if (emailCode && emailCode.resendSecondsLeft > 0) {
+    sendLabel = t('Resend in {{seconds}}s', {
+      seconds: emailCode.resendSecondsLeft,
+    })
+  }
   // Linked-account verification starts from the provider button itself.
   const showSubmit = state.phase !== 'error' && input?.method !== 'oauth'
   const error = 'error' in state ? state.error : undefined
@@ -82,6 +100,9 @@ export function SecureVerificationDialog(props: SecureVerificationDialogProps) {
         break
       case 'password':
         props.onInputChange({ method, password: '' })
+        break
+      case 'email':
+        props.onInputChange({ method, code: '' })
         break
       case 'passkey':
         props.onInputChange({ method })
@@ -225,6 +246,52 @@ export function SecureVerificationDialog(props: SecureVerificationDialogProps) {
                       )
                     : t('Enter the 6-digit authenticator code.')}
                 </p>
+              </TabsContent>
+              <TabsContent value='email' className='space-y-2'>
+                <p className='text-muted-foreground flex items-center gap-2 text-sm'>
+                  <Mail className='size-5 shrink-0' />
+                  {emailCode?.sentTo
+                    ? t(
+                        'A 6-digit code was sent to {{email}}. It expires in 10 minutes.',
+                        { email: emailCode.sentTo }
+                      )
+                    : t(
+                        'We will email a 6-digit code to the address on your account.'
+                      )}
+                </p>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={
+                    verifying ||
+                    !emailCode ||
+                    emailCode.sending ||
+                    emailCode.resendSecondsLeft > 0
+                  }
+                  onClick={() => void props.onSendEmailCode?.()}
+                >
+                  {emailCode?.sending && (
+                    <Loader2 className='size-4 animate-spin' />
+                  )}
+                  {sendLabel}
+                </Button>
+                <Label htmlFor={`${inputId}-email`}>
+                  {t('Email verification code')}
+                </Label>
+                <Input
+                  id={`${inputId}-email`}
+                  inputMode='numeric'
+                  autoComplete='one-time-code'
+                  maxLength={6}
+                  disabled={verifying || !emailCode?.sentTo}
+                  value={input.method === 'email' ? input.code : ''}
+                  onChange={(event) =>
+                    props.onInputChange({
+                      method: 'email',
+                      code: event.target.value,
+                    })
+                  }
+                />
               </TabsContent>
               <TabsContent value='passkey' className='space-y-3'>
                 <PasskeyDomainSelector

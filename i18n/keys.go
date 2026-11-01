@@ -90,6 +90,9 @@ const (
 	MsgEmailBindingCode        = "email.binding.code"
 	MsgEmailBindingNewValidity = "email.binding.new_validity"
 	MsgEmailBindingOldValidity = "email.binding.old_validity"
+	MsgEmailStepUpSubject      = "email.step_up.subject"
+	MsgEmailStepUpIntro        = "email.step_up.intro"
+	MsgEmailStepUpValidity     = "email.step_up.validity"
 
 	MsgEmailSecurityNoticeSubject = "email.security_notice.subject"
 	MsgEmailSecurityNoticeChanged = "email.security_notice.changed"

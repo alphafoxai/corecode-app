@@ -41,6 +41,7 @@ import {
 import type { PasskeyOptionsPayload } from '../passkey/types'
 import type { SystemStatus } from '../types'
 import type {
+  EmailVerificationCode,
   SecurityProof,
   LoginChallenge,
   SecurityProofScope,
@@ -199,6 +200,23 @@ export async function verifyLogin(
   return result
 }
 
+/** Mails a one-time code for this operation to the account's own address. */
+export async function sendEmailVerificationCode(
+  operation: VerificationOperation,
+  signal: AbortSignal
+): Promise<EmailVerificationCode> {
+  return authResult<EmailVerificationCode>(
+    api.post(
+      '/api/verify/email',
+      {
+        scope: operation.scope,
+        ...(operation.context ? { context: operation.context } : {}),
+      },
+      { ...authRequestOptions, signal }
+    )
+  )
+}
+
 export async function verify(
   input: VerificationInput,
   operation: VerificationOperation,
@@ -226,6 +244,7 @@ export async function verify(
         )
         break
       case '2fa':
+      case 'email':
         proof = await authResult<SecurityProof>(
           api.post(
             '/api/verify',

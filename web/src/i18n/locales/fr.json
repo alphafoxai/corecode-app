@@ -7582,6 +7582,14 @@
     "View refused message": "Voir le message refusé",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Le dernier message écrit par le client dans la requête refusée, jusqu’à 4 Ko. L’amont a jugé toute la conversation, pas seulement ce message.",
     "Warn-first categories": "Catégories avec avertissement d’abord",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Catégories de refus, séparées par des virgules, dont le premier refus dans la fenêtre de comptage n’est qu’un avertissement : la conversation refusée reste bloquée, mais le client n’est pas suspendu et l’avertissement ne compte pas pour la désactivation."
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Catégories de refus, séparées par des virgules, dont le premier refus dans la fenêtre de comptage n’est qu’un avertissement : la conversation refusée reste bloquée, mais le client n’est pas suspendu et l’avertissement ne compte pas pour la désactivation.",
+    "Email code": "Code par e-mail",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "Un code à 6 chiffres a été envoyé à {{email}}. Il expire dans 10 minutes.",
+    "We will email a 6-digit code to the address on your account.": "Nous enverrons un code à 6 chiffres à l’adresse e-mail de votre compte.",
+    "Email verification code": "Code de vérification par e-mail",
+    "Security verification code email": "E-mail de code de vérification de sécurité",
+    "Email verification is unavailable because outbound mail is not configured.": "La vérification par e-mail est indisponible car l’envoi d’e-mails n’est pas configuré.",
+    "The email verification code is incorrect or has expired.": "Le code de vérification par e-mail est incorrect ou a expiré.",
+    "The verification email could not be sent. Try again later.": "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard."
   }
 }

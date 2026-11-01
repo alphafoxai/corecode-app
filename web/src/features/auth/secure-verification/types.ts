@@ -23,6 +23,7 @@ export type VerificationMethod =
   | 'passkey'
   | 'password'
   | 'oauth'
+  | 'email'
   | 'session'
 export type SecurityProofScope =
   | 'channel.key.read'
@@ -121,7 +122,15 @@ export type VerificationInput =
   | { method: 'password'; password: string }
   | { method: 'passkey'; rpID?: string }
   | { method: 'oauth'; provider: string }
+  | { method: 'email'; code: string }
   | { method: 'session' }
+
+/** Where a step-up email code went (masked) and when another may be sent. */
+export interface EmailVerificationCode {
+  email: string
+  expires_at: number
+  resend_at: number
+}
 
 export type RequestVerificationOptions = VerificationOperation & {
   title?: string

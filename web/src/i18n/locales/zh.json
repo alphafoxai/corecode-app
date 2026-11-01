@@ -7582,6 +7582,14 @@
     "View refused message": "查看被拒绝的消息",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "被拒请求里客户写的最后一条消息，最多 4 KB。上游判断的是整段对话，不只是这一条。",
     "Warn-first categories": "首次仅警告的类别",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "拒绝类别，用逗号分隔。计次窗口内这些类别的第一次拒绝只记警告：被拒的对话仍会封锁，但不暂停客户，也不计入封号次数。"
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "拒绝类别，用逗号分隔。计次窗口内这些类别的第一次拒绝只记警告：被拒的对话仍会封锁，但不暂停客户，也不计入封号次数。",
+    "Email code": "邮箱验证码",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "6 位验证码已发送至 {{email}}，10 分钟内有效。",
+    "We will email a 6-digit code to the address on your account.": "我们会向账户绑定的邮箱发送 6 位验证码。",
+    "Email verification code": "邮箱验证码",
+    "Security verification code email": "发送安全验证码邮件",
+    "Email verification is unavailable because outbound mail is not configured.": "站点未配置发信服务，暂时无法通过邮箱验证。",
+    "The email verification code is incorrect or has expired.": "邮箱验证码错误或已失效。",
+    "The verification email could not be sent. Try again later.": "验证邮件发送失败，请稍后重试。"
   }
 }

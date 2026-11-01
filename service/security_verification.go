@@ -20,6 +20,7 @@ const (
 	VerificationMethodPasskey            = "passkey"
 	VerificationMethodPassword           = "password"
 	VerificationMethodOAuth              = "oauth"
+	VerificationMethodEmail              = "email"
 	VerificationMethodSession            = "session"
 	VerificationScopeChannelKeyRead      = "channel.key.read"
 	VerificationScopePasskeyRegister     = "passkey.register"
@@ -341,9 +342,15 @@ func securityVerificationPolicy(scope string, state model.UserVerificationState)
 			return nil, ErrVerificationForbidden
 		}
 		if len(methods) == 0 {
-			if state.HasPassword {
+			switch {
+			case state.HasPassword:
 				methods = []string{VerificationMethodPassword}
-			} else {
+			case state.HasEmail:
+				// An account signed up through the emailed link has no password;
+				// without this it could only verify through a linked provider,
+				// and most such accounts have none.
+				methods = []string{VerificationMethodOAuth, VerificationMethodEmail}
+			default:
 				methods = []string{VerificationMethodOAuth}
 			}
 		}
@@ -398,6 +405,9 @@ func GetVerificationRequirements(identity AuthIdentity, scope string) (*Verifica
 				VerificationScopeAdminUserTwoFADisable, VerificationScopeAdminUserBindingClear:
 				methods[i].Available, methods[i].Reason = false, "Password authentication is disabled."
 			}
+		}
+		if methods[i].Method == VerificationMethodEmail && common.SMTPServer == "" {
+			methods[i].Available, methods[i].Reason = false, "Email verification is unavailable because outbound mail is not configured."
 		}
 		if methods[i].Method != VerificationMethodOAuth {
 			continue
@@ -606,6 +616,10 @@ func VerifySecurityInput(identity AuthIdentity, input VerificationInput) (*Secur
 			return nil, err
 		}
 		if err := VerifyTwoFactorCode(twoFA, input.Code); err != nil {
+			return nil, err
+		}
+	case VerificationMethodEmail:
+		if err := model.ConsumeEmailStepUp(identity, binding.Scope, binding.ContextHash, strings.TrimSpace(input.Code)); err != nil {
 			return nil, err
 		}
 	case VerificationMethodPasskey, VerificationMethodOAuth:

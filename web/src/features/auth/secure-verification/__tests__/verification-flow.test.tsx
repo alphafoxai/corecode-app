@@ -569,3 +569,114 @@ it('verifies with the clicked provider when several linked accounts are availabl
     screen.getByRole('button', { name: 'Continue with Linux DO' })
   ).toBeDisabled()
 })
+
+const passwordlessRequirements: VerificationRequirements = {
+  scope: '2fa.setup',
+  methods: [
+    {
+      method: 'oauth',
+      available: false,
+      reason: 'No linked OAuth provider is available.',
+    },
+    { method: 'email', available: true },
+  ],
+  oauth_providers: [],
+  password_encryption_enabled: false,
+}
+
+it('verifies a passwordless account with a code mailed to its own address', async () => {
+  const proof: SecurityProof = {
+    proof_token: 'email-proof',
+    method: 'email',
+    scope: '2fa.setup',
+    expires_at: Math.floor(Date.now() / 1000) + 300,
+  }
+  vi.spyOn(api, 'get').mockResolvedValue({
+    data: { success: true, data: passwordlessRequirements },
+  })
+  const now = Math.floor(Date.now() / 1000)
+  const post = vi.spyOn(api, 'post').mockImplementation((url) => {
+    if (url === '/api/verify/email') {
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: {
+            email: '***@example.com',
+            expires_at: now + 600,
+            resend_at: now + 60,
+          },
+        },
+      })
+    }
+    return Promise.resolve({ data: { success: true, data: proof } })
+  })
+  const result = vi.fn()
+  const user = userEvent.setup()
+  render(<Harness operation={{ scope: '2fa.setup' }} onResult={result} />)
+  await user.click(screen.getByText('Protected action'))
+
+  // The unusable linked-account method is not the default.
+  const send = await screen.findByRole('button', { name: 'Send code' })
+  expect(screen.getByRole('tab', { name: 'Linked account' })).toHaveAttribute(
+    'aria-disabled',
+    'true'
+  )
+  expect(screen.getByRole('tab', { name: 'Email code' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  )
+  const codeInput = screen.getByLabelText('Email verification code')
+  expect(codeInput).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
+
+  await user.click(send)
+  expect(post).toHaveBeenCalledExactlyOnceWith(
+    '/api/verify/email',
+    { scope: '2fa.setup' },
+    expect.anything()
+  )
+  expect(
+    await screen.findByText(
+      'A 6-digit code was sent to ***@example.com. It expires in 10 minutes.'
+    )
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: /^Resend in \d+s$/ })
+  ).toBeDisabled()
+
+  await user.type(codeInput, '12345')
+  expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
+  await user.type(codeInput, '6')
+  await user.click(screen.getByRole('button', { name: 'Verify' }))
+  await waitFor(() => expect(result).toHaveBeenCalledExactlyOnceWith(proof))
+  expect(post).toHaveBeenLastCalledWith(
+    '/api/verify',
+    { method: 'email', scope: '2fa.setup', code: '123456' },
+    expect.anything()
+  )
+})
+
+it('shows why a step-up code could not be sent and lets the user send again', async () => {
+  vi.spyOn(api, 'get').mockResolvedValue({
+    data: { success: true, data: passwordlessRequirements },
+  })
+  const post = vi.spyOn(api, 'post').mockResolvedValue({
+    data: {
+      success: false,
+      code: 'EMAIL_VERIFICATION_DELIVERY_FAILED',
+      message: 'The verification email could not be sent. Try again later.',
+    },
+  })
+  const user = userEvent.setup()
+  render(<Harness operation={{ scope: '2fa.setup' }} onResult={vi.fn()} />)
+  await user.click(screen.getByText('Protected action'))
+  await user.click(await screen.findByRole('button', { name: 'Send code' }))
+  expect(
+    await screen.findByText(
+      'The verification email could not be sent. Try again later.'
+    )
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Send code' })).toBeEnabled()
+  expect(screen.getByLabelText('Email verification code')).toBeDisabled()
+  expect(post).toHaveBeenCalledTimes(1)
+})

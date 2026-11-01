@@ -47,6 +47,7 @@ var auditContentTemplates = map[string]string{
 	"user.binding_bind":         "Account binding",
 	"user.binding_unbind":       "Account unlinking",
 	"user.email_binding_resend": "Email confirmation code resend",
+	"user.security_email_code":  "Security verification code email",
 	"user.passkey_delete":       "Deleted a passkey",
 	"user.reset_passkey":        "Reset the user passkey",
 	"option.update":             "Updated system setting ${key}",
