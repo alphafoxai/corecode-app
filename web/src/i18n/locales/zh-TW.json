@@ -7581,6 +7581,7 @@
     "Model markup": "模型加價",
     "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "該模型的成本較高，價格先按官方價的 {{markup}} 倍計算，再享受分組折扣。",
     "Warning (not counted)": "警告（不計次）",
+    "Client check (not counted)": "用戶端自身請求（不計次）",
     "View refused message": "查看被拒絕的訊息",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "被拒請求裡客戶寫的最後一則訊息，最多 4 KB。上游判斷的是整段對話，不只是這一則。",
     "Warn-first categories": "首次僅警告的類別",

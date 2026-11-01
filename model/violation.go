@@ -14,6 +14,9 @@ const (
 	ViolationActionSuspend = "suspend" // counted, relay access suspended
 	ViolationActionBan     = "ban"     // counted, account disabled
 	ViolationActionWarn    = "warn"    // first refusal of a lenient category, not counted
+	// ViolationActionClientCheck is a lenient refusal of a request the client
+	// sent on its own, such as Claude Code's auto mode check: not counted.
+	ViolationActionClientCheck = "client_check"
 )
 
 // ViolationModeExempt marks a refusal by an administrator, which is recorded
@@ -265,7 +268,7 @@ const RiskGateCategoryPrefix = "gate:"
 func GetRecentRefusedExcerpts(since int64, limit int) ([]string, error) {
 	var excerpts []string
 	err := DB.Model(&ViolationRecord{}).
-		Where("created_at > ? AND excerpt <> '' AND mode <> ? AND (category IS NULL OR category NOT LIKE ?)", since, ViolationModeExempt, RiskGateCategoryPrefix+"%").
+		Where("created_at > ? AND excerpt <> '' AND mode <> ? AND action <> ? AND (category IS NULL OR category NOT LIKE ?)", since, ViolationModeExempt, ViolationActionClientCheck, RiskGateCategoryPrefix+"%").
 		Order("id desc").Limit(limit).Pluck("excerpt", &excerpts).Error
 	return excerpts, err
 }

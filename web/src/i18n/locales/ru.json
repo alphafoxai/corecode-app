@@ -7581,6 +7581,7 @@
     "Model markup": "Наценка модели",
     "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Эта модель дороже в обслуживании, поэтому её цена — {{markup}}× от официальной до скидки группы.",
     "Warning (not counted)": "Предупреждение (не засчитано)",
+    "Client check (not counted)": "Собственный запрос клиента (не засчитано)",
     "View refused message": "Показать отклонённое сообщение",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Последнее сообщение клиента в отклонённом запросе, до 4 КБ. Провайдер оценивал весь диалог, а не только это сообщение.",
     "Warn-first categories": "Категории с предупреждением сначала",

@@ -30,6 +30,7 @@ import type { ViolationAction, ViolationRecord } from './api'
 const ACTION_VARIANTS: Record<ViolationAction, StatusVariant> = {
   merged: 'neutral',
   warn: 'cyan',
+  client_check: 'neutral',
   strike: 'warning',
   suspend: 'orange',
   ban: 'danger',
@@ -51,6 +52,7 @@ export function useViolationColumns(
     const actionLabels: Record<ViolationAction, string> = {
       merged: t('Merged into earlier strike'),
       warn: t('Warning (not counted)'),
+      client_check: t('Client check (not counted)'),
       strike: t('Strike'),
       suspend: t('Suspend'),
       ban: t('Disable account'),

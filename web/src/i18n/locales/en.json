@@ -7581,6 +7581,7 @@
     "Model markup": "Model markup",
     "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.",
     "Warning (not counted)": "Warning (not counted)",
+    "Client check (not counted)": "Client check (not counted)",
     "View refused message": "View refused message",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.",
     "Warn-first categories": "Warn-first categories",
