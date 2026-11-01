@@ -3080,6 +3080,8 @@
     "Inpaint": "Инпейнтинг",
     "Input": "Ввод",
     "Input pre-consume multiplier": "Множитель предсписания за ввод",
+    "Maximum unreserved amount (USD)": "Максимальная незарезервированная сумма (USD)",
+    "When the balance cannot reserve the full estimate, a request still runs if the unreserved part is at most this amount and is charged in full afterwards, which can leave the balance below zero. A larger gap is refused. Set to 0 to require full reservation. Subscriptions without wallet overflow and asynchronous tasks always reserve in full.": "Если баланса не хватает, чтобы зарезервировать всю оценку, запрос всё равно выполняется, когда незарезервированная часть не превышает эту сумму, и затем списывается полностью, поэтому баланс может стать отрицательным. Больший разрыв отклоняется. Укажите 0, чтобы требовать полного резервирования. Подписки без перехода на кошелёк и асинхронные задачи всегда резервируют полностью.",
     "Input price": "Цена входа",
     "Input price is required before saving dependent prices.": "Перед сохранением зависимых цен укажите входную цену.",
     "Input Price: High to Low": "Цена ввода: от высокой к низкой",

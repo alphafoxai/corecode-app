@@ -69,6 +69,11 @@ const quotaSchema = z.object({
     pre_consume_multiplier: z.coerce
       .number({ error: () => i18next.t('Please enter a valid number') })
       .positive({ error: () => i18next.t('Must be greater than 0') }),
+    max_shortfall_usd: z.coerce
+      .number({ error: () => i18next.t('Please enter a valid number') })
+      .min(0, {
+        error: () => i18next.t('Must be greater than or equal to 0'),
+      }),
   }),
 })
 
@@ -217,6 +222,34 @@ export function QuotaSettingsSection({
                   <FormDescription>
                     {t(
                       'Reserve the estimated input cost multiplied by this value, without estimating output tokens. Defaults to 1; positive decimals such as 0.5 and 1.5 are supported. Final charges use actual usage. Per-request and task prices are unaffected.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='quota_setting.max_shortfall_usd'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Maximum unreserved amount (USD)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      step='any'
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'When the balance cannot reserve the full estimate, a request still runs if the unreserved part is at most this amount and is charged in full afterwards, which can leave the balance below zero. A larger gap is refused. Set to 0 to require full reservation. Subscriptions without wallet overflow and asynchronous tasks always reserve in full.'
                     )}
                   </FormDescription>
                   <FormMessage />

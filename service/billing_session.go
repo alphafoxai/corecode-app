@@ -367,6 +367,16 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	if apiErr != nil {
 		return apiErr
 	}
+	// A shortfall is charged only at settlement and can leave the wallet below
+	// zero; past the cap the request is refused instead of admitted on credit.
+	if s.allowShortfall && effectiveQuota-held > operation_setting.MaxShortfallQuota() {
+		s.releaseFunding()
+		logger.LogInfo(c, common.LogText("user %d refused: reserved %s of %s, shortfall above the cap (funding=%s)", s.relayInfo.UserId, logger.FormatQuota(held), logger.FormatQuota(effectiveQuota), s.funding.Source()))
+		return types.NewErrorWithStatusCode(
+			errors.New(i18n.T(c, i18n.MsgQuotaPreConsumeInsufficient, map[string]any{"Remaining": logger.FormatQuota(held), "Required": logger.FormatQuota(effectiveQuota)})),
+			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+	}
 
 	// ---- 2) 预扣令牌额度 ----
 	if held > 0 {

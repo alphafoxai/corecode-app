@@ -89,6 +89,7 @@ const BILLING_SECTIONS = [
             trust_quota_usd: settings['quota_setting.trust_quota_usd'],
             pre_consume_multiplier:
               settings['quota_setting.pre_consume_multiplier'],
+            max_shortfall_usd: settings['quota_setting.max_shortfall_usd'],
             enable_free_model_pre_consume:
               settings['quota_setting.enable_free_model_pre_consume'],
           },

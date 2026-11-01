@@ -468,3 +468,94 @@ func TestPreConsumeMultiplierRejectsInvalidRuntimeAndOverflow(t *testing.T) {
 		assert.Nil(t, info.Billing)
 	}
 }
+
+// A shortfall above quota_setting.max_shortfall_usd refuses the request and
+// leaves every source as it was; at or below the cap the request is admitted
+// as before. The cap here is $0.001, 500 quota; the estimate is 1500.
+func TestPreConsumeShortfallCap(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	previousConfig := config.GlobalConfig.ExportAllConfigs()
+	previousUnit, previousBatch := common.QuotaPerUnit, common.BatchUpdateEnabled
+	common.QuotaPerUnit, common.BatchUpdateEnabled = 500000, false
+	t.Cleanup(func() {
+		require.NoError(t, config.GlobalConfig.LoadFromDB(previousConfig))
+		common.QuotaPerUnit, common.BatchUpdateEnabled = previousUnit, previousBatch
+	})
+	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+		t.Run(dialect.kind, func(t *testing.T) {
+			if dialect.env != "" && os.Getenv(dialect.env) == "" {
+				t.Skip("set " + dialect.env + " to run this database")
+			}
+			db := modelManagementDB(t, dialect.kind, os.Getenv(dialect.env))
+			require.NoError(t, db.AutoMigrate(&model.Token{}, &model.SubscriptionPlan{}, &model.UserSubscription{}, &model.SubscriptionPreConsumeRecord{}))
+			require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+				"billing_setting.billing_mode":         `{"policy-model":"tiered_expr"}`,
+				"billing_setting.billing_expr":         `{"policy-model":"tier(\"base\", p * 3 + c * 15)"}`,
+				"group_ratio_setting.group_ratio":      `{"default":1}`,
+				"quota_setting.trust_quota_usd":        "0",
+				"quota_setting.pre_consume_multiplier": "1",
+				"quota_setting.max_shortfall_usd":      "0.001",
+			}))
+			require.Equal(t, 500, operation_setting.MaxShortfallQuota())
+			plan := model.SubscriptionPlan{Title: "cap-plan", TotalAmount: 10000, QuotaResetPeriod: "never"}
+			require.NoError(t, db.Create(&plan).Error)
+
+			cases := []struct {
+				name       string
+				preference string
+				wallet     int
+				subLeft    int // < 0: no subscription
+				overflow   bool
+				wantHeld   int // 0: refused
+			}{
+				{name: "shortfall at the cap is admitted", preference: "wallet_only", wallet: 1000, subLeft: -1, wantHeld: 1000},
+				{name: "shortfall above the cap is refused", preference: "wallet_only", wallet: 900, subLeft: -1},
+				{name: "a second source can close the shortfall", preference: "wallet_first", wallet: 900, subLeft: 800, wantHeld: 1500},
+				{name: "wallet and subscription below the estimate by less than the cap", preference: "subscription_first", wallet: 200, subLeft: 1000, overflow: true, wantHeld: 1200},
+				{name: "a nearly spent subscription and wallet are refused", preference: "subscription_first", wallet: 100, subLeft: 800, overflow: true},
+				{name: "a nearly spent subscription with an empty wallet is refused", preference: "subscription_first", wallet: 0, subLeft: 900, overflow: true},
+			}
+			for i, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					user := model.User{Username: fmt.Sprintf("cap-user-%d", i), Quota: tc.wallet, Group: "default", AffCode: fmt.Sprintf("cap-aff-%d", i)}
+					require.NoError(t, db.Create(&user).Error)
+					token := model.Token{UserId: user.Id, Key: fmt.Sprintf("cap-token-%d", i), UnlimitedQuota: true}
+					require.NoError(t, db.Create(&token).Error)
+					var sub model.UserSubscription
+					if tc.subLeft >= 0 {
+						sub = model.UserSubscription{UserId: user.Id, PlanId: plan.Id, AmountTotal: 10000, AmountUsed: int64(10000 - tc.subLeft),
+							StartTime: common.GetTimestamp(), EndTime: common.GetTimestamp() + 86400, Status: "active", AllowWalletOverflow: tc.overflow}
+						require.NoError(t, db.Create(&sub).Error)
+					}
+					ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+					ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+					info := &relaycommon.RelayInfo{RequestId: fmt.Sprintf("cap-request-%d", i), UserId: user.Id, TokenId: token.Id, TokenKey: token.Key, TokenUnlimited: true,
+						OriginModelName: "policy-model", UserGroup: "default", UsingGroup: "default", BillingRequestInput: &billingexpr.RequestInput{}}
+					info.UserSetting.BillingPreference = tc.preference
+					price, err := helper.ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{})
+					require.NoError(t, err)
+					require.Equal(t, 1500, price.QuotaToPreConsume)
+
+					apiErr := service.PreConsumeBilling(ctx, price.QuotaToPreConsume, info)
+					if tc.wantHeld == 0 {
+						require.NotNil(t, apiErr)
+						assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+						assert.Eventually(t, func() bool {
+							if db.First(&user, user.Id).Error != nil || user.Quota != tc.wallet {
+								return false
+							}
+							if tc.subLeft < 0 {
+								return true
+							}
+							var after model.UserSubscription
+							return db.First(&after, sub.Id).Error == nil && after.AmountUsed == sub.AmountUsed
+						}, 2*time.Second, 20*time.Millisecond, "a refused request must leave both sources untouched")
+						return
+					}
+					require.Nil(t, apiErr)
+					assert.Equal(t, tc.wantHeld, info.FinalPreConsumedQuota)
+				})
+			}
+		})
+	}
+}
