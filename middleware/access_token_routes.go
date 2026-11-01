@@ -60,6 +60,7 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"GET /api/oauth/:provider":               accessTokenSessionRule,
 	"GET /api/verify/methods":                accessTokenAnyRule,
 	"POST /api/verify":                       accessTokenAnyRule,
+	"POST /api/verify/email":                 accessTokenAnyRule,
 
 	// router/api-router.go: /api/feedback
 	"POST /api/feedback":            accessTokenSessionRule,

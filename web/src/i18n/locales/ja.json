@@ -7582,6 +7582,14 @@
     "View refused message": "拒否されたメッセージを表示",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "拒否されたリクエストで顧客が最後に書いたメッセージ（最大 4 KB）。上流はこのメッセージだけでなく会話全体を判断しています。",
     "Warn-first categories": "初回は警告のみのカテゴリ",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "カンマ区切りの拒否カテゴリ。集計期間内の最初の拒否は警告のみです。拒否された会話はブロックされたままですが、顧客は停止されず、警告は無効化の回数に数えられません。"
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "カンマ区切りの拒否カテゴリ。集計期間内の最初の拒否は警告のみです。拒否された会話はブロックされたままですが、顧客は停止されず、警告は無効化の回数に数えられません。",
+    "Email code": "メールコード",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "6 桁のコードを {{email}} に送信しました。有効期限は 10 分です。",
+    "We will email a 6-digit code to the address on your account.": "アカウントのメールアドレスに 6 桁のコードを送信します。",
+    "Email verification code": "メール認証コード",
+    "Security verification code email": "セキュリティ認証コードのメール",
+    "Email verification is unavailable because outbound mail is not configured.": "送信メールが設定されていないため、メール認証は利用できません。",
+    "The email verification code is incorrect or has expired.": "メール認証コードが正しくないか、有効期限が切れています。",
+    "The verification email could not be sent. Try again later.": "認証メールを送信できませんでした。しばらくしてから再試行してください。"
   }
 }

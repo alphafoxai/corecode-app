@@ -7582,6 +7582,14 @@
     "View refused message": "Xem tin nhắn bị từ chối",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Tin nhắn cuối cùng khách hàng viết trong yêu cầu bị từ chối, tối đa 4 KB. Phía upstream đánh giá cả cuộc hội thoại, không chỉ tin nhắn này.",
     "Warn-first categories": "Danh mục cảnh báo trước",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Các danh mục từ chối, phân cách bằng dấu phẩy, mà lần từ chối đầu tiên trong khoảng tính chỉ là cảnh báo: cuộc hội thoại bị từ chối vẫn bị chặn, nhưng khách hàng không bị tạm ngưng và cảnh báo không tính vào việc vô hiệu hóa."
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Các danh mục từ chối, phân cách bằng dấu phẩy, mà lần từ chối đầu tiên trong khoảng tính chỉ là cảnh báo: cuộc hội thoại bị từ chối vẫn bị chặn, nhưng khách hàng không bị tạm ngưng và cảnh báo không tính vào việc vô hiệu hóa.",
+    "Email code": "Mã qua email",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "Mã 6 chữ số đã được gửi tới {{email}}. Mã hết hạn sau 10 phút.",
+    "We will email a 6-digit code to the address on your account.": "Chúng tôi sẽ gửi mã 6 chữ số tới email của tài khoản.",
+    "Email verification code": "Mã xác minh qua email",
+    "Security verification code email": "Email mã xác minh bảo mật",
+    "Email verification is unavailable because outbound mail is not configured.": "Không thể xác minh qua email vì chưa cấu hình gửi thư.",
+    "The email verification code is incorrect or has expired.": "Mã xác minh email không đúng hoặc đã hết hạn.",
+    "The verification email could not be sent. Try again later.": "Không gửi được email xác minh. Vui lòng thử lại sau."
   }
 }

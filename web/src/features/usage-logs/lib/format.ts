@@ -471,6 +471,7 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   'user.binding_bind': 'Account binding',
   'user.binding_unbind': 'Account unlinking',
   'user.email_binding_resend': 'Email confirmation code resend',
+  'user.security_email_code': 'Security verification code email',
 
   login: 'Logged in successfully via {{method}}',
   // User management

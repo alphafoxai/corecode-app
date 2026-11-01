@@ -49,6 +49,10 @@ func writeSecurityOperationError(c *gin.Context, err error) {
 		code, message = "EMAIL_ALREADY_TAKEN", "This email address is already in use."
 	case errors.Is(err, service.ErrEmailBindingDelivery):
 		code, message = "EMAIL_BINDING_DELIVERY_FAILED", err.Error()
+	case errors.Is(err, service.ErrEmailVerificationDelivery):
+		code, message = "EMAIL_VERIFICATION_DELIVERY_FAILED", err.Error()
+	case errors.Is(err, model.ErrEmailStepUpCodeInvalid):
+		code, message = "EMAIL_VERIFICATION_CODE_INVALID", err.Error()
 	case errors.Is(err, model.ErrEmailBindingCodeInvalid):
 		code, message = "EMAIL_BINDING_CODE_INVALID", err.Error()
 	case errors.Is(err, model.ErrEmailBindingLocked):
@@ -172,4 +176,30 @@ func UniversalVerify(c *gin.Context) {
 	}
 	recordUserSecurityAudit(c, identity.UserID, "user.security_verify", map[string]any{"method": proof.Method, "scope": proof.Scope})
 	common.ApiSuccess(c, proof)
+}
+
+// SendVerificationEmailCode mails a step-up code for one operation to the
+// account's own address. The operation is bound now, so the code proves only it.
+func SendVerificationEmailCode(c *gin.Context) {
+	identity, ok := middleware.GetStepUpIdentity(c)
+	if !ok {
+		writeAccountStatusError(c, http.StatusUnauthorized, "The current sign-in method does not support security verification")
+		return
+	}
+	var operation service.VerificationOperation
+	if err := common.DecodeJson(c.Request.Body, &operation); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	succeeded := false
+	defer func() {
+		recordUserSecurityAudit(c, identity.UserID, "user.security_email_code", map[string]any{"scope": operation.Scope, "success": succeeded})
+	}()
+	data, err := service.SendEmailVerificationCode(identity, operation, service.AccountMailLanguage(c, identity.UserID))
+	if err != nil {
+		writeSecurityOperationError(c, err)
+		return
+	}
+	succeeded = true
+	common.ApiSuccess(c, data)
 }

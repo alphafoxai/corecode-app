@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
+import { useCountdown } from '@/hooks/use-countdown'
 import { AuthOperationError } from '@/lib/secure-verification'
 import type { AuthBundle } from '@/stores/auth-store'
 
@@ -25,6 +26,7 @@ import type { PasskeyDomains } from '../../passkey/assertion'
 import {
   checkVerificationMethods,
   getLoginVerificationRequirements,
+  sendEmailVerificationCode,
   verify,
   verifyLogin,
 } from '../api'
@@ -71,6 +73,9 @@ function verificationReducer(
         case 'password':
           input = { method: 'password', password: '' }
           break
+        case 'email':
+          input = { method: 'email', code: '' }
+          break
         case 'passkey':
           input = { method: 'passkey' }
           break
@@ -105,6 +110,7 @@ function verificationReducer(
         input = { method: 'password', password: '' }
       }
       if (input?.method === '2fa') input = { method: '2fa', code: '' }
+      if (input?.method === 'email') input = { method: 'email', code: '' }
       return { ...state, phase: 'verifying', input, error: undefined }
     }
     case 'error':
@@ -144,6 +150,16 @@ export function useSecureVerification() {
   const [passkeyDomains, setPasskeyDomains] = useState<PasskeyDomains | null>(
     null
   )
+  // The masked address the last step-up code went to, while this request lasts.
+  const [emailSentTo, setEmailSentTo] = useState<string | null>(null)
+  const [emailSending, setEmailSending] = useState(false)
+  const emailResend = useCountdown({ initialSeconds: 60 })
+  const resetEmailResend = emailResend.reset
+  const resetEmailCode = useCallback(() => {
+    setEmailSentTo(null)
+    setEmailSending(false)
+    resetEmailResend()
+  }, [resetEmailResend])
 
   const cancel = useCallback(() => {
     const current = pending.current
@@ -152,8 +168,9 @@ export function useSecureVerification() {
     if (current) current.initialPassword = undefined
     current?.resolve(null)
     setPasskeyDomains(null)
+    resetEmailCode()
     dispatch({ type: 'reset' })
-  }, [])
+  }, [resetEmailCode])
 
   useEffect(() => cancel, [cancel])
 
@@ -248,10 +265,11 @@ export function useSecureVerification() {
         }
         pending.current = current
         setPasskeyDomains(null)
+        resetEmailCode()
         void loadRequirements(current)
       })
     },
-    [loadRequirements]
+    [loadRequirements, resetEmailCode]
   )
 
   const requestLoginVerification = useCallback(
@@ -271,10 +289,11 @@ export function useSecureVerification() {
         }
         pending.current = current
         setPasskeyDomains(null)
+        resetEmailCode()
         void loadRequirements(current)
       })
     },
-    [loadRequirements]
+    [loadRequirements, resetEmailCode]
   )
 
   const executeVerification = useCallback(
@@ -332,6 +351,29 @@ export function useSecureVerification() {
     [cancel, state]
   )
 
+  const startEmailResend = emailResend.start
+  const sendEmailCode = useCallback(async () => {
+    const current = pending.current
+    if (!current || current.kind !== 'operation' || emailSending) return
+    setEmailSending(true)
+    try {
+      const sent = await sendEmailVerificationCode(
+        current.request,
+        current.controller.signal
+      )
+      if (pending.current !== current) return
+      setEmailSentTo(sent.email)
+      startEmailResend(
+        Math.max(1, Math.ceil(sent.resend_at - Date.now() / 1000))
+      )
+    } catch (error) {
+      if (pending.current !== current) return
+      dispatch({ type: 'error', error: AuthOperationError.from(error).message })
+    } finally {
+      if (pending.current === current) setEmailSending(false)
+    }
+  }, [emailSending, startEmailResend])
+
   const retry = useCallback(() => {
     if (pending.current && state.phase === 'error') {
       void loadRequirements(pending.current)
@@ -354,6 +396,12 @@ export function useSecureVerification() {
       onRetry: retry,
       onInputChange: setInput,
       onVerify: executeVerification,
+      emailCode: {
+        sentTo: emailSentTo,
+        sending: emailSending,
+        resendSecondsLeft: emailResend.isActive ? emailResend.secondsLeft : 0,
+      },
+      onSendEmailCode: sendEmailCode,
     },
   }
 }

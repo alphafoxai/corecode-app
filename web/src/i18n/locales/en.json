@@ -7582,6 +7582,14 @@
     "View refused message": "View refused message",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.",
     "Warn-first categories": "Warn-first categories",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling."
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.",
+    "Email code": "Email code",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "A 6-digit code was sent to {{email}}. It expires in 10 minutes.",
+    "We will email a 6-digit code to the address on your account.": "We will email a 6-digit code to the address on your account.",
+    "Email verification code": "Email verification code",
+    "Security verification code email": "Security verification code email",
+    "Email verification is unavailable because outbound mail is not configured.": "Email verification is unavailable because outbound mail is not configured.",
+    "The email verification code is incorrect or has expired.": "The email verification code is incorrect or has expired.",
+    "The verification email could not be sent. Try again later.": "The verification email could not be sent. Try again later."
   }
 }

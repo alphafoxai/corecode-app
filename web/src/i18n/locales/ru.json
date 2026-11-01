@@ -7582,6 +7582,14 @@
     "View refused message": "Показать отклонённое сообщение",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Последнее сообщение клиента в отклонённом запросе, до 4 КБ. Провайдер оценивал весь диалог, а не только это сообщение.",
     "Warn-first categories": "Категории с предупреждением сначала",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Категории отказов через запятую, для которых первый отказ в окне подсчёта — только предупреждение: отклонённый диалог остаётся заблокированным, но клиент не приостанавливается, и предупреждение не засчитывается для отключения."
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "Категории отказов через запятую, для которых первый отказ в окне подсчёта — только предупреждение: отклонённый диалог остаётся заблокированным, но клиент не приостанавливается, и предупреждение не засчитывается для отключения.",
+    "Email code": "Код по почте",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "6-значный код отправлен на {{email}}. Он действителен 10 минут.",
+    "We will email a 6-digit code to the address on your account.": "Мы отправим 6-значный код на почту вашего аккаунта.",
+    "Email verification code": "Код подтверждения из письма",
+    "Security verification code email": "Письмо с кодом проверки безопасности",
+    "Email verification is unavailable because outbound mail is not configured.": "Проверка по почте недоступна: отправка писем не настроена.",
+    "The email verification code is incorrect or has expired.": "Код из письма неверен или истёк.",
+    "The verification email could not be sent. Try again later.": "Не удалось отправить письмо с кодом. Попробуйте позже."
   }
 }

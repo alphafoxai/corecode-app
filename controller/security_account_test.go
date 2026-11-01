@@ -909,3 +909,188 @@ func TestSecurityAccountUnbindPreservesUsableLoginMethod(t *testing.T) {
 		})
 	}
 }
+
+// setupPasswordlessEmailAccount turns the enrollment user into an account the
+// emailed sign-in link creates: an address, no password, no other factor.
+func setupPasswordlessEmailAccount(t *testing.T) (*model.User, service.AuthIdentity) {
+	t.Helper()
+	user, identity := setupSecurityEnrollmentTest(t)
+	require.NoError(t, model.DB.Model(user).Updates(map[string]any{"password": "", "email": "Owner@Example.com"}).Error)
+	return user, identity
+}
+
+func sendStepUpCode(identity service.AuthIdentity, body string) (*httptest.ResponseRecorder, securityEnrollmentResponse) {
+	response := securityEnrollmentRequest(http.MethodPost, "/api/verify/email", body, "", identity, SendVerificationEmailCode)
+	var result securityEnrollmentResponse
+	_ = common.Unmarshal(response.Body.Bytes(), &result)
+	return response, result
+}
+
+func verifyStepUpCode(identity service.AuthIdentity, scope, code string) securityEnrollmentResponse {
+	request, _ := common.Marshal(map[string]string{"method": "email", "scope": scope, "code": code})
+	response := securityEnrollmentRequest(http.MethodPost, "/api/verify", string(request), "", identity, UniversalVerify)
+	var result securityEnrollmentResponse
+	_ = common.Unmarshal(response.Body.Bytes(), &result)
+	return result
+}
+
+// allowStepUpResend moves every issued code past the resend delay.
+func allowStepUpResend(t *testing.T, userID int) {
+	t.Helper()
+	require.NoError(t, model.DB.Model(&model.AuthFlow{}).
+		Where("purpose = ? AND user_id = ?", model.AuthFlowPurposeEmailStepUp, userID).
+		Update("created_at", time.Now().Add(-2*model.EmailStepUpResendDelay)).Error)
+}
+
+func TestSecurityAccountEmailStepUpPolicy(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		password, email bool
+		smtp            bool
+		want            []service.VerificationMethodOption
+	}{
+		{name: "password account keeps its password", password: true, email: true, smtp: true,
+			want: []service.VerificationMethodOption{{Method: "password", Available: true}}},
+		{name: "passwordless account with an address can use it", email: true, smtp: true,
+			want: []service.VerificationMethodOption{
+				{Method: "oauth", Reason: "No linked OAuth provider is available."},
+				{Method: "email", Available: true}}},
+		{name: "no outbound mail leaves the address unusable", email: true,
+			want: []service.VerificationMethodOption{
+				{Method: "oauth", Reason: "No linked OAuth provider is available."},
+				{Method: "email", Reason: "Email verification is unavailable because outbound mail is not configured."}}},
+		{name: "passwordless account without an address", smtp: true,
+			want: []service.VerificationMethodOption{{Method: "oauth", Reason: "No linked OAuth provider is available."}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			user, identity := setupSecurityEnrollmentTest(t)
+			updates := map[string]any{}
+			if !test.password {
+				updates["password"] = ""
+			}
+			if test.email {
+				updates["email"] = "owner@example.com"
+			}
+			if len(updates) > 0 {
+				require.NoError(t, model.DB.Model(user).Updates(updates).Error)
+			}
+			if test.smtp {
+				newSecurityMailbox(t)
+			} else {
+				previous := common.SMTPServer
+				common.SMTPServer = ""
+				t.Cleanup(func() { common.SMTPServer = previous })
+			}
+			for _, scope := range []string{"2fa.setup", "account.password.set", "account.binding.bind"} {
+				requirements, err := service.GetVerificationRequirements(identity, scope)
+				if scope == "account.password.set" && test.password {
+					assert.ErrorIs(t, err, service.ErrVerificationForbidden)
+					continue
+				}
+				require.NoError(t, err, scope)
+				assert.Equal(t, test.want, requirements.Methods, scope)
+			}
+		})
+	}
+}
+
+func TestSecurityAccountEmailStepUpProvesOneOperationOnce(t *testing.T) {
+	user, identity := setupPasswordlessEmailAccount(t)
+	mailbox := newSecurityMailbox(t)
+
+	response, result := sendStepUpCode(identity, `{"scope":"2fa.setup"}`)
+	require.True(t, result.Success, response.Body.String())
+	var sent service.EmailVerificationCodeData
+	require.NoError(t, common.Unmarshal(result.Data, &sent))
+	assert.Equal(t, "***@example.com", sent.Email)
+	assert.Greater(t, sent.ExpiresAt, sent.ResendAt)
+	code := mailbox.code(t, "owner@example.com")
+
+	response, result = sendStepUpCode(identity, `{"scope":"2fa.setup"}`)
+	assert.Equal(t, http.StatusTooManyRequests, response.Code)
+	assert.Equal(t, "EMAIL_BINDING_RESEND_WAIT", result.Code)
+
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	assert.Equal(t, "EMAIL_VERIFICATION_CODE_INVALID", verifyStepUpCode(identity, "2fa.setup", wrong).Code)
+	// The right digits for another operation, and from another session of the
+	// same account, prove nothing.
+	assert.Equal(t, "EMAIL_VERIFICATION_CODE_INVALID", verifyStepUpCode(identity, "passkey.register", code).Code)
+	bundle, err := service.CreateLoginSession(user.Id, "magic_link", "127.0.0.1", "second-device")
+	require.NoError(t, err)
+	other, err := service.ParseAccessToken(bundle.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, "EMAIL_VERIFICATION_CODE_INVALID", verifyStepUpCode(other, "2fa.setup", code).Code)
+
+	result = verifyStepUpCode(identity, "2fa.setup", code)
+	require.True(t, result.Success, result.Message)
+	var proof service.SecurityProof
+	require.NoError(t, common.Unmarshal(result.Data, &proof))
+	assert.Equal(t, "email", proof.Method)
+	_, err = service.ConsumeOperationProof(proof.ProofToken, identity, service.VerificationOperation{Scope: "2fa.setup"})
+	require.NoError(t, err)
+	assert.Equal(t, "EMAIL_VERIFICATION_CODE_INVALID", verifyStepUpCode(identity, "2fa.setup", code).Code, "a spent code is not replayable")
+
+	var audits []model.AuditLog
+	require.NoError(t, model.LOG_DB.Find(&audits).Error)
+	encoded, err := common.Marshal(audits)
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), "user.security_email_code")
+	assert.NotRegexp(t, `(^|\D)`+code+`(\D|$)`, string(encoded))
+}
+
+func TestSecurityAccountEmailStepUpRefusesSpentCodes(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		spoil func(t *testing.T, user *model.User, identity service.AuthIdentity, code string)
+	}{
+		{"attempt cap", func(t *testing.T, _ *model.User, identity service.AuthIdentity, code string) {
+			wrong := "000000"
+			if code == wrong {
+				wrong = "111111"
+			}
+			for range model.EmailStepUpMaxAttempts {
+				assert.Equal(t, "EMAIL_VERIFICATION_CODE_INVALID", verifyStepUpCode(identity, "account.password.set", wrong).Code)
+			}
+		}},
+		{"expired", func(t *testing.T, user *model.User, _ service.AuthIdentity, _ string) {
+			require.NoError(t, model.DB.Model(&model.AuthFlow{}).Where("user_id = ?", user.Id).
+				Update("expires_at", time.Now().Add(-time.Second)).Error)
+		}},
+		{"superseded", func(t *testing.T, user *model.User, identity service.AuthIdentity, _ string) {
+			allowStepUpResend(t, user.Id)
+			_, result := sendStepUpCode(identity, `{"scope":"account.password.set"}`)
+			require.True(t, result.Success, result.Message)
+		}},
+		{"address changed", func(t *testing.T, user *model.User, _ service.AuthIdentity, _ string) {
+			require.NoError(t, model.DB.Model(user).Update("email", "someone-else@example.com").Error)
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			user, identity := setupPasswordlessEmailAccount(t)
+			mailbox := newSecurityMailbox(t)
+			_, result := sendStepUpCode(identity, `{"scope":"account.password.set"}`)
+			require.True(t, result.Success, result.Message)
+			code := mailbox.code(t, "owner@example.com")
+			test.spoil(t, user, identity, code)
+			if test.name == "superseded" && mailbox.code(t, "owner@example.com") == code {
+				t.Skip("the replacement code repeated the first one")
+			}
+			assert.False(t, verifyStepUpCode(identity, "account.password.set", code).Success)
+		})
+	}
+}
+
+func TestSecurityAccountEmailStepUpIsOnlyForPasswordlessAccounts(t *testing.T) {
+	user, identity := setupSecurityEnrollmentTest(t)
+	require.NoError(t, model.DB.Model(user).Update("email", "owner@example.com").Error)
+	mailbox := newSecurityMailbox(t)
+	_, result := sendStepUpCode(identity, `{"scope":"2fa.setup"}`)
+	assert.False(t, result.Success)
+	assert.Equal(t, "SECURITY_PROOF_METHOD_MISMATCH", result.Code)
+	mailbox.mutex.Lock()
+	defer mailbox.mutex.Unlock()
+	assert.Empty(t, mailbox.mail)
+}

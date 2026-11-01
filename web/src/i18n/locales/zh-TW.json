@@ -7582,6 +7582,14 @@
     "View refused message": "查看被拒絕的訊息",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "被拒請求裡客戶寫的最後一則訊息，最多 4 KB。上游判斷的是整段對話，不只是這一則。",
     "Warn-first categories": "首次僅警告的類別",
-    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "拒絕類別，以逗號分隔。計次期間內這些類別的第一次拒絕只記警告：被拒的對話仍會封鎖，但不暫停客戶，也不計入停用帳號的次數。"
+    "Refusal categories, separated by commas, whose first refusal in the counting window is only a warning: the refused conversation stays blocked, but the customer is not suspended and the warning does not count toward disabling.": "拒絕類別，以逗號分隔。計次期間內這些類別的第一次拒絕只記警告：被拒的對話仍會封鎖，但不暫停客戶，也不計入停用帳號的次數。",
+    "Email code": "電子郵件驗證碼",
+    "A 6-digit code was sent to {{email}}. It expires in 10 minutes.": "6 位驗證碼已寄至 {{email}}，10 分鐘內有效。",
+    "We will email a 6-digit code to the address on your account.": "我們會向帳戶綁定的電子郵件寄送 6 位驗證碼。",
+    "Email verification code": "電子郵件驗證碼",
+    "Security verification code email": "寄送安全驗證碼郵件",
+    "Email verification is unavailable because outbound mail is not configured.": "網站未設定寄信服務，暫時無法透過電子郵件驗證。",
+    "The email verification code is incorrect or has expired.": "電子郵件驗證碼錯誤或已失效。",
+    "The verification email could not be sent. Try again later.": "驗證郵件寄送失敗，請稍後再試。"
   }
 }
