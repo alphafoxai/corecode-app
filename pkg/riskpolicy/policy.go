@@ -3,6 +3,7 @@
 package riskpolicy
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -62,7 +63,11 @@ func fingerprintHit(hay string, fingerprints []namedText) *namedText {
 	return nil
 }
 
+// matchDistill returns the first distillation hit. A pattern that fails, such
+// as one that exceeds the match timeout, is skipped so that crafted text cannot
+// hide later rules behind it; the first such fault is returned when nothing hits.
 func matchDistill(config *distillConfig, input Input, prompt prompt, harvest bool) (Hit, error) {
+	var fault error
 	if needle := needleHit(prompt.joined, config.hardNeedles); needle != nil {
 		return Hit{Stage: "distill", Rule: needle.name, Detail: needle.text, Excerpt: prompt.user}, nil
 	}
@@ -80,7 +85,8 @@ func matchDistill(config *distillConfig, input Input, prompt prompt, harvest boo
 		for _, pattern := range config.patterns {
 			evidence, matched, err := session.match(pattern.re, hay, true)
 			if err != nil {
-				return Hit{}, fmt.Errorf("matching %s: %w", pattern.name, err)
+				fault = cmp.Or(fault, fmt.Errorf("matching %s: %w", pattern.name, err))
+				continue
 			}
 			if matched {
 				if evidence == "" {
@@ -91,7 +97,7 @@ func matchDistill(config *distillConfig, input Input, prompt prompt, harvest boo
 		}
 	}
 	if config.skipOfficial && input.Official || config.skipZero && input.ZeroInject {
-		return Hit{}, nil
+		return Hit{}, fault
 	}
 	fingerprintText := prompt.user
 	if fingerprintText == "" {
@@ -106,24 +112,27 @@ func matchDistill(config *distillConfig, input Input, prompt prompt, harvest boo
 	if config.contest != nil {
 		session, err := config.contest.engine.get()
 		if err != nil {
-			return Hit{}, err
+			return Hit{}, cmp.Or(fault, err)
 		}
 		defer session.close()
 		_, contest, err := session.match(config.contest, prompt.joined, false)
 		if err != nil {
-			return Hit{}, fmt.Errorf("matching contest pattern: %w", err)
+			return Hit{}, cmp.Or(fault, fmt.Errorf("matching contest pattern: %w", err))
 		}
 		if contest && harvest {
 			return Hit{Stage: "distill", Rule: "harvest", Detail: "contest+harvest", Excerpt: prompt.user}, nil
 		}
 	}
-	return Hit{}, nil
+	return Hit{}, fault
 }
 
+// matchHard returns the first hard rule that matches. Like matchDistill, it
+// skips a rule that fails and returns the first fault only when nothing hits.
 func matchHard(rules []hardRule, document string, distillOn, hardOn, openai bool, excerpt string) (Hit, error) {
 	if document == "" {
 		return Hit{}, nil
 	}
+	var fault error
 	var session *regexSession
 	defer func() {
 		if session != nil {
@@ -142,7 +151,7 @@ func matchHard(rules []hardRule, document string, distillOn, hardOn, openai bool
 			var err error
 			session, err = rule.re.engine.get()
 			if err != nil {
-				return Hit{}, err
+				return Hit{}, cmp.Or(fault, err)
 			}
 		}
 		match, found, err := session.match(rule.re, document, false)
@@ -151,7 +160,10 @@ func matchHard(rules []hardRule, document string, distillOn, hardOn, openai bool
 			if rule.distill {
 				stage = "distill"
 			}
-			return Hit{}, &StageError{Stage: stage, Err: fmt.Errorf("matching hard rule %s: %w", rule.name, err)}
+			if fault == nil {
+				fault = &StageError{Stage: stage, Err: fmt.Errorf("matching hard rule %s: %w", rule.name, err)}
+			}
+			continue
 		}
 		if !found {
 			continue
@@ -172,7 +184,7 @@ func matchHard(rules []hardRule, document string, distillOn, hardOn, openai bool
 		}
 		return Hit{Stage: stage, Rule: rule.name, Detail: keyword, Excerpt: excerpt}, nil
 	}
-	return Hit{}, nil
+	return Hit{}, fault
 }
 
 func normalizeWhitespace(s string) string {
@@ -243,9 +255,11 @@ func verdictKey(parts []string, flags ...bool) [32]byte {
 }
 
 // Evaluate applies a structured distill configuration and ordered hard rules.
-// Regex errors, including a finite match timeout, are returned to the caller
-// as a *StageError; they are never silently interpreted as a clean match.
-// Verdicts are cached; errors are not.
+// A rule whose regex fails, including by the finite match timeout, is skipped
+// and every later rule still runs, so a hit after it is still reported. When
+// nothing hits, the first such fault is returned to the caller as a
+// *StageError; it is never silently interpreted as a clean match. Verdicts
+// are cached; errors are not.
 func Evaluate(distillSource, hardSource string, input Input, distillEnabled, hardEnabled bool) (Hit, error) {
 	config, err := cachedDistill(distillSource)
 	if err != nil {
@@ -286,22 +300,27 @@ func Evaluate(distillSource, hardSource string, input Input, distillEnabled, har
 }
 
 func evaluate(config *distillConfig, hardSource string, input Input, p prompt, document string, harvest, distillOn, hardEnabled, openai bool) (Hit, error) {
+	// A fault in the distillation stage does not stop the hard rules.
+	var fault error
 	if distillOn && !openai {
 		hit, err := matchDistill(config, input, p, harvest)
-		if err != nil {
-			return Hit{}, &StageError{Stage: "distill", Err: err}
-		}
 		if hit.Stage != "" {
 			return hit, nil
+		}
+		if err != nil {
+			fault = &StageError{Stage: "distill", Err: err}
 		}
 	}
 	rules, err := cachedHard(hardSource)
 	if err != nil {
-		return Hit{}, &StageError{Stage: "hard_regex", Err: err}
+		return Hit{}, cmp.Or(fault, error(&StageError{Stage: "hard_regex", Err: err}))
 	}
 	hit, err := matchHard(rules, document, distillOn, hardEnabled, openai, p.user)
+	if hit.Stage != "" {
+		return hit, nil
+	}
 	if stageErr := (*StageError)(nil); err != nil && !errors.As(err, &stageErr) {
 		err = &StageError{Stage: "hard_regex", Err: err}
 	}
-	return hit, err
+	return Hit{}, cmp.Or(fault, err)
 }
