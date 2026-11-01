@@ -309,12 +309,38 @@ func TestVerdictCache(t *testing.T) {
 }
 
 func TestRegexFaultCarriesStageAndIsNotCached(t *testing.T) {
-	rules := `slow | (\w+)+\1x`
+	// (\w+)+\1x backtracks past the match timeout on a long "abab..." text.
+	const slow = `(\w+)+\1x`
+	slowPatternConfig := testConfig(`"patterns":[]`, `"patterns":["(\\w+)+\\1x","ababab"]`)
+	tests := []struct {
+		name, config, rules string
+		distill             bool
+		stage, rule         string // the hit, when a later rule matches
+		faultStage          string // the StageError, when nothing matches
+	}{
+		{"hard timeout alone", emptyConfig, "slow | " + slow, false, "", "", "hard_regex"},
+		{"later hard rule after a hard timeout", emptyConfig, "slow | " + slow + "\nlater | ababab", false, "hard_regex", "later", ""},
+		{"later hard rule after a distill hard rule timeout", emptyConfig, "vm2api.distill.01 | " + slow + "\nlater | ababab", true, "hard_regex", "later", ""},
+		{"distill hard rule timeout alone", emptyConfig, "vm2api.distill.01 | " + slow, true, "", "", "distill"},
+		{"later pattern after a pattern timeout", slowPatternConfig, "", true, "distill", "pattern.02", ""},
+		{"hard rule after a pattern timeout", testConfig(`"patterns":[]`, `"patterns":["(\\w+)+\\1x"]`), "later | ababab", true, "hard_regex", "later", ""},
+		{"pattern timeout alone", testConfig(`"patterns":[]`, `"patterns":["(\\w+)+\\1x"]`), "", true, "", "", "distill"},
+	}
 	input := testInput(`{"input":"` + strings.Repeat("ab", 2000) + `"}`)
-	for range 2 {
-		_, err := Evaluate(emptyConfig, rules, input, false, true)
-		var stageErr *StageError
-		require.ErrorAs(t, err, &stageErr)
-		assert.Equal(t, "hard_regex", stageErr.Stage)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for range 2 {
+				hit, err := Evaluate(tt.config, tt.rules, input, tt.distill, true)
+				if tt.faultStage == "" {
+					require.NoError(t, err)
+					assert.Equal(t, []string{tt.stage, tt.rule}, []string{hit.Stage, hit.Rule})
+					continue
+				}
+				var stageErr *StageError
+				require.ErrorAs(t, err, &stageErr, "a fault with no hit is reported, and is not cached as clean")
+				assert.Equal(t, tt.faultStage, stageErr.Stage)
+				assert.Empty(t, hit.Stage)
+			}
+		})
 	}
 }

@@ -102,6 +102,9 @@ func (session *regexSession) call(hook moejs.Hook, args ...moejs.Value) (moejs.V
 	value, err := session.rt.Call(hook, args...)
 	if !timer.Stop() {
 		<-done
+		// A timed-out rule is skipped and the session runs the next one, so
+		// drop the interrupt, which may also have landed after Call returned.
+		session.rt.ClearInterrupt()
 	}
 	return value, err
 }
