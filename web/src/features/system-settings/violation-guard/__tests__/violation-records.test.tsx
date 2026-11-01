@@ -71,7 +71,7 @@ async function renderRecords() {
       data: {
         page: 1,
         page_size: 20,
-        total: 4,
+        total: 5,
         items: [
           record(1, 'suspended-user', NOW + 3600),
           record(2, 'expired-user', NOW - 3600),
@@ -81,6 +81,12 @@ async function renderRecords() {
             category: 'reasoning_extraction',
             excerpt: LONG_EXCERPT,
             action: 'warn',
+          },
+          {
+            ...record(5, 'auto-mode-user', 0),
+            category: 'reasoning_extraction',
+            excerpt: '<transcript> {"user":"refactor this mod"} </transcript>',
+            action: 'client_check',
           },
         ],
       },
@@ -153,10 +159,11 @@ it('shows a refused message on one line and opens the whole of it in a dialog', 
   await renderRecords()
 
   expect(screen.getByText('Warning (not counted)')).toBeInTheDocument()
+  expect(screen.getByText('Client check (not counted)')).toBeInTheDocument()
   const excerpts = screen.getAllByRole('button', {
     name: 'View refused message',
   })
-  expect(excerpts).toHaveLength(4)
+  expect(excerpts).toHaveLength(5)
   // The cell collapses line breaks, so the row stays one line high.
   expect(excerpts[3]).toHaveTextContent(
     /^first line of a long message x+ last line$/

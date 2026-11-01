@@ -184,10 +184,20 @@ func RecordUpstreamRefusal(c *gin.Context, info *relaycommon.RelayInfo) {
 			common.SysError(common.LogText("violation guard: failed to record a refusal for user %d: %s", record.UserId, err.Error()))
 			return
 		}
-		if user, err := model.GetUserCache(record.UserId); err == nil && !violationExempt(user.Role) {
+		if user, err := model.GetUserCache(record.UserId); err == nil && !violationExempt(user.Role) && !clientCheckRefusal(setting, record) {
 			rememberRefusedMessage(record.Excerpt)
 		}
 	})
+}
+
+// clientCheckRefusal reports whether a refusal judged a request the client
+// sent on its own rather than the customer's ask. Claude Code's side
+// requests, such as auto mode's check before a tool call, send the session as
+// one user turn wrapped in <transcript>; the upstream refuses many of them as
+// reasoning_extraction. Only lenient categories qualify, so a client that
+// copies the wrapper cannot hide a refusal of another category.
+func clientCheckRefusal(setting operation_setting.ViolationGuardSetting, record model.ViolationRecord) bool {
+	return setting.LenientCategory(record.Category) && strings.HasPrefix(record.Excerpt, "<transcript>")
 }
 
 // violationExempt reports whether refusals of a user with this role are
@@ -221,41 +231,47 @@ func applyViolationStrike(setting operation_setting.ViolationGuardSetting, recor
 		record.Mode = model.ViolationModeExempt
 	}
 
-	newStrike := true
-	if record.ConversationKey != "" {
-		counted, err := model.HasViolationStrikeInConversation(record.UserId, record.Mode, record.ConversationKey, windowStart)
-		if err != nil {
-			return err
-		}
-		newStrike = !counted
-	}
 	mergeSeconds := max(int64(setting.SuspendHours)*3600, minViolationMergeSeconds)
-	if newStrike {
-		if newStrike, err = model.ClaimViolationStrike(record.UserId, record.Mode, now, now-mergeSeconds); err != nil {
-			return err
+	// A refused client check is recorded and its conversation held, but it
+	// neither starts nor joins an incident.
+	if clientCheckRefusal(setting, record) {
+		record.Action = model.ViolationActionClientCheck
+	} else {
+		newStrike := true
+		if record.ConversationKey != "" {
+			counted, err := model.HasViolationStrikeInConversation(record.UserId, record.Mode, record.ConversationKey, windowStart)
+			if err != nil {
+				return err
+			}
+			newStrike = !counted
 		}
-	}
-	record.Action = model.ViolationActionMerged
-	if newStrike {
-		warned := true
-		if setting.LenientCategory(record.Category) {
-			if warned, err = model.HasViolationWarning(record.UserId, record.Mode, windowStart); err != nil {
+		if newStrike {
+			if newStrike, err = model.ClaimViolationStrike(record.UserId, record.Mode, now, now-mergeSeconds); err != nil {
 				return err
 			}
 		}
-		strikes, err := model.CountViolationStrikes(record.UserId, record.Mode, windowStart)
-		if err != nil {
-			return err
-		}
-		switch {
-		case !warned:
-			record.Action = model.ViolationActionWarn
-		case setting.BanStrikes > 0 && strikes+1 >= int64(setting.BanStrikes):
-			record.Action = model.ViolationActionBan
-		case setting.SuspendHours > 0:
-			record.Action = model.ViolationActionSuspend
-		default:
-			record.Action = model.ViolationActionStrike
+		record.Action = model.ViolationActionMerged
+		if newStrike {
+			warned := true
+			if setting.LenientCategory(record.Category) {
+				if warned, err = model.HasViolationWarning(record.UserId, record.Mode, windowStart); err != nil {
+					return err
+				}
+			}
+			strikes, err := model.CountViolationStrikes(record.UserId, record.Mode, windowStart)
+			if err != nil {
+				return err
+			}
+			switch {
+			case !warned:
+				record.Action = model.ViolationActionWarn
+			case setting.BanStrikes > 0 && strikes+1 >= int64(setting.BanStrikes):
+				record.Action = model.ViolationActionBan
+			case setting.SuspendHours > 0:
+				record.Action = model.ViolationActionSuspend
+			default:
+				record.Action = model.ViolationActionStrike
+			}
 		}
 	}
 	if err := model.CreateViolationRecord(&record); err != nil {

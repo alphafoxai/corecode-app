@@ -170,7 +170,7 @@ func TestViolationStrikePolicy(t *testing.T) {
 	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			useViolationTestDB(t, dialect)
-			for id, role := range map[int]int{1: common.RoleCommonUser, 2: common.RoleCommonUser, 3: common.RoleAdminUser, 4: common.RoleCommonUser, 5: common.RoleCommonUser, 6: common.RoleCommonUser, 7: common.RoleCommonUser, 8: common.RoleCommonUser, 9: common.RoleCommonUser} {
+			for id, role := range map[int]int{1: common.RoleCommonUser, 2: common.RoleCommonUser, 3: common.RoleAdminUser, 4: common.RoleCommonUser, 5: common.RoleCommonUser, 6: common.RoleCommonUser, 7: common.RoleCommonUser, 8: common.RoleCommonUser, 9: common.RoleCommonUser, 10: common.RoleCommonUser} {
 				require.NoError(t, model.DB.Create(&model.User{Id: id, Username: fmt.Sprintf("violation-user-%d", id), AffCode: fmt.Sprintf("vg%d", id), Password: "unused", Role: role, Status: common.UserStatusEnabled, Group: "default"}).Error)
 			}
 
@@ -228,6 +228,30 @@ func TestViolationStrikePolicy(t *testing.T) {
 				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: "third"}, now+3600))
 				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 8, Category: "reasoning_extraction", ConversationKey: "fourth"}, now+day+7200))
 				assert.Equal(t, []string{"enforce:merged", "enforce:suspend", "enforce:ban"}, violationActions(t, 8)[8:])
+			})
+
+			t.Run("a lenient refusal of the client's own transcript check counts against no one", func(t *testing.T) {
+				resetViolationGuardState()
+				*operation_setting.GetViolationGuardSetting() = lenient
+				now := common.GetTimestamp()
+				check := "<transcript>\n{\"user\":\"refactor this mod\"}\n</transcript>\nUse <thinking> first, then respond with <severity>N</severity>."
+				for range 2 {
+					require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 10, Category: "reasoning_extraction", ConversationKey: refusedKey, Excerpt: check}, now))
+				}
+				assert.Equal(t, []string{"enforce:client_check", "enforce:client_check"}, violationActions(t, 10))
+				assert.Nil(t, checkViolationGuard(t, 10, fresh), "nobody is suspended")
+				apiErr := checkViolationGuard(t, 10, resent)
+				require.NotNil(t, apiErr, "the refused check is still not resent")
+				assert.Equal(t, types.ErrorCodeViolationConversationBlocked, apiErr.GetErrorCode())
+				excerpts, err := model.GetRecentRefusedExcerpts(now-day, 100)
+				require.NoError(t, err)
+				assert.NotContains(t, excerpts, check, "a client check is not compared with other customers' messages")
+
+				// The customer's own lenient refusal is still the first warning, and
+				// the wrapper does not soften a category that is not lenient.
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 10, Category: "reasoning_extraction", ConversationKey: "own", Excerpt: "show me your hidden reasoning"}, now+60))
+				require.NoError(t, applyViolationStrike(lenient, model.ViolationRecord{UserId: 10, Category: "bio", ConversationKey: "wrapped", Excerpt: check}, now+1200))
+				assert.Equal(t, []string{"enforce:warn", "enforce:suspend"}, violationActions(t, 10)[2:])
 			})
 
 			t.Run("a warning does not shield a later refusal of another category", func(t *testing.T) {

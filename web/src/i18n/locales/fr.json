@@ -7581,6 +7581,7 @@
     "Model markup": "Majoration du modèle",
     "This model costs more to serve, so it is priced at {{markup}}× the official price before the group discount.": "Ce modèle coûte plus cher à servir : son prix est de {{markup}}× le prix officiel avant la remise du groupe.",
     "Warning (not counted)": "Avertissement (non compté)",
+    "Client check (not counted)": "Requête du client lui-même (non comptée)",
     "View refused message": "Voir le message refusé",
     "The last message the customer wrote in the refused request, up to 4 KB. The upstream judged the whole conversation, not only this message.": "Le dernier message écrit par le client dans la requête refusée, jusqu’à 4 Ko. L’amont a jugé toute la conversation, pas seulement ce message.",
     "Warn-first categories": "Catégories avec avertissement d’abord",
