@@ -5,7 +5,7 @@ because it records this codebase's real conventions. -->
 
 This repository is one component of the CoreCode set. Shared rules, the project map, and the
 deployment contract live in
-[`alphafoxai/corecode-infra`](https://github.com/alphafoxai/corecode-infra); read its
+[`CoreCodeAI/corecode-infra`](https://github.com/CoreCodeAI/corecode-infra); read its
 `AGENTS.md` first. What follows is this component's own guide.
 
 ## License
