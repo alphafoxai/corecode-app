@@ -133,6 +133,12 @@ export function FinanceSummary(props: {
                 previous: previous?.recognized_revenue,
                 better: 'up',
               }}
+              trend={(data?.daily ?? []).map((day) => ({
+                title: fmt.day(day.day),
+                value: day.recognized_revenue ?? 0,
+              }))}
+              trendFormat={fmt.cny}
+              trendBars
               hint={t('Wallets {{wallet}} · plans {{plans}}', {
                 wallet: fmt.cny(data?.recognized_wallet_revenue ?? 0),
                 plans: fmt.cny(data?.recognized_subscription_revenue ?? 0),
@@ -231,6 +237,8 @@ function Stat(props: {
   tone?: Tone
   trend?: TrendPoint[]
   trendFormat?: (value: number) => string
+  /** Draws the trend as a bar per day, for amounts settled each day. */
+  trendBars?: boolean
   hint?: ReactNode
   parts?: { label: string; value: number }[]
   loading: boolean
@@ -273,6 +281,7 @@ function Stat(props: {
             points={props.trend}
             format={props.trendFormat ?? fmt.num}
             label={props.label}
+            bars={props.trendBars}
           />
         </dd>
       )}
