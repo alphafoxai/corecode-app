@@ -145,5 +145,5 @@ jobs:
           GH_TOKEN: ${{ secrets.CORECODE_INFRA_DISPATCH_TOKEN }}
         run: |
           set -eu
-          gh workflow run release-app.yml --repo alphafoxai/corecode-infra --ref main -f sha="$GITHUB_SHA"
-          echo "::notice title=Release::https://github.com/alphafoxai/corecode-infra/actions/workflows/release-app.yml"
+          gh workflow run release-app.yml --repo CoreCodeAI/corecode-infra --ref main -f sha="$GITHUB_SHA"
+          echo "::notice title=Release::https://github.com/CoreCodeAI/corecode-infra/actions/workflows/release-app.yml"

@@ -272,7 +272,7 @@ control request. Terminal shutdown retains `SHUTDOWN_TIMEOUT_SECONDS` (default 1
 The runtime image label `live.corecode.deployment-drain="1"` identifies this capability;
 candidate images must support it. Infra owns the separately verified legacy bootstrap:
 gracefully finish proxy responses before the first compatible upgrade, without forced kills.
-See the [CoreCode infra runbook](https://github.com/alphafoxai/corecode-infra/blob/main/README.md).
+See the [CoreCode infra runbook](https://github.com/CoreCodeAI/corecode-infra/blob/main/README.md).
 
 <a id="development"></a>
 
