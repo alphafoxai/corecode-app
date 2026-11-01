@@ -7437,6 +7437,8 @@
     "Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).": "vm2api の distill-rules.json オブジェクトを貼り付けると、除外条件、フィンガープリント、構造チェックを使用できます。従来の 名前 | 正規表現 形式でも入力できます。従来形式では # で始まる行は無視され、大文字と小文字を区別しない場合は (?i) を付けます。任意の JSON フラグ：zero_inject（既定値 false）、openai_platform_enabled（既定値 false）、detect_proxied_official_cc（既定値 true）。",
     "Record a violation": "違反として記録",
     "A hit counts as a violation against the customer under the violation guard policy.": "一致した場合、違反対応のポリシーに従って顧客の違反として数えます。",
+    "Skip recognized Claude Code clients": "Claude Code と判定したクライアントを除外",
+    "A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.": "公式 Claude Code からのリクエストは、違反の集計期間内に拒否された会話がない限りモデルに送りません。クライアントは Claude Code を装って除外を受けられます。",
     "2 · Hard regex": "2 · ハード正規表現",
     "Matches every message the customer wrote. Tool results, system prompts and system reminders are not scanned.": "顧客が書いたすべてのメッセージを照合します。ツール結果、システムプロンプト、システムリマインダーは対象外です。",
     "Hard regex rules": "ハード正規表現ルール",

@@ -53,6 +53,11 @@ type RiskGateSetting struct {
 	// DecisionFailOpen lets a request through when the model cannot answer.
 	DecisionFailOpen bool `json:"decision_fail_open"`
 	DecisionStrike   bool `json:"decision_strike"`
+	// DecisionSkipOfficial leaves out of the decision model a request from a
+	// recognized official Claude Code client whose customer has no refused
+	// conversation in the violation guard's window. Recognition reads what the
+	// client sends, so a client that copies Claude Code skips it too.
+	DecisionSkipOfficial bool `json:"decision_skip_official"`
 }
 
 // DefaultRiskGateDecisionQuestions asks whether the customer's own text seeks

@@ -119,7 +119,7 @@ func useViolationTestDB(t *testing.T, dialect string) {
 		model.DB, model.LOG_DB = previousDB, previousLogDB
 		common.SetDatabaseTypes(previousMain, previousLog)
 	})
-	for _, table := range []any{&model.User{}, &model.UserSession{}, &model.ViolationRecord{}, &model.UserViolationState{}, &model.RiskGateEvent{}, &model.RiskGateHourlyCount{}} {
+	for _, table := range []any{&model.User{}, &model.UserSession{}, &model.ViolationRecord{}, &model.UserViolationState{}, &model.RiskGateEvent{}, &model.RiskGateHourlyCount{}, &model.RiskCustomerHourlyCount{}} {
 		require.False(t, db.Migrator().HasTable(table), "use an empty test database")
 		require.NoError(t, db.AutoMigrate(table))
 		t.Cleanup(func() { require.NoError(t, db.Migrator().DropTable(table)) })

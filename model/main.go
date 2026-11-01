@@ -381,6 +381,7 @@ func migrateDB() error {
 		&UserViolationState{},
 		&RiskGateEvent{},
 		&RiskGateHourlyCount{},
+		&RiskCustomerHourlyCount{},
 		&Affiliate{},
 		&AffiliateReferral{},
 		&AffiliateCommission{},

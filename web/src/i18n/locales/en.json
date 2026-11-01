@@ -7437,6 +7437,8 @@
     "Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).": "Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).",
     "Record a violation": "Record a violation",
     "A hit counts as a violation against the customer under the violation guard policy.": "A hit counts as a violation against the customer under the violation guard policy.",
+    "Skip recognized Claude Code clients": "Skip recognized Claude Code clients",
+    "A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.": "A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.",
     "2 · Hard regex": "2 · Hard regex",
     "Matches every message the customer wrote. Tool results, system prompts and system reminders are not scanned.": "Matches every message the customer wrote. Tool results, system prompts and system reminders are not scanned.",
     "Hard regex rules": "Hard regex rules",

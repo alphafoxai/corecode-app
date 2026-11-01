@@ -23,6 +23,7 @@ import (
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -59,14 +60,35 @@ func CheckRiskGate(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErr
 	}
 	hit := riskGateHit{c: c, info: info, gate: gate, messages: messages, latest: latest}
 
+	// The structured policy and the counters read the body of these request
+	// types only.
+	var request riskGateRequest
+	var readErr error
+	readable := false
+	switch info.Request.(type) {
+	case *dto.ClaudeRequest, *dto.GeneralOpenAIRequest, *dto.OpenAIResponsesRequest, *dto.OpenAIResponsesCompactionRequest:
+		readable = true
+		request, readErr = readRiskGateRequest(c, gate.DistillRules)
+		// Only the Claude pool is counted: its accounts are the ones a
+		// harvesting customer puts at risk, and client recognition is for
+		// Claude Code.
+		if readErr == nil && strings.HasPrefix(info.OriginModelName, "claude") {
+			countRiskGateCustomer(info.UserId, request)
+		}
+	}
+
 	if strings.HasPrefix(strings.TrimSpace(gate.DistillRules), "{") {
-		switch info.Request.(type) {
-		case *dto.ClaudeRequest, *dto.GeneralOpenAIRequest, *dto.OpenAIResponsesRequest, *dto.OpenAIResponsesCompactionRequest:
+		if readable {
 			// A fault in the gate itself never rejects the request: it is
 			// recorded and the later stages still run.
-			input, err := riskGatePolicyInput(c, gate.DistillRules)
 			var verdict riskpolicy.Hit
+			err := readErr
 			if err == nil {
+				input := riskpolicy.Input{
+					Inbound: request.body, Body: request.body,
+					Official:   request.official,
+					ZeroInject: gjson.Get(gate.DistillRules, "zero_inject").Bool(),
+				}
 				verdict, err = riskpolicy.Evaluate(gate.DistillRules, gate.HardRegexRules, input, gate.DistillEnabled, gate.HardRegexEnabled)
 			}
 			if err != nil {
@@ -75,9 +97,7 @@ func CheckRiskGate(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErr
 					stage = stageErr.Stage
 				}
 				hit.record(stage, "unavailable", err.Error(), model.RiskGateActionFailOpen)
-				break
-			}
-			if verdict.Stage != "" {
+			} else if verdict.Stage != "" {
 				if hit.latest == "" {
 					hit.latest = verdict.Excerpt
 				}
@@ -118,6 +138,12 @@ func CheckRiskGate(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErr
 	}
 
 	if gate.DecisionEnabled && gate.DecisionBaseURL != "" && len(messages) > 0 {
+		// The decision model is asked about the traffic the cheaper stages
+		// cannot vouch for: an unrecognized client, or a customer with a
+		// refused conversation in the strike window.
+		if gate.DecisionSkipOfficial && request.official && !violationRefusedRecently(info.UserId) {
+			return nil
+		}
 		return checkRiskGateDecision(hit)
 	}
 	return nil
@@ -395,7 +421,36 @@ func systemText(request dto.Request) string {
 var riskGateCounts = struct {
 	sync.Mutex
 	pending map[int64][3]int64
-}{pending: map[int64][3]int64{}}
+	// customers holds each customer's hourly counts, in the order of
+	// model.RiskCustomerHourlyCount's counters.
+	customers map[riskGateCustomerHour][4]int64
+}{pending: map[int64][3]int64{}, customers: map[riskGateCustomerHour][4]int64{}}
+
+type riskGateCustomerHour struct {
+	userId int
+	hour   int64
+}
+
+// countRiskGateCustomer counts one Claude request of a customer by client and
+// shape. Harvesting shows as many bare requests from an unrecognized client,
+// which no single request reveals.
+func countRiskGateCustomer(userId int, request riskGateRequest) {
+	key := riskGateCustomerHour{userId: userId, hour: time.Now().Unix() / 3600 * 3600}
+	riskGateCounts.Lock()
+	counts := riskGateCounts.customers[key]
+	counts[0]++
+	if !request.official {
+		counts[1]++
+	}
+	if request.bare {
+		counts[2]++
+		if !request.official {
+			counts[3]++
+		}
+	}
+	riskGateCounts.customers[key] = counts
+	riskGateCounts.Unlock()
+}
 
 func countRiskGate(inbound, decisionCalls, decisionFailures int64) {
 	hour := time.Now().Unix() / 3600 * 3600
@@ -421,6 +476,9 @@ func StartRiskGateTasks() {
 				if err := model.DeleteRiskGateEventsBefore(common.GetTimestamp() - riskGateEventRetentionDays*86400); err != nil {
 					common.SysError(common.LogText("risk gate: failed to remove old events: %s", err.Error()))
 				}
+				if err := model.DeleteRiskCustomerCountsBefore(common.GetTimestamp() - riskGateEventRetentionDays*86400); err != nil {
+					common.SysError(common.LogText("risk gate: failed to remove old customer counters: %s", err.Error()))
+				}
 			}
 		}
 	})
@@ -434,8 +492,9 @@ func FlushRiskGateCounts() {
 	riskGateCountWriting.Lock()
 	defer riskGateCountWriting.Unlock()
 	riskGateCounts.Lock()
-	pending := riskGateCounts.pending
+	pending, customers := riskGateCounts.pending, riskGateCounts.customers
 	riskGateCounts.pending = map[int64][3]int64{}
+	riskGateCounts.customers = map[riskGateCustomerHour][4]int64{}
 	riskGateCounts.Unlock()
 	for hour, counts := range pending {
 		if err := model.AddRiskGateCounts(hour, counts[0], counts[1], counts[2]); err != nil {
@@ -446,6 +505,18 @@ func FlushRiskGateCounts() {
 				current[i] += counts[i]
 			}
 			riskGateCounts.pending[hour] = current
+			riskGateCounts.Unlock()
+		}
+	}
+	for key, counts := range customers {
+		if err := model.AddRiskCustomerCounts(key.userId, key.hour, counts); err != nil {
+			common.SysError(common.LogText("risk gate: failed to write customer counters: %s", err.Error()))
+			riskGateCounts.Lock()
+			current := riskGateCounts.customers[key]
+			for i := range current {
+				current[i] += counts[i]
+			}
+			riskGateCounts.customers[key] = current
 			riskGateCounts.Unlock()
 		}
 	}
