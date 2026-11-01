@@ -18,6 +18,28 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { SystemStatus } from '@/features/auth/types'
 
+type OIDCStatus = Pick<
+  SystemStatus,
+  'oidc_display_name' | 'oidc_authorization_endpoint'
+>
+
+/** The name the site gives its OIDC provider, such as "Google", or "OIDC". */
+export function oidcProviderName(status?: OIDCStatus | null): string {
+  return status?.oidc_display_name?.trim() || 'OIDC'
+}
+
+/**
+ * Google is configured through the OIDC slot; the endpoint, not the editable
+ * display name, decides whether its mark is shown.
+ */
+export function isGoogleOIDC(status?: OIDCStatus | null): boolean {
+  return Boolean(
+    status?.oidc_authorization_endpoint?.startsWith(
+      'https://accounts.google.com/'
+    )
+  )
+}
+
 // ============================================================================
 // OAuth URL Builders
 // ============================================================================

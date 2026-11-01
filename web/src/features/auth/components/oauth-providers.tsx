@@ -29,6 +29,7 @@ import {
 } from '@/assets/brand-icons'
 import { Button } from '@/components/ui/button'
 import { FieldSeparator } from '@/components/ui/field'
+import { isGoogleOIDC, oidcProviderName } from '@/lib/oauth'
 import { cn } from '@/lib/utils'
 
 import { useOAuthLogin } from '../hooks/use-oauth-login'
@@ -108,21 +109,15 @@ export function OAuthProviders({
   }
 
   if (status?.oidc_enabled) {
-    const oidcDisplayName = status.oidc_display_name?.trim() || 'OIDC'
-    // Google is configured through the OIDC slot; the endpoint, not the editable
-    // display name, decides whether its mark is shown.
-    const isGoogle = Boolean(
-      status.oidc_authorization_endpoint?.startsWith(
-        'https://accounts.google.com/'
-      )
-    )
     providerButtons.push({
       key: 'oidc',
       label: t('Continue with {{name}}', {
-        name: oidcDisplayName,
+        name: oidcProviderName(status),
       }),
       onClick: handleOIDCLogin,
-      icon: isGoogle ? <IconGoogle className='h-4 w-4' /> : undefined,
+      icon: isGoogleOIDC(status) ? (
+        <IconGoogle className='h-4 w-4' />
+      ) : undefined,
     })
   }
 

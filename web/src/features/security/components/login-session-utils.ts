@@ -18,6 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { TFunction } from 'i18next'
 
+import type { SystemStatus } from '@/features/auth/types'
+import { oidcProviderName } from '@/lib/oauth'
+import { readCachedStatus } from '@/lib/status-query'
+
 export function sessionDevice(
   userAgent: string,
   unknownDevice: string,
@@ -72,7 +76,7 @@ export function loginMethodLabel(method: string, t: TFunction): string {
     discord: 'Discord',
     github: 'GitHub',
     linuxdo: 'LinuxDO',
-    oidc: 'OIDC',
+    oidc: oidcProviderName(readCachedStatus() as SystemStatus | null),
   }
   return `${t('OAuth')} · ${providerNames[provider] || provider}`
 }

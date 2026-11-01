@@ -19,6 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { describe, expect, test } from 'vitest'
 
+import { STATUS_STORAGE_KEY } from '@/lib/status-query'
+
 import { loginMethodLabel, sessionDevice } from '../login-session-utils'
 
 const translate = ((key: string) => key) as TFunction
@@ -31,6 +33,19 @@ describe('login session presentation', () => {
     expect(loginMethodLabel('oauth:custom-provider', translate)).toBe(
       'OAuth · custom-provider'
     )
+  })
+
+  test('names an OIDC login after the provider the site configured', () => {
+    expect(loginMethodLabel('oauth:oidc', translate)).toBe('OAuth · OIDC')
+    window.localStorage.setItem(
+      STATUS_STORAGE_KEY,
+      JSON.stringify({ oidc_display_name: 'Google' })
+    )
+    try {
+      expect(loginMethodLabel('oauth:oidc', translate)).toBe('OAuth · Google')
+    } finally {
+      window.localStorage.removeItem(STATUS_STORAGE_KEY)
+    }
   })
 
   test('labels iPad Safari as iOS when its user agent also mentions Mac OS X', () => {
