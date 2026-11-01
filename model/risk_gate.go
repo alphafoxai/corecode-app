@@ -51,6 +51,43 @@ type RiskGateHourlyCount struct {
 	DecisionFailures int64 `json:"decision_failures" gorm:"bigint;not null;default:0"`
 }
 
+// RiskCustomerHourlyCount counts one customer's Claude requests in one hour
+// by client and shape, so an operator can see harvesting that no single
+// request shows: many bare requests from a client that is not Claude Code.
+type RiskCustomerHourlyCount struct {
+	UserId int   `json:"user_id" gorm:"primaryKey;autoIncrement:false"`
+	Hour   int64 `json:"hour" gorm:"column:hour_start;primaryKey;autoIncrement:false;index"`
+	// Requests is every Claude request of the customer that entered the gate.
+	Requests int64 `json:"requests" gorm:"bigint;not null;default:0"`
+	// OtherClient is the requests not recognized as official Claude Code.
+	OtherClient int64 `json:"other_client" gorm:"bigint;not null;default:0"`
+	// Bare is the requests with one message besides system prompts and no
+	// tools. Claude Code's own side requests have this shape too.
+	Bare int64 `json:"bare" gorm:"bigint;not null;default:0"`
+	// BareOtherClient is the bare requests not from official Claude Code.
+	BareOtherClient int64 `json:"bare_other_client" gorm:"bigint;not null;default:0"`
+}
+
+// AddRiskCustomerCounts adds requests, other client, bare and bare other
+// client counts to one customer's hour. Two servers run during a release, so
+// the row is created if missing and incremented in the database.
+func AddRiskCustomerCounts(userId int, hour int64, counts [4]int64) error {
+	if err := DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&RiskCustomerHourlyCount{UserId: userId, Hour: hour}).Error; err != nil {
+		return err
+	}
+	return DB.Model(&RiskCustomerHourlyCount{}).Where("user_id = ? AND hour_start = ?", userId, hour).Updates(map[string]any{
+		"requests":          gorm.Expr("requests + ?", counts[0]),
+		"other_client":      gorm.Expr("other_client + ?", counts[1]),
+		"bare":              gorm.Expr("bare + ?", counts[2]),
+		"bare_other_client": gorm.Expr("bare_other_client + ?", counts[3]),
+	}).Error
+}
+
+// DeleteRiskCustomerCountsBefore removes customer hours that start before before.
+func DeleteRiskCustomerCountsBefore(before int64) error {
+	return DB.Where("hour_start < ?", before).Delete(&RiskCustomerHourlyCount{}).Error
+}
+
 func CreateRiskGateEvent(event *RiskGateEvent) error {
 	return DB.Create(event).Error
 }

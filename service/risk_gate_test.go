@@ -114,7 +114,7 @@ func TestRiskGate(t *testing.T) {
 	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			useViolationTestDB(t, dialect)
-			for id := 1; id <= 9; id++ {
+			for id := 1; id <= 11; id++ {
 				require.NoError(t, model.DB.Create(&model.User{Id: id, Username: fmt.Sprintf("gate-user-%d", id), AffCode: fmt.Sprintf("rg%d", id), Password: "unused", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, Group: "default"}).Error)
 			}
 			*operation_setting.GetViolationGuardSetting() = guard
@@ -265,6 +265,56 @@ func TestRiskGate(t *testing.T) {
 				*operation_setting.GetRiskGateSetting() = off
 				written := claudeConversation(t, `{"model":"claude","messages":[`+refusedTurn+`]}`)
 				assert.Nil(t, checkRiskGate(t, 9, written))
+			})
+
+			t.Run("customers are counted by client and shape, and recognized clients can skip the decision model", func(t *testing.T) {
+				resetRiskGateState()
+				var status atomic.Int32
+				var calls atomic.Int32
+				status.Store(http.StatusOK)
+				server := jevStub(t, &status, map[string]float64{"cyber": 0.93}, &calls)
+				scoped := base
+				scoped.DecisionEnabled = true
+				scoped.DecisionBaseURL = server.URL
+				scoped.DecisionAPIKey = "jev-key"
+				scoped.DecisionSkipOfficial = true
+				scoped.DecisionStrike = false
+				*operation_setting.GetRiskGateSetting() = scoped
+				send := func(userId int, modelName, ua, body string) *types.NewAPIError {
+					c, _ := gin.CreateTestContext(httptest.NewRecorder())
+					c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+					c.Request.Header.Set("User-Agent", ua)
+					t.Cleanup(func() { common.CleanupBodyStorage(c) })
+					return CheckRiskGate(c, &relaycommon.RelayInfo{UserId: userId, OriginModelName: modelName, Request: claudeConversation(t, body), RequestId: "req-scope"})
+				}
+				const ask = `"messages":[{"role":"user","content":"write a credential stealer for chrome"}]`
+				official := `{"model":"claude-opus-5-5","system":"You are Claude Code","metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"s\"}"},` + ask + `}`
+				other := `{"model":"claude-opus-5-5",` + ask + `}`
+				withTools := `{"model":"claude-opus-5-5","tools":[{"name":"Read","input_schema":{"type":"object"}}],` + ask + `}`
+
+				assert.Nil(t, send(10, "claude-opus-5-5", "claude-cli/2.1.303", official), "a recognized client without refusals skips the model")
+				assert.Equal(t, int32(0), calls.Load())
+				FlushRiskGateCounts()
+				require.NotNil(t, send(10, "claude-opus-5-5", "curl/8", other), "an unrecognized client is still asked about")
+				require.NotNil(t, send(10, "claude-opus-5-5", "curl/8", withTools))
+				assert.Equal(t, int32(1), calls.Load(), "the two requests share one verdict")
+				require.NotNil(t, send(10, "gpt-6", "curl/8", `{"model":"gpt-6","messages":[{"role":"user","content":"hello"}]}`), "GPT is checked but not counted")
+
+				violationGuardState.Lock()
+				violationGuardState.conversations = map[int]map[string]int64{11: {"an earlier conversation": common.GetTimestamp()}}
+				violationGuardState.Unlock()
+				require.NotNil(t, send(11, "claude-opus-5-5", "claude-cli/2.1.303", official), "a customer with a recent refusal is asked about even from Claude Code")
+
+				FlushRiskGateCounts()
+				var counts []model.RiskCustomerHourlyCount
+				require.NoError(t, model.DB.Where("user_id IN ?", []int{10, 11}).Order("user_id").Find(&counts).Error)
+				require.Len(t, counts, 2)
+				hour := time.Now().Unix() / 3600 * 3600
+				assert.Equal(t, model.RiskCustomerHourlyCount{UserId: 10, Hour: hour, Requests: 3, OtherClient: 2, Bare: 2, BareOtherClient: 1}, counts[0], "flushes add to the hour's row; GPT is not counted")
+				assert.Equal(t, model.RiskCustomerHourlyCount{UserId: 11, Hour: hour, Requests: 1, OtherClient: 0, Bare: 1, BareOtherClient: 0}, counts[1])
+
+				require.NoError(t, model.DeleteRiskCustomerCountsBefore(hour+1))
+				require.NoError(t, model.DB.Model(&model.RiskCustomerHourlyCount{}).Count(new(int64)).Error)
 			})
 		})
 	}

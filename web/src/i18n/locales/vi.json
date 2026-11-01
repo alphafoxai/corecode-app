@@ -7437,6 +7437,8 @@
     "Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).": "Dán đối tượng distill-rules.json của vm2api để dùng các ngoại lệ, dấu vân tay và kiểm tra cấu trúc của nó, hoặc nhập các dòng theo định dạng cũ tên | biểu thức chính quy. Các dòng định dạng cũ bắt đầu bằng # bị bỏ qua; thêm (?i) để không phân biệt hoa thường. Cờ JSON tùy chọn: zero_inject (mặc định false), openai_platform_enabled (mặc định false), detect_proxied_official_cc (mặc định true).",
     "Record a violation": "Ghi nhận vi phạm",
     "A hit counts as a violation against the customer under the violation guard policy.": "Khi khớp, tính là một vi phạm của khách theo chính sách xử lý vi phạm.",
+    "Skip recognized Claude Code clients": "Bỏ qua ứng dụng được nhận diện là Claude Code",
+    "A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.": "Yêu cầu từ Claude Code chính thức không được gửi cho mô hình, trừ khi khách có cuộc hội thoại bị từ chối trong khoảng tính vi phạm. Ứng dụng có thể giả làm Claude Code để được bỏ qua.",
     "2 · Hard regex": "2 · Regex cứng",
     "Matches every message the customer wrote. Tool results, system prompts and system reminders are not scanned.": "Đối chiếu mọi tin nhắn khách tự viết. Không quét kết quả công cụ, system prompt và lời nhắc hệ thống.",
     "Hard regex rules": "Quy tắc regex cứng",

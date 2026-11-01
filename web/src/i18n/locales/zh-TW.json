@@ -7437,6 +7437,8 @@
     "Paste a vm2api distill-rules.json object to use its exemptions, fingerprints and structure checks, or enter legacy name | regular expression lines. Legacy lines starting with # are ignored; add (?i) to ignore case. Optional JSON flags: zero_inject (default false), openai_platform_enabled (default false), detect_proxied_official_cc (default true).": "貼上 vm2api distill-rules.json 物件，使用其中的豁免條件、指紋和結構檢查；也可輸入舊版「名稱 | 正規表示式」格式。舊版格式中以 # 開頭的行會被忽略；加 (?i) 忽略大小寫。可選 JSON 旗標：zero_inject（預設 false）、openai_platform_enabled（預設 false）、detect_proxied_official_cc（預設 true）。",
     "Record a violation": "記一次違規",
     "A hit counts as a violation against the customer under the violation guard policy.": "命中後依違規處置的策略給該客戶記一次違規。",
+    "Skip recognized Claude Code clients": "略過識別為 Claude Code 的用戶端",
+    "A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.": "來自官方 Claude Code 的請求不送模型判斷，除非該客戶在違規統計期內有被拒的對話。用戶端可以冒充 Claude Code 來略過。",
     "2 · Hard regex": "2 · 硬正則",
     "Matches every message the customer wrote. Tool results, system prompts and system reminders are not scanned.": "比對客戶自己寫的每則訊息。不掃工具回傳、system 提示詞和系統提醒。",
     "Hard regex rules": "硬正則規則",

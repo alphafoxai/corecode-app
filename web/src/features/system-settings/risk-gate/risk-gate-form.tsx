@@ -75,6 +75,7 @@ const riskGateSchema = z.object({
   decision_timeout_ms: z.number().int().min(200).max(30000),
   decision_fail_open: z.boolean(),
   decision_strike: z.boolean(),
+  decision_skip_official: z.boolean(),
 })
 
 type RiskGateFormValues = z.output<typeof riskGateSchema>
@@ -407,6 +408,13 @@ export function RiskGateForm(props: RiskGateFormProps) {
                 t('Record a violation'),
                 t(
                   'A hit counts as a violation against the customer under the violation guard policy.'
+                )
+              )}
+              {switchField(
+                'decision_skip_official',
+                t('Skip recognized Claude Code clients'),
+                t(
+                  'A request from official Claude Code is not sent to the model unless its customer had a refused conversation in the violation window. A client can imitate Claude Code to skip it.'
                 )
               )}
             </div>

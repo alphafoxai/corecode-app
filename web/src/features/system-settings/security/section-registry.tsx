@@ -164,6 +164,8 @@ const SECURITY_SECTIONS = [
             settings['risk_gate_setting.decision_fail_open'],
           'risk_gate_setting.decision_strike':
             settings['risk_gate_setting.decision_strike'],
+          'risk_gate_setting.decision_skip_official':
+            settings['risk_gate_setting.decision_skip_official'],
         }}
       />
     ),

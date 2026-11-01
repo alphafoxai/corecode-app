@@ -76,6 +76,22 @@ const (
 	violationVerdictConversation = "conversation"
 )
 
+// violationRefusedRecently reports whether the upstream refused one of the
+// user's conversations within the strike window. It reads the guard's loaded
+// state, so it is false while the guard is off.
+func violationRefusedRecently(userId int) bool {
+	setting := operation_setting.GetViolationGuardSetting()
+	windowStart := common.GetTimestamp() - int64(setting.StrikeWindowDays)*86400
+	violationGuardState.RLock()
+	defer violationGuardState.RUnlock()
+	for _, refusedAt := range violationGuardState.conversations[userId] {
+		if refusedAt > windowStart {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckViolationGuard rejects, before any channel is used, a request from an
 // account suspended for a violation, or one that resends a conversation the
 // upstream refused. In observe mode it only logs what it would reject. When

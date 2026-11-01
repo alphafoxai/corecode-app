@@ -450,6 +450,7 @@ export type SecuritySettings = {
   'risk_gate_setting.decision_timeout_ms': number
   'risk_gate_setting.decision_fail_open': boolean
   'risk_gate_setting.decision_strike': boolean
+  'risk_gate_setting.decision_skip_official': boolean
 }
 
 export type UpstreamChannel = {

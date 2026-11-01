@@ -68,6 +68,7 @@ const defaultSecuritySettings: SecuritySettings = {
   'risk_gate_setting.decision_timeout_ms': 3000,
   'risk_gate_setting.decision_fail_open': true,
   'risk_gate_setting.decision_strike': true,
+  'risk_gate_setting.decision_skip_official': false,
 }
 
 export function SecuritySettings() {

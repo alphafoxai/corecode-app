@@ -8,7 +8,6 @@ import (
 	"unicode/utf16"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/pkg/riskpolicy"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
@@ -29,24 +28,52 @@ var (
 	riskClientVersion      = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 )
 
-func riskGatePolicyInput(c *gin.Context, source string) (riskpolicy.Input, error) {
+// riskGateRequest is what the gate reads from a request body once: the body
+// for the structured policy, and the client and shape that the per-customer
+// counters and the decision stage's scope use.
+type riskGateRequest struct {
+	body gjson.Result
+	// official is a recognized official Claude Code client. Recognition reads
+	// headers and body fields the client sets, so a copy passes it too.
+	official bool
+	// bare is one message besides system prompts and no tools: the shape of a
+	// harvest request, and of Claude Code's own side requests.
+	bare bool
+}
+
+// readRiskGateRequest parses the request body. source is the distillation
+// policy, whose detect_proxied_official_cc applies to client recognition.
+func readRiskGateRequest(c *gin.Context, source string) (riskGateRequest, error) {
 	storage, err := common.GetBodyStorage(c)
 	if err != nil {
-		return riskpolicy.Input{}, err
+		return riskGateRequest{}, err
 	}
 	raw, err := storage.Bytes()
 	if err != nil {
-		return riskpolicy.Input{}, err
+		return riskGateRequest{}, err
 	}
 	body := gjson.ParseBytes(raw)
 	if !body.IsObject() {
-		return riskpolicy.Input{}, errors.New("risk policy requires a JSON request object")
+		return riskGateRequest{}, errors.New("risk policy requires a JSON request object")
 	}
 	detectProxy := gjson.Get(source, "detect_proxied_official_cc")
-	return riskpolicy.Input{
-		Inbound: body, Body: body,
-		Official:   riskGateOfficialClient(c.Request.Header, body, !detectProxy.Exists() || detectProxy.Bool()),
-		ZeroInject: gjson.Get(source, "zero_inject").Bool(),
+	turns := 0
+	body.Get("messages").ForEach(func(_, message gjson.Result) bool {
+		if role := message.Get("role").String(); role != "system" && role != "developer" {
+			turns++
+		}
+		return true
+	})
+	// The Responses API carries the conversation in input, a string or a list.
+	if input := body.Get("input"); input.IsArray() {
+		turns += len(input.Array())
+	} else if input.Exists() {
+		turns++
+	}
+	return riskGateRequest{
+		body:     body,
+		official: riskGateOfficialClient(c.Request.Header, body, !detectProxy.Exists() || detectProxy.Bool()),
+		bare:     turns == 1 && len(body.Get("tools").Array()) == 0,
 	}, nil
 }
 
