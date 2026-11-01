@@ -3080,6 +3080,8 @@
     "Inpaint": "局部重繪",
     "Input": "輸入",
     "Input pre-consume multiplier": "輸入預扣倍率",
+    "Maximum unreserved amount (USD)": "最大未預扣額度（美元）",
+    "When the balance cannot reserve the full estimate, a request still runs if the unreserved part is at most this amount and is charged in full afterwards, which can leave the balance below zero. A larger gap is refused. Set to 0 to require full reservation. Subscriptions without wallet overflow and asynchronous tasks always reserve in full.": "餘額不足以預扣全部預估額度時，若未預扣的部分不超過此金額，請求仍會執行，並在完成後按實際全額扣費，餘額可能變為負數；差額更大則拒絕請求。設為 0 表示必須全額預扣。不允許錢包溢出的訂閱和非同步任務始終全額預扣。",
     "Input price": "輸入價格",
     "Input price is required before saving dependent prices.": "儲存依賴價格前必須先填寫輸入價格。",
     "Input Price: High to Low": "輸入價格：從高到低",

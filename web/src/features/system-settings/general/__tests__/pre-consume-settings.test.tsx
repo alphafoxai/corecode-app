@@ -49,6 +49,7 @@ function Fixture() {
               enable_free_model_pre_consume: true,
               trust_quota_usd: 10,
               pre_consume_multiplier: 1,
+              max_shortfall_usd: 1,
             },
           }}
         />
@@ -145,3 +146,33 @@ test.each(['', '-1'])(
     expect(api.put).not.toHaveBeenCalled()
   }
 )
+
+test.each([
+  ['0', 0],
+  ['2.5', 2.5],
+])('unreserved cap %s saves its numeric value', async (value, saved) => {
+  await renderSettings()
+  const input = screen.getByRole('spinbutton', {
+    name: 'Maximum unreserved amount (USD)',
+  })
+  expect(input).toHaveValue(1)
+  fireEvent.change(input, { target: { value } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+  await waitFor(() =>
+    expect(api.put).toHaveBeenCalledWith('/api/option/', {
+      key: 'quota_setting.max_shortfall_usd',
+      value: saved,
+    })
+  )
+})
+
+test('a negative unreserved cap shows a field error and prevents saving', async () => {
+  await renderSettings()
+  const input = screen.getByRole('spinbutton', {
+    name: 'Maximum unreserved amount (USD)',
+  })
+  fireEvent.change(input, { target: { value: '-1' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+  await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'))
+  expect(api.put).not.toHaveBeenCalled()
+})

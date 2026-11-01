@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -12,6 +13,11 @@ type QuotaSetting struct {
 	EnableFreeModelPreConsume bool    `json:"enable_free_model_pre_consume"` // 是否对免费模型启用预消耗
 	TrustQuotaUSD             float64 `json:"trust_quota_usd"`               // 钱包免预扣门槛，0 表示禁用
 	PreConsumeMultiplier      float64 `json:"pre_consume_multiplier"`        // 预计输入费用的预扣倍率，仅影响预留
+	// MaxShortfallUSD caps the part of a request's estimate that its balances
+	// could not reserve (the shortfall). A request is refused when the
+	// shortfall is larger, so a nearly empty balance cannot admit a request
+	// that settles far below zero. 0 requires full reservation.
+	MaxShortfallUSD float64 `json:"max_shortfall_usd"`
 }
 
 // 默认配置
@@ -19,6 +25,7 @@ var quotaSetting = QuotaSetting{
 	EnableFreeModelPreConsume: true,
 	TrustQuotaUSD:             10,
 	PreConsumeMultiplier:      1,
+	MaxShortfallUSD:           1,
 }
 
 func init() {
@@ -32,7 +39,7 @@ func GetQuotaSetting() *QuotaSetting {
 
 // ValidateQuotaOption validates reservation settings before they are persisted.
 func ValidateQuotaOption(key, value string) error {
-	if key != "quota_setting.trust_quota_usd" && key != "quota_setting.pre_consume_multiplier" {
+	if key != "quota_setting.trust_quota_usd" && key != "quota_setting.pre_consume_multiplier" && key != "quota_setting.max_shortfall_usd" {
 		return nil
 	}
 	number, err := strconv.ParseFloat(value, 64)
@@ -52,4 +59,17 @@ func InputPreConsumeMultiplier() (float64, error) {
 		return 0, fmt.Errorf("pre-consume multiplier must be a finite number greater than zero")
 	}
 	return multiplier, nil
+}
+
+// MaxShortfallQuota is MaxShortfallUSD in quota units; an invalid runtime
+// value counts as 0, which requires full reservation.
+func MaxShortfallQuota() int {
+	limit := quotaSetting.MaxShortfallUSD * common.QuotaPerUnit
+	if limit <= 0 || math.IsNaN(limit) || math.IsInf(limit, 0) {
+		return 0
+	}
+	if limit >= math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int(limit)
 }

@@ -3080,6 +3080,8 @@
     "Inpaint": "インペイント",
     "Input": "入力",
     "Input pre-consume multiplier": "入力の事前引き落とし倍率",
+    "Maximum unreserved amount (USD)": "未予約額の上限（USD）",
+    "When the balance cannot reserve the full estimate, a request still runs if the unreserved part is at most this amount and is charged in full afterwards, which can leave the balance below zero. A larger gap is refused. Set to 0 to require full reservation. Subscriptions without wallet overflow and asynchronous tasks always reserve in full.": "残高で見積額全体を予約できない場合、未予約分がこの金額以下ならリクエストは実行され、完了後に全額が請求されます（残高がマイナスになることがあります）。差額がこれを超えると拒否されます。0 にすると全額予約が必須になります。ウォレットへの超過を許可しないサブスクリプションと非同期タスクは常に全額を予約します。",
     "Input price": "入力価格",
     "Input price is required before saving dependent prices.": "依存する価格を保存する前に入力価格が必要です。",
     "Input Price: High to Low": "入力価格：高い順",
