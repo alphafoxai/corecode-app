@@ -20,9 +20,17 @@ import { Loader2, Send, Shield, UserRound, type LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IconGithub, IconLinuxDo, IconWeChat } from '@/assets/brand-icons'
+import {
+  IconGithub,
+  IconGoogle,
+  IconLinuxDo,
+  IconWeChat,
+} from '@/assets/brand-icons'
+import { isGoogleOIDC, oidcProviderName } from '@/lib/oauth'
+import { readCachedStatus } from '@/lib/status-query'
 
 import { AuthLayout } from '../auth-layout'
+import type { SystemStatus } from '../types'
 
 type OAuthCallbackScreenProps = {
   provider: string
@@ -41,7 +49,6 @@ const providerDictionary: Record<string, ProviderMeta> = {
       <IconGithub className={props.className} focusable='false' />
     ),
   },
-  oidc: { label: 'OIDC', Icon: Shield },
   linuxdo: {
     label: 'LinuxDO',
     Icon: (props: { className?: string }) => (
@@ -64,6 +71,13 @@ export function OAuthCallbackScreen({
   const { t } = useTranslation()
   const { label, Icon } = useMemo(() => {
     const normalized = provider?.toLowerCase() ?? ''
+    if (normalized === 'oidc') {
+      const status = readCachedStatus() as SystemStatus | null
+      return {
+        label: oidcProviderName(status),
+        Icon: isGoogleOIDC(status) ? IconGoogle : Shield,
+      }
+    }
     return (
       providerDictionary[normalized] || {
         label: 'account',

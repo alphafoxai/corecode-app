@@ -26,6 +26,7 @@ import {
   IconWeChat,
   IconLinuxDo,
   IconDiscord,
+  IconGoogle,
 } from '@/assets/brand-icons'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StatusBadge } from '@/components/status-badge'
@@ -49,6 +50,8 @@ import { api } from '@/lib/api'
 import {
   buildOAuthAuthorizationUrl,
   indexCustomOAuthBindings,
+  isGoogleOIDC,
+  oidcProviderName,
   type CustomOAuthBinding,
 } from '@/lib/oauth'
 import {
@@ -278,8 +281,8 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
     },
     {
       id: 'oidc',
-      label: t('OIDC'),
-      icon: Shield,
+      label: oidcProviderName(status),
+      icon: isGoogleOIDC(status) ? IconGoogle : Shield,
       value: (profile as unknown as Record<string, unknown>).oidc_id as
         | string
         | undefined,

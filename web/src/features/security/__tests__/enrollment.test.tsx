@@ -128,6 +128,33 @@ it.each(['2fa', 'passkey'] as const)(
   }
 )
 
+it('names the OIDC binding after the provider the site configured', async () => {
+  vi.spyOn(api, 'get').mockImplementation(async (url) => ({
+    data: {
+      success: true,
+      data:
+        url === '/api/status'
+          ? {
+              oidc_enabled: true,
+              oidc_display_name: 'Google',
+              oidc_authorization_endpoint:
+                'https://accounts.google.com/o/oauth2/v2/auth',
+            }
+          : [],
+    },
+  }))
+  render(
+    <QueryClientProvider client={client}>
+      <AccountBindings
+        profile={{ email: 'bound@example.com' } as UserProfile}
+        onUpdate={vi.fn()}
+      />
+    </QueryClientProvider>
+  )
+  expect(await screen.findByText('Google', { selector: 'p' })).toBeVisible()
+  expect(screen.queryByText('OIDC')).toBeNull()
+})
+
 it('refreshes Telegram bindings from the server result after the callback popup has closed', async () => {
   const popup = {
     closed: false,
